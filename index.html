@@ -2700,7 +2700,7 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
     async function eijiCallGroq(messages, useTools) {
         if (useTools === undefined) useTools = true;
         const body = {
-            model: 'gemini-2.0-flash',
+            model: 'google/gemini-2.0-flash-exp:free',
             max_tokens: 1024,
             messages
         };
