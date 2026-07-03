@@ -2791,19 +2791,21 @@ nav button.glass { color: #fff; }
             const lend = new ethers.Contract(CONTRACT_ADDRS.LendingBorrowing, LEND_ABI, provider);
             const cirBTC = new ethers.Contract(CONTRACT_ADDRS.cirBTC, CIRBTC_ABI, provider);
 
-            const [loanData, bal] = await Promise.all([
+            const [collBig, loanData, bal] = await Promise.all([
+                lend.collateralBalances(currentAccount),
                 lend.loans(currentAccount),
                 cirBTC.balanceOf(currentAccount),
             ]);
 
-            // The loans() struct is the source of truth for a user's collateral
-            // (collateralBalances() was returning 0 — not what the contract actually tracks).
-            lendUserData.collateral = loanData.collateral;
+            // collateralBalances() is updated by depositCollateral()/withdrawCollateral() —
+            // it's the live collateral balance. loans().collateral is only a snapshot taken
+            // at the moment a loan was opened, so it stays 0 until a loan is actually taken.
+            lendUserData.collateral = collBig;
             lendUserData.loanAmt = loanData.amount;
             lendUserData.loanActive = loanData.isActive;
             lendUserData.cirBTCBal = bal;
 
-            const collFloat = parseFloat(ethers.utils.formatUnits(loanData.collateral, CIRBTC_DECIMALS));
+            const collFloat = parseFloat(ethers.utils.formatUnits(collBig, CIRBTC_DECIMALS));
             const loanFloat = parseFloat(ethers.utils.formatUnits(loanData.amount, USDC_DECIMALS));
             const balFloat  = parseFloat(ethers.utils.formatUnits(bal, CIRBTC_DECIMALS));
             const collValueUSDC = collFloat * CIRBTC_PRICE_USDC;
