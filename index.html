@@ -407,6 +407,69 @@ nav button.glass { color: #fff; }
 /* Add token modal */
 #addTokenModal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(4,8,22,.93); align-items:center; justify-content:center; }
 #addTokenModal.open { display:flex; }
+
+/* ── Lend & Borrow View ── */
+#lendView {
+    position: fixed; inset: 0; z-index: 200;
+    background: #040816;
+    transform: translateX(100%);
+    transition: transform .38s cubic-bezier(.4,0,.2,1);
+    overflow-y: auto;
+    will-change: transform;
+    -webkit-overflow-scrolling: touch;
+}
+#lendView.open { transform: translateX(0); }
+
+.lend-main-btn {
+    width: 100%; padding: 14px;
+    border-radius: 16px; font-weight: 800; font-size: 1rem;
+    cursor: pointer; transition: .2s;
+    background: linear-gradient(135deg,#3478ff,#8b5cf6,#d66bff);
+    color: #fff; border: none;
+    box-shadow: 0 0 24px rgba(101,119,255,.3);
+}
+.lend-main-btn:disabled {
+    opacity: .45; cursor: not-allowed;
+    background: rgba(92,120,255,.2);
+    box-shadow: none;
+}
+.lend-main-btn:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 36px rgba(101,119,255,.45);
+}
+
+.health-bar-track {
+    height: 8px; border-radius: 99px;
+    background: rgba(255,255,255,.08); overflow: hidden;
+}
+.health-bar-fill {
+    height: 100%; border-radius: 99px;
+    background: linear-gradient(90deg,#ef4444,#eab308,#22c55e);
+    transition: width .6s ease;
+}
+
+.lend-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(92,120,255,.1);
+    border: 1px solid rgba(92,120,255,.2);
+    border-radius: 999px; padding: 4px 14px;
+    font-weight: 700; font-size: .8rem;
+}
+.lend-badge.danger { border-color: rgba(239,68,68,.4); color: #f87171; background: rgba(239,68,68,.1); }
+.lend-badge.warn   { border-color: rgba(234,179,8,.4);  color: #facc15; background: rgba(234,179,8,.1); }
+.lend-badge.success{ border-color: rgba(34,197,94,.4);  color: #4ade80; background: rgba(34,197,94,.1); }
+
+.liq-input-wrap {
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(92,120,255,.2);
+    border-radius: 14px; padding: 14px 16px;
+}
+.liq-input-wrap input {
+    background: transparent; border: none; outline: none;
+    color: #fff; font-size: 1.5rem; font-weight: 800;
+    width: 100%; margin-top: 4px;
+}
+.liq-input-wrap input::placeholder { color: rgba(255,255,255,.2); }
 </style>
 <script src="secrets.js"></script>
 </head>
@@ -1318,13 +1381,17 @@ nav button.glass { color: #fff; }
                 </div>
                 <div class="grid grid-cols-2 gap-2 mb-4 text-sm">
                     <div class="pool-stat-pill" style="text-align:left; padding:10px 14px;">
-                        <div class="text-gray-400 text-xs">Max borrow after</div>
-                        <div class="font-bold mt-1" id="depositPreviewMax">—</div>
+                        <div class="text-gray-400 text-xs">You deposit</div>
+                        <div class="font-bold mt-1" id="depositPreviewAmt">— cirBTC</div>
                     </div>
                     <div class="pool-stat-pill" style="text-align:left; padding:10px 14px;">
-                        <div class="text-gray-400 text-xs">Collateral factor</div>
-                        <div class="font-bold mt-1 text-green-400">50%</div>
+                        <div class="text-gray-400 text-xs">Max borrow after</div>
+                        <div class="font-bold mt-1" id="depositPreviewMax">— USDC</div>
                     </div>
+                </div>
+                <div class="pool-stat-pill mb-4" style="text-align:left; padding:10px 14px;">
+                    <div class="text-gray-400 text-xs">Collateral factor</div>
+                    <div class="font-bold mt-1 text-green-400">50%</div>
                 </div>
                 <button class="lend-main-btn" id="btnDeposit" onclick="doDeposit()" disabled>Connect Wallet</button>
             </div>
@@ -1341,7 +1408,11 @@ nav button.glass { color: #fff; }
                         <input id="borrowAmt" type="number" placeholder="0.00" min="0" step="1" oninput="updateBorrowPreview()">
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-2 mb-4 text-sm">
+                <div class="grid grid-cols-3 gap-2 mb-4 text-sm">
+                    <div class="pool-stat-pill" style="text-align:left; padding:10px 14px;">
+                        <div class="text-gray-400 text-xs">You borrow</div>
+                        <div class="font-bold mt-1" id="borrowPreviewAmt">— USDC</div>
+                    </div>
                     <div class="pool-stat-pill" style="text-align:left; padding:10px 14px;">
                         <div class="text-gray-400 text-xs">Interest rate</div>
                         <div class="font-bold mt-1 text-yellow-400">~5% APR</div>
@@ -1639,7 +1710,7 @@ nav button.glass { color: #fff; }
         EURC              : '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a',
         USDT              : '0x175CdB1D338945f0D851A741ccF787D343E57952',
         cirBTC            : '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF',
-        LendingBorrowing  : 'DEPLOY_YOUR_CONTRACT_HERE',
+        LendingBorrowing  : '0x15e803e1Bac195896B15561337aA97cd0ffBcD58',
     };
 
     /* Minimal ERC-20 ABI (approve + balanceOf + decimals) */
@@ -2773,7 +2844,18 @@ nav button.glass { color: #fff; }
         document.getElementById('lendView').classList.add('open');
         document.body.style.overflow = 'hidden';
         setNavActive('navLend');
-        if (currentAccount) refreshLendData();
+        if (currentAccount) {
+            // Enable buttons immediately so user can interact while data loads
+            ['btnDeposit','btnBorrow','btnRepay','btnWithdraw'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.disabled = false;
+            });
+            document.getElementById('btnDeposit').textContent = 'Deposit cirBTC';
+            document.getElementById('btnBorrow').textContent  = 'Borrow USDC';
+            document.getElementById('btnRepay').textContent   = 'Repay USDC';
+            document.getElementById('btnWithdraw').textContent = 'Withdraw cirBTC';
+            refreshLendData();
+        }
     }
 
     function switchLendTab(tab) {
@@ -2851,8 +2933,10 @@ nav button.glass { color: #fff; }
 
         } catch(e) {
             console.error('refreshLendData error:', e);
-            if (CONTRACT_ADDRS.LendingBorrowing === 'DEPLOY_YOUR_CONTRACT_HERE') {
-                showToast('warning', 'Contract Not Set', 'Set LendingBorrowing contract address first', 5000);
+            if (!CONTRACT_ADDRS.LendingBorrowing) {
+                showToast('warning', 'Contract Belum Diset', 'Isi alamat contract LendingBorrowing di CONTRACT_ADDRS terlebih dahulu', 6000);
+            } else {
+                showToast('error', 'Gagal Memuat Data', e.reason || e.message, 5000);
             }
         }
     }
@@ -2908,9 +2992,10 @@ nav button.glass { color: #fff; }
     }
 
     async function doDeposit() {
-        if (!currentAccount) return;
+        if (!currentAccount) return showToast('error', 'Wallet Belum Terhubung', 'Hubungkan wallet terlebih dahulu');
+        if (!CONTRACT_ADDRS.LendingBorrowing) return showToast('error', 'Contract Belum Diset', 'Isi alamat LendingBorrowing contract di kode');
         const amt = parseFloat(document.getElementById('depositAmt').value);
-        if (!amt || amt <= 0) return showToast('error', 'Invalid Amount', 'Enter a valid amount');
+        if (!amt || amt <= 0) return showToast('error', 'Jumlah Tidak Valid', 'Masukkan jumlah yang valid');
         try {
             document.getElementById('btnDeposit').disabled = true;
             const provider = new ethers.providers.Web3Provider(window.ethereum);
@@ -2932,9 +3017,10 @@ nav button.glass { color: #fff; }
     }
 
     async function doBorrow() {
-        if (!currentAccount) return;
+        if (!currentAccount) return showToast('error', 'Wallet Belum Terhubung', 'Hubungkan wallet terlebih dahulu');
+        if (!CONTRACT_ADDRS.LendingBorrowing) return showToast('error', 'Contract Belum Diset', 'Isi alamat LendingBorrowing contract di kode');
         const amt = parseFloat(document.getElementById('borrowAmt').value);
-        if (!amt || amt <= 0) return showToast('error', 'Invalid Amount', 'Enter a valid amount');
+        if (!amt || amt <= 0) return showToast('error', 'Jumlah Tidak Valid', 'Masukkan jumlah yang valid');
         try {
             document.getElementById('btnBorrow').disabled = true;
             const provider = new ethers.providers.Web3Provider(window.ethereum);
@@ -2955,9 +3041,10 @@ nav button.glass { color: #fff; }
     }
 
     async function doRepay() {
-        if (!currentAccount) return;
+        if (!currentAccount) return showToast('error', 'Wallet Belum Terhubung', 'Hubungkan wallet terlebih dahulu');
+        if (!CONTRACT_ADDRS.LendingBorrowing) return showToast('error', 'Contract Belum Diset', 'Isi alamat LendingBorrowing contract di kode');
         const amt = parseFloat(document.getElementById('repayAmt').value);
-        if (!amt || amt <= 0) return showToast('error', 'Invalid Amount', 'Enter a valid amount');
+        if (!amt || amt <= 0) return showToast('error', 'Jumlah Tidak Valid', 'Masukkan jumlah yang valid');
         try {
             document.getElementById('btnRepay').disabled = true;
             const provider = new ethers.providers.Web3Provider(window.ethereum);
@@ -2979,9 +3066,10 @@ nav button.glass { color: #fff; }
     }
 
     async function doWithdraw() {
-        if (!currentAccount) return;
+        if (!currentAccount) return showToast('error', 'Wallet Belum Terhubung', 'Hubungkan wallet terlebih dahulu');
+        if (!CONTRACT_ADDRS.LendingBorrowing) return showToast('error', 'Contract Belum Diset', 'Isi alamat LendingBorrowing contract di kode');
         const amt = parseFloat(document.getElementById('withdrawAmt').value);
-        if (!amt || amt <= 0) return showToast('error', 'Invalid Amount', 'Enter a valid amount');
+        if (!amt || amt <= 0) return showToast('error', 'Jumlah Tidak Valid', 'Masukkan jumlah yang valid');
         try {
             document.getElementById('btnWithdraw').disabled = true;
             const provider = new ethers.providers.Web3Provider(window.ethereum);

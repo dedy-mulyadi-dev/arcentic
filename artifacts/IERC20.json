@@ -37,6 +37,7 @@
 		},
 		"gasEstimates": null,
 		"methodIdentifiers": {
+			"balanceOf(address)": "70a08231",
 			"transfer(address,uint256)": "a9059cbb",
 			"transferFrom(address,address,uint256)": "23b872dd"
 		}
@@ -46,7 +47,26 @@
 			"inputs": [
 				{
 					"internalType": "address",
-					"name": "recipient",
+					"name": "account",
+					"type": "address"
+				}
+			],
+			"name": "balanceOf",
+			"outputs": [
+				{
+					"internalType": "uint256",
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"inputs": [
+				{
+					"internalType": "address",
+					"name": "to",
 					"type": "address"
 				},
 				{
@@ -70,12 +90,12 @@
 			"inputs": [
 				{
 					"internalType": "address",
-					"name": "sender",
+					"name": "from",
 					"type": "address"
 				},
 				{
 					"internalType": "address",
-					"name": "recipient",
+					"name": "to",
 					"type": "address"
 				},
 				{

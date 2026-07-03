@@ -9,7 +9,26 @@
 				"inputs": [
 					{
 						"internalType": "address",
-						"name": "recipient",
+						"name": "account",
+						"type": "address"
+					}
+				],
+				"name": "balanceOf",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "to",
 						"type": "address"
 					},
 					{
@@ -33,12 +52,12 @@
 				"inputs": [
 					{
 						"internalType": "address",
-						"name": "sender",
+						"name": "from",
 						"type": "address"
 					},
 					{
 						"internalType": "address",
-						"name": "recipient",
+						"name": "to",
 						"type": "address"
 					},
 					{
@@ -72,7 +91,7 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"ArcenticMultiPool.sol": "IERC20"
+			"ArcenticLendingBorrowing.sol": "IERC20"
 		},
 		"evmVersion": "osaka",
 		"libraries": {},
@@ -86,12 +105,12 @@
 		"remappings": []
 	},
 	"sources": {
-		"ArcenticMultiPool.sol": {
-			"keccak256": "0x89b30a8757c8cc023add0dc63a66e08fa3eeea7b44d5393feac2a4207bd02237",
+		"ArcenticLendingBorrowing.sol": {
+			"keccak256": "0x6e1121d915332c678b9cad6787dd45eb644392474ed943ad9086638c56cb48f7",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://3c30558466198ae4858b375171c435f631962123ba08f48feef08d7a184717bb",
-				"dweb:/ipfs/QmawyqF7CND7RhHXc7zj8sqUXb5eDoJtTPjkWqXFJU4oLn"
+				"bzz-raw://6017cfd3239aa21540c263b5d6b56815c0fca35319602efd99e2b8bd6a9ea5f9",
+				"dweb:/ipfs/QmcdwTmE46SVq2hL3UbkvMHN59YVq83McLffpxx6HV6UvK"
 			]
 		}
 	},
