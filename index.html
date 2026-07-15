@@ -2210,13 +2210,20 @@ nav button.glass:hover {
                 } else { throw switchErr; }
             }
 
+            // Add small delay to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 500));
+
             const bal = await fetchBalance(accounts[0]);
             setConnectedUI(accounts[0], bal);
             document.dispatchEvent(new Event('walletConnected'));
         } catch(err) {
             console.error('Wallet connect error:', err);
             if (err.code === 4001) showToast('warning','Connection Rejected','Please approve the connection request in your wallet.');
-            else showToast('error','Connection Failed', err.message || String(err));
+            else if (err.message && err.message.includes('rate limit')) {
+                showToast('error','Rate Limited','Please wait a moment and try again. Too many connection attempts.');
+            } else {
+                showToast('error','Connection Failed', err.message || String(err));
+            }
             setDisconnectedUI();
         }
     }
