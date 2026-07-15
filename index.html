@@ -26,18 +26,20 @@ svg{width:100%;height:100%}
 #portfolioView {
     position: fixed; inset: 0; z-index: 200;
     background: #040816;
-    transform: translateX(100%) scale(0.95);
+    transform: scale(0.92);
     opacity: 0;
-    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    filter: blur(8px);
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
     overflow-y: auto;
-    will-change: transform, opacity;
+    will-change: transform, opacity, filter;
     -webkit-overflow-scrolling: touch;
-    backdrop-filter: blur(0px);
+    pointer-events: none;
 }
 #portfolioView.open {
-    transform: translateX(0) scale(1);
+    transform: scale(1);
     opacity: 1;
-    backdrop-filter: blur(10px);
+    filter: blur(0px);
+    pointer-events: auto;
 }
 
 .pf-header {
@@ -94,18 +96,20 @@ svg{width:100%;height:100%}
 #swapView {
     position: fixed; inset: 0; z-index: 200;
     background: #040816;
-    transform: translateX(100%) scale(0.95);
+    transform: scale(0.92);
     opacity: 0;
-    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    filter: blur(8px);
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
     overflow-y: auto;
-    will-change: transform, opacity;
+    will-change: transform, opacity, filter;
     -webkit-overflow-scrolling: touch;
-    backdrop-filter: blur(0px);
+    pointer-events: none;
 }
 #swapView.open {
-    transform: translateX(0) scale(1);
+    transform: scale(1);
     opacity: 1;
-    backdrop-filter: blur(10px);
+    filter: blur(0px);
+    pointer-events: auto;
 }
 
 .swap-header {
@@ -507,18 +511,20 @@ nav button.glass:hover {
 #poolsView {
     position: fixed; inset: 0; z-index: 200;
     background: #040816;
-    transform: translateX(100%) scale(0.95);
+    transform: scale(0.92);
     opacity: 0;
-    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    filter: blur(8px);
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
     overflow-y: auto;
-    will-change: transform, opacity;
+    will-change: transform, opacity, filter;
     -webkit-overflow-scrolling: touch;
-    backdrop-filter: blur(0px);
+    pointer-events: none;
 }
 #poolsView.open {
-    transform: translateX(0) scale(1);
+    transform: scale(1);
     opacity: 1;
-    backdrop-filter: blur(10px);
+    filter: blur(0px);
+    pointer-events: auto;
 }
 
 .pools-header {
@@ -529,22 +535,24 @@ nav button.glass:hover {
     animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
 }
 
-/* -- Lend & Borrow overlay (slide from right, same as poolsView) -- */
+/* -- Lend & Borrow overlay (cinematic fade-scale-blur) -- */
 #lendView {
     position: fixed; inset: 0; z-index: 200;
     background: #040816;
-    transform: translateX(100%) scale(0.95);
+    transform: scale(0.92);
     opacity: 0;
-    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    filter: blur(8px);
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
     overflow-y: auto;
-    will-change: transform, opacity;
+    will-change: transform, opacity, filter;
     -webkit-overflow-scrolling: touch;
-    backdrop-filter: blur(0px);
+    pointer-events: none;
 }
 #lendView.open {
-    transform: translateX(0) scale(1);
+    transform: scale(1);
     opacity: 1;
-    backdrop-filter: blur(10px);
+    filter: blur(0px);
+    pointer-events: auto;
 }
 
 .lend-header {
