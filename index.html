@@ -26,18 +26,42 @@ svg{width:100%;height:100%}
 #portfolioView {
     position: fixed; inset: 0; z-index: 200;
     background: #040816;
-    transform: translateX(100%);
-    transition: transform .38s cubic-bezier(.4,0,.2,1);
+    transform: translateX(100%) scale(0.95);
+    opacity: 0;
+    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
     overflow-y: auto;
-    will-change: transform;
+    will-change: transform, opacity;
     -webkit-overflow-scrolling: touch;
+    backdrop-filter: blur(0px);
 }
-#portfolioView.open { transform: translateX(0); }
+#portfolioView.open {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+    backdrop-filter: blur(10px);
+}
 
 .pf-header {
     position: sticky; top: 0; z-index: 10;
     background: rgba(4,8,22,.97);
     border-bottom: 1px solid rgba(92,120,255,.15);
+}
+
+.pf-header-anim {
+    animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.pf-content {
+    animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
+
+@keyframes fadeInUp {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
 }
 
 .token-row {
@@ -70,13 +94,27 @@ svg{width:100%;height:100%}
 #swapView {
     position: fixed; inset: 0; z-index: 200;
     background: #040816;
-    transform: translateX(100%);
-    transition: transform .38s cubic-bezier(.4,0,.2,1);
+    transform: translateX(100%) scale(0.95);
+    opacity: 0;
+    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
     overflow-y: auto;
-    will-change: transform;
+    will-change: transform, opacity;
     -webkit-overflow-scrolling: touch;
+    backdrop-filter: blur(0px);
 }
-#swapView.open { transform: translateX(0); }
+#swapView.open {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+    backdrop-filter: blur(10px);
+}
+
+.swap-header {
+    animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+
+.swap-content {
+    animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
 
 .swap-input-wrap {
     background: rgba(255,255,255,.04);
@@ -469,29 +507,57 @@ nav button.glass:hover {
 #poolsView {
     position: fixed; inset: 0; z-index: 200;
     background: #040816;
-    transform: translateX(100%);
-    transition: transform .38s cubic-bezier(.4,0,.2,1);
+    transform: translateX(100%) scale(0.95);
+    opacity: 0;
+    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
     overflow-y: auto;
-    will-change: transform;
+    will-change: transform, opacity;
     -webkit-overflow-scrolling: touch;
+    backdrop-filter: blur(0px);
 }
-#poolsView.open { transform: translateX(0); }
+#poolsView.open {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+    backdrop-filter: blur(10px);
+}
+
+.pools-header {
+    animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+
+.pools-content {
+    animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
 
 /* -- Lend & Borrow overlay (slide from right, same as poolsView) -- */
 #lendView {
     position: fixed; inset: 0; z-index: 200;
     background: #040816;
-    transform: translateX(100%);
-    transition: transform .38s cubic-bezier(.4,0,.2,1);
+    transform: translateX(100%) scale(0.95);
+    opacity: 0;
+    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
     overflow-y: auto;
-    will-change: transform;
+    will-change: transform, opacity;
     -webkit-overflow-scrolling: touch;
+    backdrop-filter: blur(0px);
 }
-#lendView.open { transform: translateX(0); }
+#lendView.open {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+    backdrop-filter: blur(10px);
+}
+
+.lend-header {
+    animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+
+.lend-content {
+    animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
 
 
 .pool-card {
-    background: rgba(7,12,35,.75); 
+    background: rgba(7,12,35,.75);
     border: 1px solid rgba(92,120,255,.18);
     border-radius: 24px; padding: 28px;
     transition: .3s;
@@ -666,7 +732,7 @@ nav button.glass:hover {
     <div class="orb1"></div><div class="orb2"></div>
 
     <!-- Swap sticky header -->
-    <div class="pf-header">
+    <div class="pf-header swap-header">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex items-center justify-between">
             <div class="flex items-center gap-4">
                 <button onclick="showHome()" class="glass w-10 h-10 rounded-xl flex items-center justify-center text-lg hover:border-white/30 transition">←</button>
@@ -679,7 +745,7 @@ nav button.glass:hover {
         </div>
     </div>
 
-    <div class="max-w-lg mx-auto px-4 sm:px-6 py-8 sm:py-12">
+    <div class="max-w-lg mx-auto px-4 sm:px-6 py-8 sm:py-12 swap-content">
         <div class="glass rounded-[28px] p-7 glow">
             <div class="flex items-center justify-between mb-6">
                 <h3 class="text-xl font-black">Swap Tokens</h3>
@@ -762,7 +828,7 @@ nav button.glass:hover {
     <div class="orb2"></div>
 
     <!-- Portfolio sticky header -->
-    <div class="pf-header">
+    <div class="pf-header pf-header-anim">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex items-center justify-between">
             <div class="flex items-center gap-4">
                 <button onclick="showHome()" class="glass w-10 h-10 rounded-xl flex items-center justify-center text-lg hover:border-white/30 transition">←</button>
@@ -787,7 +853,7 @@ nav button.glass:hover {
     </div>
 
     <!-- CONNECTED: live data -->
-    <div id="pfConnected" class="hidden max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+    <div id="pfConnected" class="hidden max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 pf-content">
 
         <!-- top bar: address + network -->
         <div class="glass rounded-2xl px-6 py-4 flex flex-wrap items-center justify-between gap-4 mb-8">
@@ -923,7 +989,7 @@ nav button.glass:hover {
     <div class="orb1"></div><div class="orb2"></div>
 
     <!-- Pools sticky header -->
-    <div class="pf-header">
+    <div class="pf-header pools-header">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-3 sm:gap-4 min-w-0">
                 <button onclick="showHome()" class="glass w-10 h-10 rounded-xl flex items-center justify-center text-lg hover:border-white/30 transition flex-shrink-0">←</button>
@@ -939,7 +1005,7 @@ nav button.glass:hover {
         </div>
     </div>
 
-    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 pools-content">
 
         <!-- Stats bar -->
         <div class="grid grid-cols-3 gap-2 sm:gap-4 mb-10">
@@ -1340,7 +1406,7 @@ nav button.glass:hover {
     <div class="orb1"></div><div class="orb2"></div>
 
     <!-- Header same as poolsView -->
-    <div class="pf-header">
+    <div class="pf-header lend-header">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-3 sm:gap-4 min-w-0">
                 <button onclick="showHome()" class="glass w-10 h-10 rounded-xl flex items-center justify-center text-lg hover:border-white/30 transition flex-shrink-0">&#8592;</button>
@@ -1356,7 +1422,7 @@ nav button.glass:hover {
         </div>
     </div>
 
-    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 lend-content">
 
         <!-- Stats bar identical to poolsView -->
         <div class="grid grid-cols-3 gap-2 sm:gap-4 mb-10">
