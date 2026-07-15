@@ -1651,9 +1651,15 @@ nav button.glass:hover {
     const ARC_CHAIN = {
         chainId: '0x4CEF52',
         chainName: 'Arc Testnet',
-        // Two independent public RPC endpoints — if the primary one hiccups
-        // (returns an HTTP 4xx/5xx) the wallet can fail over to the second.
-        rpcUrls: ['https://rpc.testnet.arc.network', 'https://arc-testnet.drpc.org'],
+        // Multiple independent public RPC endpoints for better resilience
+        // If the primary one hiccups (returns an HTTP 4xx/5xx) the wallet can
+        // fail over to the next available endpoint.
+        rpcUrls: [
+            'https://rpc.testnet.arc.network',
+            'https://arc-testnet.drpc.org',
+            'https://rpc.ankr.com/arc_testnet',
+            'https://arc-testnet.public.blastapi.io'
+        ],
         nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
         blockExplorerUrls: ['https://testnet.arcscan.app/']
     };
@@ -1675,12 +1681,24 @@ nav button.glass:hover {
                msg.includes('network error') ||
                msg.includes('failed to fetch') ||
                msg.includes('rate limit') ||
+               msg.includes('connection reset') ||
+               msg.includes('econnrefused') ||
+               msg.includes('enotfound') ||
+               msg.includes('etimedout') ||
+               msg.includes('network unreachable') ||
+               msg.includes('temporary failure') ||
+               msg.includes('502') ||
+               msg.includes('503') ||
+               msg.includes('504') ||
+               msg.includes('429') ||
                err?.code === 'NETWORK_ERROR' ||
                err?.code === 'TIMEOUT' ||
-               err?.code === -32603; // generic internal JSON-RPC error
+               err?.code === -32603 || // generic internal JSON-RPC error
+               err?.code === -32602 || // invalid params (sometimes transient)
+               err?.code === -32000; // server error
     }
 
-    async function withRpcRetry(fn, { retries = 3, delayMs = 700, onRetry } = {}) {
+    async function withRpcRetry(fn, { retries = 5, delayMs = 1000, onRetry } = {}) {
         let lastErr;
         for (let attempt = 0; attempt <= retries; attempt++) {
             try {
