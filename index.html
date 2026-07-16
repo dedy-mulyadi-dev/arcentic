@@ -2615,7 +2615,27 @@ nav button.glass:hover {
         return ethers.utils.hexStripZeros(bytes32);
     }
 
-    async function executeBridge() {
+    async function switchToChain(targetChainId, chainConfig) {
+        try {
+            await window.ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: targetChainId }]
+            });
+        } catch (switchErr) {
+            if (switchErr.code === 4902 || switchErr.code === -32603) {
+                await window.ethereum.request({
+                    method: 'wallet_addEthereumChain',
+                    params: [chainConfig]
+                });
+            } else if (switchErr.code === 4001) {
+                throw new Error('Network switch was rejected in your wallet. Please approve switching networks to continue.');
+            } else {
+                throw switchErr;
+            }
+        }
+    }
+
+
         if (!isConnected) {
             showToast('warning','Wallet Not Connected','Please connect your wallet before bridging.');
             return;
@@ -2649,6 +2669,18 @@ nav button.glass:hover {
 
         let bridgeToast = null;
         try {
+            // Force the wallet onto the source chain BEFORE any contract call.
+            // Without this, allowance()/approve()/depositForBurn() run against
+            // whatever network the wallet happened to be on (e.g. left over
+            // from a previous mint step), which reverts with an empty-data
+            // CALL_EXCEPTION because the source contract doesn't exist there.
+            setStatus('⏳ Switching to source network…');
+            await switchToChain(
+                sourceChain === 'ethereumSepolia' ? ETHEREUM_SEPOLIA_CHAIN.chainId : ARC_CHAIN.chainId,
+                sourceChain === 'ethereumSepolia' ? ETHEREUM_SEPOLIA_CHAIN : ARC_CHAIN
+            );
+            await new Promise(r => setTimeout(r, 400)); // let the wallet settle on the new network
+
             const provider = new ethers.providers.Web3Provider(window.ethereum);
             const signer = provider.getSigner();
 
@@ -2666,7 +2698,7 @@ nav button.glass:hover {
             // Standard Transfer (13-19 min finality on Sepolia) instead of
             // failing outright — which is what was causing "Attestation not
             // ready yet" even though the burn itself succeeded.
-            let maxFee = ethers.utils.parseUnits('0.01', 6); // conservative fallback
+            let maxFee = ethers.utils.parseUnits('0.0005', 6); // conservative fallback (must stay well below tiny test amounts)
             try {
                 const feeResp = await fetch(`${CCTP_CONFIG.attestationApi.replace('/messages', '')}/burn/USDC/fees/${srcDomain}/${destDomain}`);
                 if (feeResp.ok) {
@@ -2676,12 +2708,16 @@ nav button.glass:hover {
                         // minimumFee is in basis points; add a 20% buffer as Circle recommends
                         const protocolFee = amtInWei.mul(Math.round(fastFeeEntry.minimumFee * 100)).div(1_000_000);
                         const buffered = protocolFee.mul(120).div(100);
-                        // Never go below a small floor so tiny amounts still clear the fee
-                        maxFee = buffered.gt(0) ? buffered : ethers.utils.parseUnits('0.0005', 6);
+                        if (buffered.gt(0)) maxFee = buffered;
                     }
                 }
             } catch (feeErr) {
                 console.log('Fee lookup failed, using fallback maxFee:', feeErr);
+            }
+            // depositForBurn requires maxFee strictly < amount. Clamp so tiny
+            // test transfers never revert with "Max fee must be less than amount".
+            if (maxFee.gte(amtInWei)) {
+                maxFee = amtInWei.gt(1) ? amtInWei.sub(1) : ethers.BigNumber.from(0);
             }
 
             // Step 1: Approve TokenMessenger
@@ -2766,10 +2802,11 @@ nav button.glass:hover {
             setStatus('⏳ Step 3/3 — Minting USDC on destination chain…');
 
             // Switch to destination chain
-            await window.ethereum.request({
-                method: 'wallet_switchEthereumChain',
-                params: [{ chainId: destChain === 'ethereumSepolia' ? '0xaa36a7' : '0x4CEF52' }]
-            });
+            await switchToChain(
+                destChain === 'ethereumSepolia' ? ETHEREUM_SEPOLIA_CHAIN.chainId : ARC_CHAIN.chainId,
+                destChain === 'ethereumSepolia' ? ETHEREUM_SEPOLIA_CHAIN : ARC_CHAIN
+            );
+            await new Promise(r => setTimeout(r, 400));
 
             const destProvider = new ethers.providers.Web3Provider(window.ethereum);
             const destSigner = destProvider.getSigner();
