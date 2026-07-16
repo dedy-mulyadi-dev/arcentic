@@ -1796,9 +1796,7 @@ nav button.glass:hover {
         // fail over to the next available endpoint.
         rpcUrls: [
             'https://rpc.testnet.arc.network',
-            'https://arc-testnet.drpc.org',
-            'https://rpc.ankr.com/arc_testnet',
-            'https://arc-testnet.public.blastapi.io'
+            'https://arc-testnet.drpc.org'
         ],
         nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
         blockExplorerUrls: ['https://testnet.arcscan.app/']
@@ -1834,10 +1832,10 @@ nav button.glass:hover {
             tokenMessenger: '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA',
             messageTransmitter: '0x91566bbf0e2A8c08cE886B7351da2B5C0ce9EB44'
         },
-        // Contract addresses for Arc Testnet (from Circle Arc docs)
+        // Contract addresses for Arc Testnet (verified against docs.arc.io/arc/references/contract-addresses)
         arcTestnet: {
-            usdc: '0x833589fcD6Edb6e08F4C71032eF707Be550b5aF4', // Native USDC on Arc
-            tokenMessenger: '0x5b7b4C8e1C3E6f8a9D2b4c6E8f0A2B4C6e8F0a2B',
+            usdc: '0x3600000000000000000000000000000000000000', // Native USDC ERC-20 interface on Arc (6 decimals)
+            tokenMessenger: '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA',
             messageTransmitter: '0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275'
         },
         // Circle Attestation API (Iris) — testnet sandbox base for GET /v2/messages/{sourceDomain}
