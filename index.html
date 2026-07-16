@@ -1840,8 +1840,8 @@ nav button.glass:hover {
             tokenMessenger: '0x5b7b4C8e1C3E6f8a9D2b4c6E8f0A2B4C6e8F0a2B',
             messageTransmitter: '0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275'
         },
-        // Circle Attestation API
-        attestationApi: 'https://attestation-api.circle.com/v2/attestations'
+        // Circle Attestation API (Iris) — testnet sandbox base for GET /v2/messages/{sourceDomain}
+        attestationApi: 'https://iris-api-sandbox.circle.com/v2/messages'
     };
 
     // CCTP Contract ABIs (simplified for key functions)
@@ -1852,7 +1852,7 @@ nav button.glass:hover {
     ];
 
     const MESSAGE_TRANSMITTER_ABI = [
-        'function receiveMessage(bytes32 messageHeader, bytes32 messageBody) external',
+        'function receiveMessage(bytes message, bytes attestation) external returns (bool)',
         'function sendMessage(uint32 destinationDomain, bytes32 recipient, bytes32 destinationCaller, bytes messageBody) external returns (bytes32)'
     ];
 
@@ -2696,7 +2696,7 @@ nav button.glass:hover {
                     sourceConfig.usdc,
                     ethers.constants.HashZero, // destinationCaller = any
                     maxFee,
-                    0 // minFinalityThreshold
+                    1000 // minFinalityThreshold: 1000 or less = Fast Transfer (per Circle's CCTP v2 docs)
                 ),
                 { onRetry: onRpcRetry }
             );
@@ -2709,28 +2709,36 @@ nav button.glass:hover {
             setStatus('⏳ Step 3/3 — Retrieving attestation and minting…');
             updateToast(bridgeToast, 'pending','Retrieving Attestation','Fetching Circle attestation…');
 
-            // Poll for attestation
-            let attestation = null;
+            // Poll for attestation — per Circle's official CCTP v2 API
+            // (GET /v2/messages/{sourceDomainId}?transactionHash=...), which
+            // returns { messages: [{ status, message, attestation, ... }] }.
+            // Only status === 'complete' means the attestation is signed.
+            let attestationMsg = null;
             const maxPollTime = 60000; // 60 seconds
             const pollInterval = 2000;
             const startTime = Date.now();
+            const srcDomainId = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.domains.ETHEREUM_SEPOLIA : CCTP_CONFIG.domains.ARC_TESTNET;
+            const attestationUrl = `${CCTP_CONFIG.attestationApi}/${srcDomainId}?transactionHash=${burnReceipt.transactionHash}`;
 
-            while (!attestation && Date.now() - startTime < maxPollTime) {
+            while (!attestationMsg && Date.now() - startTime < maxPollTime) {
                 try {
-                    const response = await fetch(`${CCTP_CONFIG.attestationApi}?srcDomain=${sourceChain === 'ethereumSepolia' ? 0 : 26}&messageId=${burnReceipt.transactionHash}`);
-                    const data = await response.json();
-                    if (data.attestation) {
-                        attestation = data.attestation;
-                        break;
+                    const response = await fetch(attestationUrl);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data?.messages?.[0]?.status === 'complete') {
+                            attestationMsg = data.messages[0];
+                            break;
+                        }
                     }
+                    // 404 just means Iris hasn't indexed the tx yet — keep polling.
                 } catch (err) {
                     console.log('Attestation poll error:', err);
                 }
                 await new Promise(r => setTimeout(r, pollInterval));
             }
 
-            if (!attestation) {
-                throw new Error('Failed to retrieve attestation within timeout');
+            if (!attestationMsg) {
+                throw new Error('Attestation not ready yet — Circle is still confirming the burn. Try minting again in a minute.');
             }
 
             updateToast(bridgeToast, 'pending','Minting USDC','Minting USDC on destination chain…');
@@ -2747,11 +2755,12 @@ nav button.glass:hover {
 
             const messageTransmitter = new ethers.Contract(destConfig.messageTransmitter, MESSAGE_TRANSMITTER_ABI, destSigner);
 
-            // Call receiveMessage with attestation
+            // receiveMessage(message, attestation) — both values come straight
+            // from the Iris API response, NOT the burn transaction hash.
             const mintTx = await withRpcRetry(
                 () => messageTransmitter.receiveMessage(
-                    ethers.utils.hexZeroPad(burnReceipt.transactionHash, 32),
-                    attestation
+                    attestationMsg.message,
+                    attestationMsg.attestation
                 ),
                 { onRetry: onRpcRetry }
             );
