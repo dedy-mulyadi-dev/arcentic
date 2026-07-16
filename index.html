@@ -1808,8 +1808,9 @@ nav button.glass:hover {
         chainId: '0xaa36a7',
         chainName: 'Ethereum Sepolia',
         rpcUrls: [
-            'https://rpc.sepolia.org',
+            'https://ethereum-sepolia-rpc.publicnode.com',
             'https://sepolia.drpc.org',
+            'https://rpc.sepolia.org',
             'https://rpc.ankr.com/eth_sepolia',
             'https://ethereum-sepolia.blockpi.network/v1/rpc/public'
         ],
@@ -2484,7 +2485,16 @@ nav button.glass:hover {
         throw lastErr || new Error(`All RPC endpoints failed for ${chainName}`);
     }
 
+    // Incremented every time updateBridgeBalances runs. If the user flips the
+    // From/To selects (or hits ⇄) while a slow RPC retry is still in flight,
+    // the older call's results would otherwise land AFTER the newer call's
+    // and silently overwrite the correct display with stale data — this
+    // guard makes an in-flight call bail out once a newer one has started.
+    let _bridgeBalRequestId = 0;
+
     async function updateBridgeBalances() {
+        const requestId = ++_bridgeBalRequestId;
+
         if (!isConnected) {
             document.getElementById('bridgeSourceBal').innerText = 'Balance: —';
             document.getElementById('bridgeDestBal').innerText = 'Balance: —';
@@ -2505,9 +2515,11 @@ nav button.glass:hover {
                 const sourceUsdc = new ethers.Contract(sourceConfig.usdc, ERC20_ABI, provider);
                 return withRpcRetry(() => sourceUsdc.balanceOf(currentAccount), { retries: 1 });
             });
+            if (requestId !== _bridgeBalRequestId) return; // a newer call has since started
             document.getElementById('bridgeSourceBal').innerText = `Balance: ${parseFloat(ethers.utils.formatUnits(sourceBal, 6)).toFixed(2)} USDC`;
         } catch (err) {
             console.error(`Bridge source (${sourceChain}) balance error:`, err);
+            if (requestId !== _bridgeBalRequestId) return;
             document.getElementById('bridgeSourceBal').innerText = 'Balance: RPC error';
         }
 
@@ -2517,20 +2529,22 @@ nav button.glass:hover {
                 const destUsdc = new ethers.Contract(destConfig.usdc, ERC20_ABI, provider);
                 return withRpcRetry(() => destUsdc.balanceOf(currentAccount), { retries: 1 });
             });
+            if (requestId !== _bridgeBalRequestId) return;
             document.getElementById('bridgeDestBal').innerText = `Balance: ${parseFloat(ethers.utils.formatUnits(destBal, 6)).toFixed(2)} USDC`;
         } catch (err) {
             console.error(`Bridge destination (${destChain}) balance error:`, err);
+            if (requestId !== _bridgeBalRequestId) return;
             document.getElementById('bridgeDestBal').innerText = 'Balance: RPC error';
         }
 
         // Native ETH is only relevant on the Ethereum Sepolia side — it's the
         // gas token there, not something CCTP bridges. Shown so the user can
         // tell upfront whether they have enough ETH to pay for the tx.
-        await updateSepoliaEthBalance('bridgeSourceEthBal', sourceChain);
-        await updateSepoliaEthBalance('bridgeDestEthBal', destChain);
+        await updateSepoliaEthBalance('bridgeSourceEthBal', sourceChain, requestId);
+        await updateSepoliaEthBalance('bridgeDestEthBal', destChain, requestId);
     }
 
-    async function updateSepoliaEthBalance(elementId, chainName) {
+    async function updateSepoliaEthBalance(elementId, chainName, requestId) {
         const el = document.getElementById(elementId);
         if (chainName !== 'ethereumSepolia') {
             el.innerText = '';
@@ -2540,9 +2554,11 @@ nav button.glass:hover {
             const ethBal = await callWithChainFallback('ethereumSepolia', (provider) => {
                 return withRpcRetry(() => provider.getBalance(currentAccount), { retries: 1 });
             });
+            if (requestId !== _bridgeBalRequestId) return; // stale — a newer selection has taken over
             el.innerText = `${parseFloat(ethers.utils.formatEther(ethBal)).toFixed(4)} ETH (gas)`;
         } catch (err) {
             console.error('Sepolia ETH balance error:', err);
+            if (requestId !== _bridgeBalRequestId) return;
             el.innerText = 'ETH: RPC error';
         }
     }
