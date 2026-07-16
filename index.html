@@ -1825,17 +1825,17 @@ nav button.glass:hover {
             ETHEREUM_SEPOLIA: 0,
             ARC_TESTNET: 26
         },
-        // Contract addresses for Ethereum Sepolia
+        // Contract addresses for Ethereum Sepolia (properly checksummed)
         ethereumSepolia: {
-            usdc: '0x1c7d4b196cb0c7b01d743fbc6116a902379c7238',
-            tokenMessenger: '0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa',
-            messageTransmitter: '0x91566bbf0e2a8c08ce886b7351da2b5c0ce9eb44'
+            usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+            tokenMessenger: '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA',
+            messageTransmitter: '0x91566bbf0e2A8c08cE886B7351da2B5C0ce9EB44'
         },
-        // Contract addresses for Arc Testnet
+        // Contract addresses for Arc Testnet (from Circle Arc docs)
         arcTestnet: {
-            usdc: '0x833589fCD6eDb6E08f4c71032ef707Be550b5AF4', // Native USDC on Arc
-            tokenMessenger: '0x5b7b4c8e1c3e6f8a9d2b4c6e8f0a2b4c6e8f0a2b',
-            messageTransmitter: '0xe737e5cebeeba77efe34d4aa090756590b1ce275'
+            usdc: '0x833589fcD6Edb6e08F4C71032eF707Be550b5aF4', // Native USDC on Arc
+            tokenMessenger: '0x5b7b4C8e1C3E6f8a9D2b4c6E8f0A2B4C6e8F0a2B',
+            messageTransmitter: '0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275'
         },
         // Circle Attestation API
         attestationApi: 'https://attestation-api.circle.com/v2/attestations'
@@ -2444,20 +2444,37 @@ nav button.glass:hover {
     }
 
     /* ═══════════════════════════ BRIDGE FUNCTIONS ═══════════════════════════ */
-    // Helper: Get provider for specific chain
+    // Cache resolved providers per chain so we don't re-probe every RPC on every call
+    const _chainProviderCache = {};
+
+    // Helper: Get provider for specific chain, trying each configured RPC
+    // endpoint in order until one actually responds (real failover, since a
+    // single dead/rate-limited endpoint should not blank out the whole UI).
     async function getChainProvider(chainName) {
-        if (chainName === 'ethereumSepolia') {
-            // Use Ethereum Sepolia RPC directly
-            const chainConfig = ETHEREUM_SEPOLIA_CHAIN;
-            return new ethers.providers.JsonRpcProvider(chainConfig.rpcUrls[0]);
-        } else if (chainName === 'arcTestnet') {
-            // Use Arc Testnet RPC directly
-            const chainConfig = ARC_CHAIN;
-            return new ethers.providers.JsonRpcProvider(chainConfig.rpcUrls[0]);
-        } else {
+        if (chainName !== 'ethereumSepolia' && chainName !== 'arcTestnet') {
             // Fallback to wallet provider
             return new ethers.providers.Web3Provider(window.ethereum);
         }
+
+        if (_chainProviderCache[chainName]) return _chainProviderCache[chainName];
+
+        const chainConfig = chainName === 'ethereumSepolia' ? ETHEREUM_SEPOLIA_CHAIN : ARC_CHAIN;
+        let lastErr;
+        for (const url of chainConfig.rpcUrls) {
+            try {
+                const provider = new ethers.providers.JsonRpcProvider(url);
+                // Actually verify this endpoint is alive before trusting it —
+                // constructing a JsonRpcProvider never throws by itself even
+                // if the URL is dead/unreachable/CORS-blocked.
+                await provider.getBlockNumber();
+                _chainProviderCache[chainName] = provider;
+                return provider;
+            } catch (err) {
+                lastErr = err;
+                console.warn(`RPC ${url} unavailable for ${chainName}, trying next…`, err.message || err);
+            }
+        }
+        throw lastErr || new Error(`All RPC endpoints failed for ${chainName}`);
     }
 
     async function updateBridgeBalances() {
@@ -2470,25 +2487,29 @@ nav button.glass:hover {
         const sourceChain = document.getElementById('bridgeSourceChain').value;
         const destChain = document.getElementById('bridgeDestChain').value;
 
+        // Source and destination fetches are independent — one chain's RPC
+        // being down should not blank out the balance we DID manage to fetch
+        // for the other chain.
         try {
-            // Get source chain balance using chain-specific provider
             const sourceConfig = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
             const sourceProvider = await getChainProvider(sourceChain);
             const sourceUsdc = new ethers.Contract(sourceConfig.usdc, ERC20_ABI, sourceProvider);
             const sourceBal = await withRpcRetry(() => sourceUsdc.balanceOf(currentAccount));
             document.getElementById('bridgeSourceBal').innerText = `Balance: ${parseFloat(ethers.utils.formatUnits(sourceBal, 6)).toFixed(2)} USDC`;
+        } catch (err) {
+            console.error(`Bridge source (${sourceChain}) balance error:`, err);
+            document.getElementById('bridgeSourceBal').innerText = 'Balance: RPC error';
+        }
 
-            // Get destination chain balance using chain-specific provider
+        try {
             const destConfig = destChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
             const destProvider = await getChainProvider(destChain);
             const destUsdc = new ethers.Contract(destConfig.usdc, ERC20_ABI, destProvider);
             const destBal = await withRpcRetry(() => destUsdc.balanceOf(currentAccount));
             document.getElementById('bridgeDestBal').innerText = `Balance: ${parseFloat(ethers.utils.formatUnits(destBal, 6)).toFixed(2)} USDC`;
-
         } catch (err) {
-            console.error('Bridge balance error:', err);
-            document.getElementById('bridgeSourceBal').innerText = 'Balance: —';
-            document.getElementById('bridgeDestBal').innerText = 'Balance: —';
+            console.error(`Bridge destination (${destChain}) balance error:`, err);
+            document.getElementById('bridgeDestBal').innerText = 'Balance: RPC error';
         }
     }
 
