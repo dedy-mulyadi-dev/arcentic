@@ -2657,8 +2657,32 @@ nav button.glass:hover {
 
             const destDomain = destChain === 'ethereumSepolia' ? CCTP_CONFIG.domains.ETHEREUM_SEPOLIA : CCTP_CONFIG.domains.ARC_TESTNET;
 
+            const srcDomain = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.domains.ETHEREUM_SEPOLIA : CCTP_CONFIG.domains.ARC_TESTNET;
             const amtInWei = ethers.utils.parseUnits(amtStr, 6); // USDC has 6 decimals
-            const maxFee = ethers.utils.parseUnits('0.0005', 6); // Max fee in USDC
+
+            // Fetch the current Fast Transfer fee for this route instead of
+            // hardcoding it. Per Circle's docs, if maxFee is below the live
+            // minimum Fast Transfer fee, the burn is silently downgraded to a
+            // Standard Transfer (13-19 min finality on Sepolia) instead of
+            // failing outright — which is what was causing "Attestation not
+            // ready yet" even though the burn itself succeeded.
+            let maxFee = ethers.utils.parseUnits('0.01', 6); // conservative fallback
+            try {
+                const feeResp = await fetch(`${CCTP_CONFIG.attestationApi.replace('/messages', '')}/burn/USDC/fees/${srcDomain}/${destDomain}`);
+                if (feeResp.ok) {
+                    const feeData = await feeResp.json();
+                    const fastFeeEntry = Array.isArray(feeData) ? feeData.find(f => f.finalityThreshold <= 1000) || feeData[0] : null;
+                    if (fastFeeEntry && typeof fastFeeEntry.minimumFee === 'number') {
+                        // minimumFee is in basis points; add a 20% buffer as Circle recommends
+                        const protocolFee = amtInWei.mul(Math.round(fastFeeEntry.minimumFee * 100)).div(1_000_000);
+                        const buffered = protocolFee.mul(120).div(100);
+                        // Never go below a small floor so tiny amounts still clear the fee
+                        maxFee = buffered.gt(0) ? buffered : ethers.utils.parseUnits('0.0005', 6);
+                    }
+                }
+            } catch (feeErr) {
+                console.log('Fee lookup failed, using fallback maxFee:', feeErr);
+            }
 
             // Step 1: Approve TokenMessenger
             setStatus('⏳ Step 1/3 — Approving USDC spend…');
@@ -2712,11 +2736,10 @@ nav button.glass:hover {
             // returns { messages: [{ status, message, attestation, ... }] }.
             // Only status === 'complete' means the attestation is signed.
             let attestationMsg = null;
-            const maxPollTime = 60000; // 60 seconds
+            const maxPollTime = 90000; // 90 seconds — gives Fast Transfer some slack on testnet
             const pollInterval = 2000;
             const startTime = Date.now();
-            const srcDomainId = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.domains.ETHEREUM_SEPOLIA : CCTP_CONFIG.domains.ARC_TESTNET;
-            const attestationUrl = `${CCTP_CONFIG.attestationApi}/${srcDomainId}?transactionHash=${burnReceipt.transactionHash}`;
+            const attestationUrl = `${CCTP_CONFIG.attestationApi}/${srcDomain}?transactionHash=${burnReceipt.transactionHash}`;
 
             while (!attestationMsg && Date.now() - startTime < maxPollTime) {
                 try {
