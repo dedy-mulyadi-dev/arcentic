@@ -2472,6 +2472,8 @@ nav button.glass:hover {
 
     async function executeSwap() {
         if (!isConnected) { showToast('warning','Wallet Not Connected','Please connect your wallet before swapping.'); return; }
+        const onArcNetwork = await ensureArcNetwork();
+        if (!onArcNetwork) return;
         const amtStr = document.getElementById('swapFromAmt').value;
         const amt    = parseFloat(amtStr);
         if (!amt || amt <= 0) { showToast('warning','Invalid Amount','Please enter a valid amount to swap.'); return; }
@@ -2899,6 +2901,34 @@ nav button.glass:hover {
         }
     }
 
+    // Checks whether MetaMask's currently active chain is Arc Testnet.
+    // If not, prompts the wallet to switch (reusing switchToChain so the
+    // chainChanged listener above knows this was intentional and won't
+    // force a page reload mid-flow). Returns true only if the wallet ends
+    // up on Arc Testnet; callers should abort their transaction otherwise.
+    async function ensureArcNetwork() {
+        if (!window.ethereum) {
+            showToast('error','No Wallet Detected','Please install MetaMask or a compatible browser wallet.');
+            return false;
+        }
+        try {
+            const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
+            if (currentChainId.toLowerCase() === ARC_CHAIN.chainId.toLowerCase()) return true;
+
+            showToast('warning','Wrong Network','You\'re not on Arc Testnet — requesting your wallet to switch…');
+            await switchToChain(ARC_CHAIN.chainId, ARC_CHAIN);
+
+            const confirmedChainId = await window.ethereum.request({ method: 'eth_chainId' });
+            if (confirmedChainId.toLowerCase() !== ARC_CHAIN.chainId.toLowerCase()) {
+                showToast('error','Still on Wrong Network','Please switch to Arc Testnet manually in your wallet, then try again.');
+                return false;
+            }
+            return true;
+        } catch (err) {
+            showToast('error','Network Switch Failed', err.message || 'Please switch to Arc Testnet manually in your wallet, then try again.');
+            return false;
+        }
+    }
 
     // Parses ERC20 Transfer logs out of a receipt and sums the amount sent
     // TO `toAddress` from the given token contract. Used to read the exact
