@@ -1063,6 +1063,7 @@ nav button.glass:hover {
                     </div>
                     <div class="text-right">
                         <div id="bridgeSourceBal" class="text-sm font-bold">Balance: —</div>
+                        <div id="bridgeSourceEthBal" class="text-xs text-gray-400 mt-0.5"></div>
                         <button onclick="setMaxBridgeAmount()" class="text-xs text-cyan-400 hover:text-cyan-300 mt-1">MAX</button>
                     </div>
                 </div>
@@ -1089,6 +1090,7 @@ nav button.glass:hover {
                     </div>
                     <div class="text-right">
                         <div id="bridgeDestBal" class="text-sm font-bold">Balance: —</div>
+                        <div id="bridgeDestEthBal" class="text-xs text-gray-400 mt-0.5"></div>
                     </div>
                 </div>
             </div>
@@ -2444,34 +2446,39 @@ nav button.glass:hover {
     }
 
     /* ═══════════════════════════ BRIDGE FUNCTIONS ═══════════════════════════ */
-    // Cache resolved providers per chain so we don't re-probe every RPC on every call
-    const _chainProviderCache = {};
+    // Remembers which RPC URL last worked for each chain so we try that one
+    // first next time, instead of always starting from index 0.
+    const _lastGoodRpcIndex = {};
 
-    // Helper: Get provider for specific chain, trying each configured RPC
-    // endpoint in order until one actually responds (real failover, since a
-    // single dead/rate-limited endpoint should not blank out the whole UI).
-    async function getChainProvider(chainName) {
-        if (chainName !== 'ethereumSepolia' && chainName !== 'arcTestnet') {
-            // Fallback to wallet provider
-            return new ethers.providers.Web3Provider(window.ethereum);
+    function getChainRpcUrls(chainName) {
+        if (chainName === 'ethereumSepolia') return ETHEREUM_SEPOLIA_CHAIN.rpcUrls;
+        if (chainName === 'arcTestnet') return ARC_CHAIN.rpcUrls;
+        return null;
+    }
+
+    // Runs callFn(provider) against each configured RPC URL in turn, moving to
+    // the next URL only if the REAL call fails (no separate health-check ping,
+    // so this adds zero extra requests when the first URL just works).
+    async function callWithChainFallback(chainName, callFn) {
+        const rpcUrls = getChainRpcUrls(chainName);
+        if (!rpcUrls) {
+            // Unknown chain name — fall back to the wallet's injected provider
+            return await callFn(new ethers.providers.Web3Provider(window.ethereum));
         }
 
-        if (_chainProviderCache[chainName]) return _chainProviderCache[chainName];
+        const startIdx = _lastGoodRpcIndex[chainName] || 0;
+        const order = [...rpcUrls.slice(startIdx), ...rpcUrls.slice(0, startIdx)];
 
-        const chainConfig = chainName === 'ethereumSepolia' ? ETHEREUM_SEPOLIA_CHAIN : ARC_CHAIN;
         let lastErr;
-        for (const url of chainConfig.rpcUrls) {
+        for (const url of order) {
             try {
                 const provider = new ethers.providers.JsonRpcProvider(url);
-                // Actually verify this endpoint is alive before trusting it —
-                // constructing a JsonRpcProvider never throws by itself even
-                // if the URL is dead/unreachable/CORS-blocked.
-                await provider.getBlockNumber();
-                _chainProviderCache[chainName] = provider;
-                return provider;
+                const result = await callFn(provider);
+                _lastGoodRpcIndex[chainName] = rpcUrls.indexOf(url);
+                return result;
             } catch (err) {
                 lastErr = err;
-                console.warn(`RPC ${url} unavailable for ${chainName}, trying next…`, err.message || err);
+                console.warn(`RPC ${url} failed for ${chainName}, trying next…`, err.message || err);
             }
         }
         throw lastErr || new Error(`All RPC endpoints failed for ${chainName}`);
@@ -2481,6 +2488,8 @@ nav button.glass:hover {
         if (!isConnected) {
             document.getElementById('bridgeSourceBal').innerText = 'Balance: —';
             document.getElementById('bridgeDestBal').innerText = 'Balance: —';
+            document.getElementById('bridgeSourceEthBal').innerText = '';
+            document.getElementById('bridgeDestEthBal').innerText = '';
             return;
         }
 
@@ -2492,9 +2501,10 @@ nav button.glass:hover {
         // for the other chain.
         try {
             const sourceConfig = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
-            const sourceProvider = await getChainProvider(sourceChain);
-            const sourceUsdc = new ethers.Contract(sourceConfig.usdc, ERC20_ABI, sourceProvider);
-            const sourceBal = await withRpcRetry(() => sourceUsdc.balanceOf(currentAccount));
+            const sourceBal = await callWithChainFallback(sourceChain, (provider) => {
+                const sourceUsdc = new ethers.Contract(sourceConfig.usdc, ERC20_ABI, provider);
+                return withRpcRetry(() => sourceUsdc.balanceOf(currentAccount), { retries: 1 });
+            });
             document.getElementById('bridgeSourceBal').innerText = `Balance: ${parseFloat(ethers.utils.formatUnits(sourceBal, 6)).toFixed(2)} USDC`;
         } catch (err) {
             console.error(`Bridge source (${sourceChain}) balance error:`, err);
@@ -2503,13 +2513,37 @@ nav button.glass:hover {
 
         try {
             const destConfig = destChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
-            const destProvider = await getChainProvider(destChain);
-            const destUsdc = new ethers.Contract(destConfig.usdc, ERC20_ABI, destProvider);
-            const destBal = await withRpcRetry(() => destUsdc.balanceOf(currentAccount));
+            const destBal = await callWithChainFallback(destChain, (provider) => {
+                const destUsdc = new ethers.Contract(destConfig.usdc, ERC20_ABI, provider);
+                return withRpcRetry(() => destUsdc.balanceOf(currentAccount), { retries: 1 });
+            });
             document.getElementById('bridgeDestBal').innerText = `Balance: ${parseFloat(ethers.utils.formatUnits(destBal, 6)).toFixed(2)} USDC`;
         } catch (err) {
             console.error(`Bridge destination (${destChain}) balance error:`, err);
             document.getElementById('bridgeDestBal').innerText = 'Balance: RPC error';
+        }
+
+        // Native ETH is only relevant on the Ethereum Sepolia side — it's the
+        // gas token there, not something CCTP bridges. Shown so the user can
+        // tell upfront whether they have enough ETH to pay for the tx.
+        await updateSepoliaEthBalance('bridgeSourceEthBal', sourceChain);
+        await updateSepoliaEthBalance('bridgeDestEthBal', destChain);
+    }
+
+    async function updateSepoliaEthBalance(elementId, chainName) {
+        const el = document.getElementById(elementId);
+        if (chainName !== 'ethereumSepolia') {
+            el.innerText = '';
+            return;
+        }
+        try {
+            const ethBal = await callWithChainFallback('ethereumSepolia', (provider) => {
+                return withRpcRetry(() => provider.getBalance(currentAccount), { retries: 1 });
+            });
+            el.innerText = `${parseFloat(ethers.utils.formatEther(ethBal)).toFixed(4)} ETH (gas)`;
+        } catch (err) {
+            console.error('Sepolia ETH balance error:', err);
+            el.innerText = 'ETH: RPC error';
         }
     }
 
@@ -2531,10 +2565,11 @@ nav button.glass:hover {
 
         const sourceChain = document.getElementById('bridgeSourceChain').value;
         try {
-            const sourceProvider = await getChainProvider(sourceChain);
             const sourceConfig = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
-            const sourceUsdc = new ethers.Contract(sourceConfig.usdc, ERC20_ABI, sourceProvider);
-            const sourceBal = await withRpcRetry(() => sourceUsdc.balanceOf(currentAccount));
+            const sourceBal = await callWithChainFallback(sourceChain, (provider) => {
+                const sourceUsdc = new ethers.Contract(sourceConfig.usdc, ERC20_ABI, provider);
+                return withRpcRetry(() => sourceUsdc.balanceOf(currentAccount), { retries: 1 });
+            });
             const balUsdc = parseFloat(ethers.utils.formatUnits(sourceBal, 6));
 
             document.getElementById('bridgeAmount').value = (balUsdc - 0.0005).toFixed(2);
