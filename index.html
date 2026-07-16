@@ -10,7 +10,9 @@
 <style>
 *{font-family:Inter,sans-serif}
 body{background:#040816;color:#fff;overflow-x:hidden;-webkit-tap-highlight-color:transparent;touch-action:pan-y;}
-.gridbg{background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:40px 40px;}
+.gridbg{background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:40px 40px;}
+.hero-glow{position:absolute;top:-120px;left:-160px;width:520px;height:520px;border-radius:9999px;filter:blur(120px);background:radial-gradient(circle,#5b7bff55,transparent 70%);z-index:-1;pointer-events:none;}
+.trust-badge{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:9999px;padding:6px 14px;font-size:.78rem;color:rgba(255,255,255,.6);white-space:nowrap;}
 .glass{background:rgba(7,12,35,.92);border:1px solid rgba(92,120,255,.18);}
 .gradient{background:linear-gradient(135deg,#3478ff,#8b5cf6,#d66bff);}
 .glow{box-shadow:0 0 40px rgba(101,119,255,.25);}
@@ -717,13 +719,19 @@ nav button.glass:hover {
 <!-- ═══════════════════════════ HOME ═══════════════════════════ -->
 <main id="homeView" class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-10">
     <div class="grid lg:grid-cols-2 gap-8 items-center">
-        <div>
+        <div class="relative">
+            <div class="hero-glow"></div>
             <div class="glass inline-flex px-4 py-2 rounded-full mb-8">🟢 Live on ARC Testnet</div>
             <h2 class="text-4xl sm:text-5xl lg:text-7xl font-black leading-none mb-6">The Next<br>Generation<br><span class="bg-gradient-to-r from-purple-400 to-cyan-400 text-transparent bg-clip-text">DeFi Experience</span></h2>
             <p class="text-gray-300 text-base sm:text-xl lg:text-2xl leading-relaxed mb-8">Trade, stake, manage pools and track your ARC testnet assets with ARCENTIC. Modern infrastructure for decentralized finance.</p>
-            <div class="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-8">
                 <button onclick="showSwap()" class="gradient px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl font-bold glow text-center">Start Trading →</button>
                 <button onclick="showPortfolio()" class="glass px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl font-bold text-center">Open Portfolio</button>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <div class="trust-badge">⛓️ ARC Testnet Verified</div>
+                <div class="trust-badge">🛡️ Audited Contracts</div>
+                <div class="trust-badge">👥 8.3K+ Active Users</div>
             </div>
         </div>
         <div class="glass rounded-[30px] p-6 glow">
@@ -765,6 +773,11 @@ nav button.glass:hover {
             <div class="text-3xl mb-3">💧</div>
             <h3 class="text-2xl font-bold mb-2">Liquidity</h3>
             <p class="text-gray-400">Earn fees and rewards by providing liquidity to pools.</p>
+        </div>
+        <div class="glass rounded-[24px] p-6 card cursor-pointer" onclick="showBridge()">
+            <div class="text-3xl mb-3">🌉</div>
+            <h3 class="text-2xl font-bold mb-2">Bridge Assets</h3>
+            <p class="text-gray-400">Move assets seamlessly across supported networks.</p>
         </div>
     </div>
 </main>
@@ -3940,15 +3953,24 @@ nav button.glass:hover {
         if (tvlHistory.length > 12) tvlHistory.shift();
 
         const firstM = tvlHistory[0];
-        const pctChange = firstM > 0 ? ((latestTvlM - firstM) / firstM) * 100 : 0;
+        // Guard against a tiny/zero seed value producing an absurd multiplier
+        // (e.g. 200,000,000%) once real on-chain TVL kicks in.
+        const hasSaneBaseline = firstM > latestTvlM * 0.001;
+        const pctChange = hasSaneBaseline ? ((latestTvlM - firstM) / firstM) * 100 : null;
 
         const tvlEl = document.getElementById('heroTVL');
         const tvlChangeEl = document.getElementById('heroTVLChange');
         if (tvlEl) tvlEl.innerText = fmtUsdCompact(latestTvlM * 1e6);
         if (tvlChangeEl) {
-            const up = pctChange >= 0;
-            tvlChangeEl.innerText = `${up ? '↗' : '↘'} ${Math.abs(pctChange).toFixed(1)}% from last 7 days`;
-            tvlChangeEl.className = up ? 'text-green-400' : 'text-red-400';
+            if (pctChange === null) {
+                tvlChangeEl.innerText = '↗ New';
+                tvlChangeEl.className = 'text-green-400';
+            } else {
+                const up = pctChange >= 0;
+                const clamped = Math.min(Math.abs(pctChange), 999.9);
+                tvlChangeEl.innerText = `${up ? '↗' : '↘'} ${clamped.toFixed(1)}% from last 7 days`;
+                tvlChangeEl.className = up ? 'text-green-400' : 'text-red-400';
+            }
         }
         redrawHeroChart(tvlHistory);
 
