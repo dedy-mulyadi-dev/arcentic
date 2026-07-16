@@ -563,6 +563,34 @@ nav button.glass:hover {
     animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
 }
 
+/* ── Bridge overlay ── */
+#bridgeView {
+    position: fixed; inset: 0; z-index: 200;
+    background: #040816;
+    transform: scale(0.92);
+    opacity: 0;
+    filter: blur(8px);
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow-y: auto;
+    will-change: transform, opacity, filter;
+    -webkit-overflow-scrolling: touch;
+    pointer-events: none;
+}
+#bridgeView.open {
+    transform: scale(1);
+    opacity: 1;
+    filter: blur(0px);
+    pointer-events: auto;
+}
+
+.bridge-header {
+    animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+
+.bridge-content {
+    animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
+
 
 .pool-card {
     background: rgba(7,12,35,.75);
@@ -661,6 +689,7 @@ nav button.glass:hover {
         <button id="navHome"      onclick="showHome()"      class="glass px-6 py-3 rounded-xl nav-active">Home</button>
         <button id="navPortfolio" onclick="showPortfolio()" class="px-6 py-3 rounded-xl">Portfolio</button>
         <button id="navSwap" onclick="showSwap()" class="px-6 py-3 rounded-xl">Swap</button>
+        <button id="navBridge" onclick="showBridge()" class="px-6 py-3 rounded-xl">Bridge</button>
         <button id="navPools" onclick="showPools()" class="px-6 py-3 rounded-xl">Liquidity</button>
         <button id="navLend" onclick="showLend()" class="px-6 py-3 rounded-xl">Lend & Borrow</button>
     </nav>
@@ -675,6 +704,7 @@ nav button.glass:hover {
     <button onclick="showHome(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Home</button>
     <button onclick="showPortfolio(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Portfolio</button>
     <button onclick="showSwap(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Swap</button>
+    <button onclick="showBridge(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Bridge</button>
     <button onclick="showPools(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Liquidity</button>
     <button onclick="showLend(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Lend &amp; Borrow</button>
 </div>
@@ -989,6 +1019,114 @@ nav button.glass:hover {
 
         </div>
 
+    </div>
+</div>
+
+<!-- ═══════════════════════════ BRIDGE VIEW ═══════════════════════════ -->
+<div id="bridgeView" class="gridbg">
+    <div class="orb1"></div><div class="orb2"></div>
+
+    <!-- Bridge sticky header -->
+    <div class="pf-header bridge-header">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <button onclick="showHome()" class="glass w-10 h-10 rounded-xl flex items-center justify-center text-lg hover:border-white/30 transition">←</button>
+                <div>
+                    <h2 class="text-2xl font-black">Bridge USDC</h2>
+                    <p class="text-gray-400 text-xs">CCTP · Cross-chain transfers</p>
+                </div>
+            </div>
+            <div class="glass px-2.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap"><span class="sm:hidden">🌐</span><span class="hidden sm:inline">🌐 CCTP ENABLED</span></div>
+        </div>
+    </div>
+
+    <div class="max-w-lg mx-auto px-4 sm:px-6 py-8 sm:py-12 bridge-content">
+        <div class="glass rounded-[28px] p-7 glow">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-black">Bridge USDC</h3>
+                <button class="glass px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:border-white/20 transition">ℹ CCTP Protocol</button>
+            </div>
+
+            <!-- Source Chain -->
+            <div class="glass rounded-[20px] p-5 mb-3">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs text-gray-400">From</span>
+                    <select id="bridgeSourceChain" class="bg-transparent border-none text-sm font-bold text-white outline-none cursor-pointer">
+                        <option value="ethereumSepolia">Ethereum Sepolia</option>
+                        <option value="arcTestnet">Arc Testnet</option>
+                    </select>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <input id="bridgeAmount" type="number" placeholder="0.00" oninput="calcBridgeFee()" min="0" class="bg-transparent border-none outline-none text-3xl font-black w-32">
+                        <div class="text-xs text-gray-400 mt-1">USDC</div>
+                    </div>
+                    <div class="text-right">
+                        <div id="bridgeSourceBal" class="text-sm font-bold">Balance: —</div>
+                        <button onclick="setMaxBridgeAmount()" class="text-xs text-cyan-400 hover:text-cyan-300 mt-1">MAX</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Swap direction -->
+            <div class="flex justify-center -my-2 relative z-10">
+                <button onclick="swapBridgeDirection()" class="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-cyan-500 flex items-center justify-center text-xl font-bold hover:scale-110 transition shadow-lg">⇄</button>
+            </div>
+
+            <!-- Destination Chain -->
+            <div class="glass rounded-[20px] p-5 mt-3">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs text-gray-400">To</span>
+                    <select id="bridgeDestChain" class="bg-transparent border-none text-sm font-bold text-white outline-none cursor-pointer">
+                        <option value="arcTestnet">Arc Testnet</option>
+                        <option value="ethereumSepolia">Ethereum Sepolia</option>
+                    </select>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div id="bridgeDestAmount" class="text-3xl font-black">0.00</div>
+                        <div class="text-xs text-gray-400 mt-1">USDC</div>
+                    </div>
+                    <div class="text-right">
+                        <div id="bridgeDestBal" class="text-sm font-bold">Balance: —</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fee info -->
+            <div class="mt-5 p-4 rounded-xl bg-white/5 border border-white/10">
+                <div class="flex justify-between text-sm mb-2">
+                    <span class="text-gray-400">Bridge Fee</span>
+                    <span id="bridgeFee" class="font-bold">0.0005 USDC</span>
+                </div>
+                <div class="flex justify-between text-sm mb-2">
+                    <span class="text-gray-400">Estimated Time</span>
+                    <span class="font-bold">~8-20 seconds</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-400">You will receive</span>
+                    <span id="bridgeReceive" class="font-bold text-cyan-400">0.00 USDC</span>
+                </div>
+            </div>
+
+            <!-- Bridge button -->
+            <button id="bridgeExecuteBtn" onclick="executeBridge()" class="gradient w-full py-4 rounded-2xl font-bold glow text-lg mt-5 transition hover:scale-[1.02]">Bridge USDC</button>
+            <div id="bridgeStatus" class="text-center text-xs text-gray-400 mt-3 hidden"></div>
+        </div>
+
+        <!-- Info cards -->
+        <div class="mt-6 grid grid-cols-2 gap-4">
+            <div class="glass rounded-xl p-4">
+                <div class="text-2xl mb-2">🔒</div>
+                <h4 class="font-bold text-sm mb-1">Secure</h4>
+                <p class="text-xs text-gray-400">Burn & mint protocol</p>
+            </div>
+            <div class="glass rounded-xl p-4">
+                <div class="text-2xl mb-2">⚡</div>
+                <h4 class="font-bold text-sm mb-1">Fast</h4>
+                <p class="text-xs text-gray-400">8-20 second transfers</p>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -1665,6 +1803,44 @@ nav button.glass:hover {
     };
 
     /* ══════════════════════════════════════════════════
+       CCTP CONFIGURATION
+       Cross-Chain Transfer Protocol for bridging USDC
+    ══════════════════════════════════════════════════ */
+    const CCTP_CONFIG = {
+        // Domain IDs from Circle CCTP documentation
+        domains: {
+            ETHEREUM_SEPOLIA: 0,
+            ARC_TESTNET: 26
+        },
+        // Contract addresses for Ethereum Sepolia
+        ethereumSepolia: {
+            usdc: '0x1c7d4b196cb0c7b01d743fbc6116a902379c7238',
+            tokenMessenger: '0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa',
+            messageTransmitter: '0x91566bbf0e2a8c08ce886b7351da2b5c0ce9eb44'
+        },
+        // Contract addresses for Arc Testnet
+        arcTestnet: {
+            usdc: '0x833589fCD6eDb6E08f4c71032ef707Be550b5AF4', // Native USDC on Arc
+            tokenMessenger: '0x5b7b4c8e1c3e6f8a9d2b4c6e8f0a2b4c6e8f0a2b',
+            messageTransmitter: '0xe737e5cebeeba77efe34d4aa090756590b1ce275'
+        },
+        // Circle Attestation API
+        attestationApi: 'https://attestation-api.circle.com/v2/attestations'
+    };
+
+    // CCTP Contract ABIs (simplified for key functions)
+    const TOKEN_MESSENGER_ABI = [
+        'function depositForBurn(uint256 amount, uint32 destinationDomain, bytes32 mintRecipient, address burnToken, bytes32 destinationCaller, uint256 maxFee, uint32 minFinalityThreshold) external',
+        'function depositForBurnWithHook(uint256 amount, uint32 destinationDomain, bytes32 mintRecipient, address burnToken, bytes32 destinationCaller, uint256 maxFee, uint32 minFinalityThreshold, bytes hookData) external',
+        'function handleReceiveFinalizedMessage(bytes32 messageHeader, bytes32 messageBody) external'
+    ];
+
+    const MESSAGE_TRANSMITTER_ABI = [
+        'function receiveMessage(bytes32 messageHeader, bytes32 messageBody) external',
+        'function sendMessage(uint32 destinationDomain, bytes32 recipient, bytes32 destinationCaller, bytes messageBody) external returns (bytes32)'
+    ];
+
+    /* ══════════════════════════════════════════════════
        RPC RESILIENCE HELPERS
        The public Arc Testnet RPC occasionally returns a transient
        "HTTP client error" (4xx) on an individual request even while the
@@ -1794,6 +1970,14 @@ nav button.glass:hover {
         document.body.style.overflow = 'hidden';
         setNavActive('navSwap');
         updateSwapBalances();
+    }
+
+    function showBridge() {
+        hideAllOverlays();
+        document.getElementById('bridgeView').classList.add('open');
+        document.body.style.overflow = 'hidden';
+        setNavActive('navBridge');
+        updateBridgeBalances();
     }
 
     /* ── Portfolio rendering ── */
@@ -2239,6 +2423,260 @@ nav button.glass:hover {
                 const reason = friendlyTxError(err);
                 setStatus('❌ Swap failed: ' + reason);
                 updateToast(swapToast,'error','Swap Failed',reason);
+            }
+        }
+
+        execBtn.disabled = false;
+        execBtn.style.opacity = '1';
+    }
+
+    /* ═══════════════════════════ BRIDGE FUNCTIONS ═══════════════════════════ */
+    async function updateBridgeBalances() {
+        if (!isConnected) {
+            document.getElementById('bridgeSourceBal').innerText = 'Balance: —';
+            document.getElementById('bridgeDestBal').innerText = 'Balance: —';
+            return;
+        }
+
+        const sourceChain = document.getElementById('bridgeSourceChain').value;
+        const destChain = document.getElementById('bridgeDestChain').value;
+
+        try {
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const signer = provider.getSigner();
+
+            // Get source chain balance
+            const sourceConfig = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
+            const sourceUsdc = new ethers.Contract(sourceConfig.usdc, ERC20_ABI, provider);
+            const sourceBal = await withRpcRetry(() => sourceUsdc.balanceOf(currentAccount));
+            document.getElementById('bridgeSourceBal').innerText = `Balance: ${parseFloat(ethers.utils.formatUnits(sourceBal, 6)).toFixed(2)} USDC`;
+
+            // Get destination chain balance
+            const destConfig = destChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
+            const destUsdc = new ethers.Contract(destConfig.usdc, ERC20_ABI, provider);
+            const destBal = await withRpcRetry(() => destUsdc.balanceOf(currentAccount));
+            document.getElementById('bridgeDestBal').innerText = `Balance: ${parseFloat(ethers.utils.formatUnits(destBal, 6)).toFixed(2)} USDC`;
+
+        } catch (err) {
+            console.error('Bridge balance error:', err);
+            document.getElementById('bridgeSourceBal').innerText = 'Balance: —';
+            document.getElementById('bridgeDestBal').innerText = 'Balance: —';
+        }
+    }
+
+    function calcBridgeFee() {
+        const amount = parseFloat(document.getElementById('bridgeAmount').value) || 0;
+        const fee = 0.0005; // Fixed CCTP fee
+        const receive = Math.max(0, amount - fee);
+
+        document.getElementById('bridgeFee').innerText = `${fee.toFixed(4)} USDC`;
+        document.getElementById('bridgeReceive').innerText = `${receive.toFixed(2)} USDC`;
+        document.getElementById('bridgeDestAmount').innerText = receive.toFixed(2);
+    }
+
+    async function setMaxBridgeAmount() {
+        if (!isConnected) {
+            showToast('warning','Wallet Not Connected','Please connect your wallet first.');
+            return;
+        }
+
+        const sourceChain = document.getElementById('bridgeSourceChain').value;
+        try {
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const sourceConfig = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
+            const sourceUsdc = new ethers.Contract(sourceConfig.usdc, ERC20_ABI, provider);
+            const sourceBal = await withRpcRetry(() => sourceUsdc.balanceOf(currentAccount));
+            const balUsdc = parseFloat(ethers.utils.formatUnits(sourceBal, 6));
+
+            document.getElementById('bridgeAmount').value = (balUsdc - 0.0005).toFixed(2);
+            calcBridgeFee();
+        } catch (err) {
+            console.error('Max amount error:', err);
+        }
+    }
+
+    function swapBridgeDirection() {
+        const sourceSelect = document.getElementById('bridgeSourceChain');
+        const destSelect = document.getElementById('bridgeDestChain');
+        const temp = sourceSelect.value;
+        sourceSelect.value = destSelect.value;
+        destSelect.value = temp;
+
+        document.getElementById('bridgeAmount').value = '';
+        calcBridgeFee();
+        updateBridgeBalances();
+    }
+
+    // Helper: Convert address to bytes32 for CCTP
+    function addressToBytes32(address) {
+        return ethers.utils.hexZeroPad(address, 32);
+    }
+
+    // Helper: Convert bytes32 to address
+    function bytes32ToAddress(bytes32) {
+        return ethers.utils.hexStripZeros(bytes32);
+    }
+
+    async function executeBridge() {
+        if (!isConnected) {
+            showToast('warning','Wallet Not Connected','Please connect your wallet before bridging.');
+            return;
+        }
+
+        const amtStr = document.getElementById('bridgeAmount').value;
+        const amt = parseFloat(amtStr);
+        if (!amt || amt <= 0) {
+            showToast('warning','Invalid Amount','Please enter a valid amount to bridge.');
+            return;
+        }
+
+        const sourceChain = document.getElementById('bridgeSourceChain').value;
+        const destChain = document.getElementById('bridgeDestChain').value;
+
+        if (sourceChain === destChain) {
+            showToast('warning','Same Chain','Source and destination chains must be different.');
+            return;
+        }
+
+        const status = document.getElementById('bridgeStatus');
+        const execBtn = document.getElementById('bridgeExecuteBtn');
+
+        const setStatus = (msg, hide = false) => {
+            status.innerText = msg;
+            status.classList.toggle('hidden', hide);
+        };
+
+        execBtn.disabled = true;
+        execBtn.style.opacity = '.6';
+
+        let bridgeToast = null;
+        try {
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const signer = provider.getSigner();
+
+            const sourceConfig = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
+            const destConfig = destChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
+
+            const destDomain = destChain === 'ethereumSepolia' ? CCTP_CONFIG.domains.ETHEREUM_SEPOLIA : CCTP_CONFIG.domains.ARC_TESTNET;
+
+            const amtInWei = ethers.utils.parseUnits(amtStr, 6); // USDC has 6 decimals
+            const maxFee = ethers.utils.parseUnits('0.0005', 6); // Max fee in USDC
+
+            // Step 1: Approve TokenMessenger
+            setStatus('⏳ Step 1/3 — Approving USDC spend…');
+            bridgeToast = showToast('pending','Approving USDC','Requesting spend approval for USDC…');
+            const onRpcRetry = (n, max) => setStatus(`⏳ RPC hiccup — retrying (${n}/${max})…`);
+
+            const usdc = new ethers.Contract(sourceConfig.usdc, ERC20_ABI, signer);
+            const allowance = await withRpcRetry(
+                () => usdc.allowance(currentAccount, sourceConfig.tokenMessenger),
+                { onRetry: onRpcRetry }
+            );
+
+            if (allowance.lt(amtInWei)) {
+                const approveTx = await withRpcRetry(
+                    () => usdc.approve(sourceConfig.tokenMessenger, ethers.constants.MaxUint256),
+                    { onRetry: onRpcRetry }
+                );
+                updateToast(bridgeToast, 'pending','Waiting for Approval','Confirming approval on-chain…');
+                setStatus('⏳ Step 1/3 — Waiting for approval confirmation…');
+                await withRpcRetry(() => approveTx.wait(), { onRetry: onRpcRetry });
+            }
+
+            // Step 2: Burn USDC on source chain
+            setStatus('⏳ Step 2/3 — Burning USDC on source chain…');
+            updateToast(bridgeToast, 'pending','Burning USDC','Initiating CCTP burn transaction…');
+
+            const tokenMessenger = new ethers.Contract(sourceConfig.tokenMessenger, TOKEN_MESSENGER_ABI, signer);
+            const burnTx = await withRpcRetry(
+                () => tokenMessenger.depositForBurn(
+                    amtInWei,
+                    destDomain,
+                    addressToBytes32(currentAccount),
+                    sourceConfig.usdc,
+                    ethers.constants.HashZero, // destinationCaller = any
+                    maxFee,
+                    0 // minFinalityThreshold
+                ),
+                { onRetry: onRpcRetry }
+            );
+
+            updateToast(bridgeToast, 'pending','Confirming Burn','Waiting for burn confirmation…');
+            setStatus('⏳ Step 2/3 — Waiting for burn confirmation…');
+            const burnReceipt = await withRpcRetry(() => burnTx.wait(), { onRetry: onRpcRetry });
+
+            // Step 3: Mint USDC on destination chain
+            setStatus('⏳ Step 3/3 — Retrieving attestation and minting…');
+            updateToast(bridgeToast, 'pending','Retrieving Attestation','Fetching Circle attestation…');
+
+            // Poll for attestation
+            let attestation = null;
+            const maxPollTime = 60000; // 60 seconds
+            const pollInterval = 2000;
+            const startTime = Date.now();
+
+            while (!attestation && Date.now() - startTime < maxPollTime) {
+                try {
+                    const response = await fetch(`${CCTP_CONFIG.attestationApi}?srcDomain=${sourceChain === 'ethereumSepolia' ? 0 : 26}&messageId=${burnReceipt.transactionHash}`);
+                    const data = await response.json();
+                    if (data.attestation) {
+                        attestation = data.attestation;
+                        break;
+                    }
+                } catch (err) {
+                    console.log('Attestation poll error:', err);
+                }
+                await new Promise(r => setTimeout(r, pollInterval));
+            }
+
+            if (!attestation) {
+                throw new Error('Failed to retrieve attestation within timeout');
+            }
+
+            updateToast(bridgeToast, 'pending','Minting USDC','Minting USDC on destination chain…');
+            setStatus('⏳ Step 3/3 — Minting USDC on destination chain…');
+
+            // Switch to destination chain
+            await window.ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: destChain === 'ethereumSepolia' ? '0xaa36a7' : '0x4CEF52' }]
+            });
+
+            const destProvider = new ethers.providers.Web3Provider(window.ethereum);
+            const destSigner = destProvider.getSigner();
+
+            const messageTransmitter = new ethers.Contract(destConfig.messageTransmitter, MESSAGE_TRANSMITTER_ABI, destSigner);
+
+            // Call receiveMessage with attestation
+            const mintTx = await withRpcRetry(
+                () => messageTransmitter.receiveMessage(
+                    ethers.utils.hexZeroPad(burnReceipt.transactionHash, 32),
+                    attestation
+                ),
+                { onRetry: onRpcRetry }
+            );
+
+            updateToast(bridgeToast, 'pending','Confirming Mint','Waiting for mint confirmation…');
+            setStatus('⏳ Step 3/3 — Waiting for mint confirmation…');
+            const mintReceipt = await withRpcRetry(() => mintTx.wait(), { onRetry: onRpcRetry });
+
+            const shortTx = mintReceipt.transactionHash.slice(0, 10) + '…';
+            setStatus(`✅ Bridge complete! Tx: ${shortTx}`);
+            updateToast(bridgeToast, 'success', 'Bridge Successful! 🎉', `${amt} USDC bridged successfully. Tx: ${shortTx}`);
+
+            document.getElementById('bridgeAmount').value = '';
+            calcBridgeFee();
+            updateBridgeBalances();
+
+        } catch (err) {
+            console.error('Bridge error:', err);
+            if (err.code === 4001 || err.code === 'ACTION_REJECTED') {
+                setStatus('❌ Transaction rejected by user.');
+                updateToast(bridgeToast, 'error', 'Bridge Cancelled', 'You rejected the transaction in your wallet.');
+            } else {
+                const reason = friendlyTxError(err);
+                setStatus('❌ Bridge failed: ' + reason);
+                updateToast(bridgeToast, 'error', 'Bridge Failed', reason);
             }
         }
 
