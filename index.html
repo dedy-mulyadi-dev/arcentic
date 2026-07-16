@@ -139,6 +139,10 @@ svg{width:100%;height:100%}
     transition: .2s;
 }
 .token-select-btn:hover { background: rgba(92,120,255,.28); }
+.token-select-btn.tok-active {
+    background: linear-gradient(135deg,#3478ff,#8b5cf6);
+    border-color: transparent;
+}
 .swap-arrow-btn {
     width:44px;height:44px;border-radius:50%;
     background:rgba(92,120,255,.15);border:1px solid rgba(92,120,255,.3);
@@ -1056,10 +1060,15 @@ nav button.glass:hover {
                         <option value="arcTestnet">Arc Testnet</option>
                     </select>
                 </div>
+                <div id="bridgeSourceTokenWrap" style="display:none" class="items-center gap-2 mb-3">
+                    <button type="button" id="bridgeSrcTokBtn_USDC" onclick="setBridgeSourceToken('USDC')" class="token-select-btn text-xs !py-1.5 !px-3">USDC</button>
+                    <button type="button" id="bridgeSrcTokBtn_ETH" onclick="setBridgeSourceToken('ETH')" class="token-select-btn text-xs !py-1.5 !px-3">ETH</button>
+                    <span class="text-[11px] text-gray-500">swap → USDC on Uniswap, then bridge</span>
+                </div>
                 <div class="flex items-center justify-between">
                     <div>
                         <input id="bridgeAmount" type="number" placeholder="0.00" oninput="calcBridgeFee()" min="0" class="bg-transparent border-none outline-none text-3xl font-black w-32">
-                        <div class="text-xs text-gray-400 mt-1">USDC</div>
+                        <div id="bridgeSourceUnit" class="text-xs text-gray-400 mt-1">USDC</div>
                     </div>
                     <div class="text-right">
                         <div id="bridgeSourceBal" class="text-sm font-bold">Balance: —</div>
@@ -1083,10 +1092,15 @@ nav button.glass:hover {
                         <option value="ethereumSepolia">Ethereum Sepolia</option>
                     </select>
                 </div>
+                <div id="bridgeDestTokenWrap" style="display:none" class="items-center gap-2 mb-3">
+                    <button type="button" id="bridgeDstTokBtn_USDC" onclick="setBridgeDestToken('USDC')" class="token-select-btn text-xs !py-1.5 !px-3">USDC</button>
+                    <button type="button" id="bridgeDstTokBtn_ETH" onclick="setBridgeDestToken('ETH')" class="token-select-btn text-xs !py-1.5 !px-3">ETH</button>
+                    <span class="text-[11px] text-gray-500">auto-swap USDC → ETH after mint</span>
+                </div>
                 <div class="flex items-center justify-between">
                     <div>
                         <div id="bridgeDestAmount" class="text-3xl font-black">0.00</div>
-                        <div class="text-xs text-gray-400 mt-1">USDC</div>
+                        <div id="bridgeDestUnit" class="text-xs text-gray-400 mt-1">USDC</div>
                     </div>
                     <div class="text-right">
                         <div id="bridgeDestBal" class="text-sm font-bold">Balance: —</div>
@@ -1855,6 +1869,99 @@ nav button.glass:hover {
     ];
 
     /* ══════════════════════════════════════════════════
+       UNISWAP V3 CONFIGURATION (Ethereum Sepolia only)
+       Arc Testnet's native gas token IS USDC, so there is
+       nothing to swap there — only the Sepolia leg ever
+       needs an ETH<->USDC conversion. Addresses below are
+       Uniswap's official Sepolia testnet deployment, and
+       the pool fee (0.05%) is the deepest-liquidity USDC/WETH
+       pool on that network.
+    ══════════════════════════════════════════════════ */
+    const UNISWAP_CONFIG = {
+        ethereumSepolia: {
+            swapRouter02: '0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E',
+            quoterV2: '0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3',
+            weth: '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14',
+            poolFee: 500 // 0.05%
+        }
+    };
+
+    // Sentinel recipient understood by SwapRouter02's Constants.sol —
+    // means "leave the output tokens sitting in the router itself" so a
+    // following call in the same multicall (e.g. unwrapWETH9) can act on them.
+    const UNI_ADDRESS_THIS = '0x00000000000000000000000000000000000002';
+
+    const SWAP_ROUTER_02_ABI = [
+        'function exactInputSingle((address tokenIn,address tokenOut,uint24 fee,address recipient,uint256 amountIn,uint256 amountOutMinimum,uint160 sqrtPriceLimitX96) params) external payable returns (uint256 amountOut)',
+        'function multicall(bytes[] data) external payable returns (bytes[] results)',
+        'function unwrapWETH9(uint256 amountMinimum, address recipient) external payable',
+        'function refundETH() external payable'
+    ];
+
+    const QUOTER_V2_ABI = [
+        'function quoteExactInputSingle((address tokenIn,address tokenOut,uint256 amountIn,uint24 fee,uint160 sqrtPriceLimitX96) params) external returns (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed, uint256 gasEstimate)'
+    ];
+
+    // Quotes how much `amountOut` you'd get swapping `amountIn` of tokenIn ->
+    // tokenOut on the Sepolia USDC/WETH pool. Uses callStatic (an eth_call,
+    // no tx/gas) against the QuoterV2 contract. Returns a BigNumber.
+    async function getSwapQuote(tokenIn, tokenOut, amountIn) {
+        return await callWithChainFallback('ethereumSepolia', async (provider) => {
+            const quoter = new ethers.Contract(UNISWAP_CONFIG.ethereumSepolia.quoterV2, QUOTER_V2_ABI, provider);
+            const result = await quoter.callStatic.quoteExactInputSingle({
+                tokenIn,
+                tokenOut,
+                amountIn,
+                fee: UNISWAP_CONFIG.ethereumSepolia.poolFee,
+                sqrtPriceLimitX96: 0
+            });
+            return result.amountOut;
+        });
+    }
+
+    // Applies a slippage tolerance (in %) to a quoted amount, rounding down.
+    function applySlippage(amount, slippagePct) {
+        const bps = Math.round((100 - slippagePct) * 100); // e.g. 3% -> 9700
+        return amount.mul(bps).div(10000);
+    }
+
+    /* ══════════════════════════════════════════════════
+       PENDING BRIDGE PERSISTENCE
+       If the attestation poll times out, the burn has ALREADY happened
+       on-chain — only the mint step is left. Previously, clicking
+       "Bridge USDC" again re-ran approve+burn from scratch, silently
+       burning the user's USDC a second time. We now persist the burn
+       tx hash right after it confirms, so a retry resumes straight at
+       the attestation/mint step instead of burning again.
+    ══════════════════════════════════════════════════ */
+    const PENDING_BRIDGE_KEY = 'arcentic_pending_bridge';
+
+    function pendingBridgeStorageKey(account, sourceChain, destChain) {
+        return `${PENDING_BRIDGE_KEY}_${(account || '').toLowerCase()}_${sourceChain}_${destChain}`;
+    }
+
+    function getPendingBridge(account, sourceChain, destChain) {
+        try {
+            const raw = localStorage.getItem(pendingBridgeStorageKey(account, sourceChain, destChain));
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function savePendingBridge(account, sourceChain, destChain, data) {
+        try {
+            localStorage.setItem(pendingBridgeStorageKey(account, sourceChain, destChain), JSON.stringify(data));
+        } catch (e) { /* storage unavailable — resume just won't be possible */ }
+    }
+
+    function clearPendingBridge(account, sourceChain, destChain) {
+        try {
+            localStorage.removeItem(pendingBridgeStorageKey(account, sourceChain, destChain));
+        } catch (e) {}
+    }
+
+    /* ══════════════════════════════════════════════════
        RPC RESILIENCE HELPERS
        The public Arc Testnet RPC occasionally returns a transient
        "HTTP client error" (4xx) on an individual request even while the
@@ -1991,6 +2098,8 @@ nav button.glass:hover {
         document.getElementById('bridgeView').classList.add('open');
         document.body.style.overflow = 'hidden';
         setNavActive('navBridge');
+        setBridgeSourceToken(bridgeSourceToken, true);
+        setBridgeDestToken(bridgeDestToken, true);
         updateBridgeBalances();
     }
 
@@ -2490,8 +2599,65 @@ nav button.glass:hover {
     // guard makes an in-flight call bail out once a newer one has started.
     let _bridgeBalRequestId = 0;
 
+    // Which token each leg is denominated in. Only meaningful on the
+    // Ethereum Sepolia side — Arc Testnet's native/only relevant asset is
+    // USDC itself, so it's always forced to 'USDC'.
+    let bridgeSourceToken = 'USDC';
+    let bridgeDestToken = 'USDC';
+
+    // skipRefresh=true is used internally (e.g. from updateBridgeBalances)
+    // to update state/UI without re-triggering a balance refresh loop.
+    function updateBridgeButtonLabel() {
+        const btn = document.getElementById('bridgeExecuteBtn');
+        if (!btn) return;
+        btn.textContent = (bridgeSourceToken === 'ETH' || bridgeDestToken === 'ETH')
+            ? `Bridge ${bridgeSourceToken} → ${bridgeDestToken}`
+            : 'Bridge USDC';
+    }
+
+    function setBridgeSourceToken(token, skipRefresh) {
+        bridgeSourceToken = token;
+        document.getElementById('bridgeSrcTokBtn_USDC').classList.toggle('tok-active', token === 'USDC');
+        document.getElementById('bridgeSrcTokBtn_ETH').classList.toggle('tok-active', token === 'ETH');
+        document.getElementById('bridgeSourceUnit').innerText = token;
+        updateBridgeButtonLabel();
+        if (!skipRefresh) {
+            document.getElementById('bridgeAmount').value = '';
+            calcBridgeFee();
+            updateBridgeBalances();
+        }
+    }
+
+    function setBridgeDestToken(token, skipRefresh) {
+        bridgeDestToken = token;
+        document.getElementById('bridgeDstTokBtn_USDC').classList.toggle('tok-active', token === 'USDC');
+        document.getElementById('bridgeDstTokBtn_ETH').classList.toggle('tok-active', token === 'ETH');
+        document.getElementById('bridgeDestUnit').innerText = token;
+        updateBridgeButtonLabel();
+        if (!skipRefresh) calcBridgeFee();
+    }
+
     async function updateBridgeBalances() {
         const requestId = ++_bridgeBalRequestId;
+
+        const sourceChain = document.getElementById('bridgeSourceChain').value;
+        const destChain = document.getElementById('bridgeDestChain').value;
+
+        // The ETH/USDC token pills only make sense on the Sepolia leg.
+        const srcTokWrap = document.getElementById('bridgeSourceTokenWrap');
+        if (sourceChain === 'ethereumSepolia') {
+            srcTokWrap.style.display = 'flex';
+        } else {
+            srcTokWrap.style.display = 'none';
+            if (bridgeSourceToken !== 'USDC') setBridgeSourceToken('USDC', true);
+        }
+        const dstTokWrap = document.getElementById('bridgeDestTokenWrap');
+        if (destChain === 'ethereumSepolia') {
+            dstTokWrap.style.display = 'flex';
+        } else {
+            dstTokWrap.style.display = 'none';
+            if (bridgeDestToken !== 'USDC') setBridgeDestToken('USDC', true);
+        }
 
         if (!isConnected) {
             document.getElementById('bridgeSourceBal').innerText = 'Balance: —';
@@ -2501,20 +2667,26 @@ nav button.glass:hover {
             return;
         }
 
-        const sourceChain = document.getElementById('bridgeSourceChain').value;
-        const destChain = document.getElementById('bridgeDestChain').value;
-
         // Source and destination fetches are independent — one chain's RPC
         // being down should not blank out the balance we DID manage to fetch
         // for the other chain.
+        const usingEthSource = sourceChain === 'ethereumSepolia' && bridgeSourceToken === 'ETH';
         try {
-            const sourceConfig = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
-            const sourceBal = await callWithChainFallback(sourceChain, (provider) => {
-                const sourceUsdc = new ethers.Contract(sourceConfig.usdc, ERC20_ABI, provider);
-                return withRpcRetry(() => sourceUsdc.balanceOf(currentAccount), { retries: 1 });
-            });
-            if (requestId !== _bridgeBalRequestId) return; // a newer call has since started
-            document.getElementById('bridgeSourceBal').innerText = `Balance: ${parseFloat(ethers.utils.formatUnits(sourceBal, 6)).toFixed(2)} USDC`;
+            if (usingEthSource) {
+                const ethBal = await callWithChainFallback('ethereumSepolia', (provider) =>
+                    withRpcRetry(() => provider.getBalance(currentAccount), { retries: 1 })
+                );
+                if (requestId !== _bridgeBalRequestId) return;
+                document.getElementById('bridgeSourceBal').innerText = `Balance: ${parseFloat(ethers.utils.formatEther(ethBal)).toFixed(4)} ETH`;
+            } else {
+                const sourceConfig = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
+                const sourceBal = await callWithChainFallback(sourceChain, (provider) => {
+                    const sourceUsdc = new ethers.Contract(sourceConfig.usdc, ERC20_ABI, provider);
+                    return withRpcRetry(() => sourceUsdc.balanceOf(currentAccount), { retries: 1 });
+                });
+                if (requestId !== _bridgeBalRequestId) return; // a newer call has since started
+                document.getElementById('bridgeSourceBal').innerText = `Balance: ${parseFloat(ethers.utils.formatUnits(sourceBal, 6)).toFixed(2)} USDC`;
+            }
         } catch (err) {
             console.error(`Bridge source (${sourceChain}) balance error:`, err);
             if (requestId !== _bridgeBalRequestId) return;
@@ -2536,9 +2708,13 @@ nav button.glass:hover {
         }
 
         // Native ETH is only relevant on the Ethereum Sepolia side — it's the
-        // gas token there, not something CCTP bridges. Shown so the user can
-        // tell upfront whether they have enough ETH to pay for the tx.
-        await updateSepoliaEthBalance('bridgeSourceEthBal', sourceChain, requestId);
+        // gas token there. If we already showed it as the main source balance
+        // above, skip the redundant secondary line.
+        if (!usingEthSource) {
+            await updateSepoliaEthBalance('bridgeSourceEthBal', sourceChain, requestId);
+        } else {
+            document.getElementById('bridgeSourceEthBal').innerText = '';
+        }
         await updateSepoliaEthBalance('bridgeDestEthBal', destChain, requestId);
     }
 
@@ -2561,14 +2737,72 @@ nav button.glass:hover {
         }
     }
 
-    function calcBridgeFee() {
-        const amount = parseFloat(document.getElementById('bridgeAmount').value) || 0;
-        const fee = 0.0005; // Fixed CCTP fee
-        const receive = Math.max(0, amount - fee);
+    // Guards calcBridgeFee's async quote lookups the same way _bridgeBalRequestId
+    // guards balances — a stale in-flight quote must not overwrite a newer one.
+    let _feeCalcRequestId = 0;
 
+    async function calcBridgeFee() {
+        const requestId = ++_feeCalcRequestId;
+        const amount = parseFloat(document.getElementById('bridgeAmount').value) || 0;
+        const fee = 0.0005; // Fixed CCTP fee, denominated in USDC (the bridged asset)
+
+        const sourceChain = document.getElementById('bridgeSourceChain').value;
+        const destChain = document.getElementById('bridgeDestChain').value;
+        const usingEthSource = sourceChain === 'ethereumSepolia' && bridgeSourceToken === 'ETH';
+        const usingEthDest = destChain === 'ethereumSepolia' && bridgeDestToken === 'ETH';
+
+        let usdcAmount = amount;
+
+        // Leg 1: if bridging FROM ETH, quote what the Uniswap swap would
+        // yield in USDC before any of that USDC gets bridged.
+        if (usingEthSource) {
+            if (amount <= 0) {
+                document.getElementById('bridgeFee').innerText = '0.0005 USDC';
+                document.getElementById('bridgeReceive').innerText = usingEthDest ? '0.00 ETH' : '0.00 USDC';
+                document.getElementById('bridgeDestAmount').innerText = '0.00';
+                return;
+            }
+            document.getElementById('bridgeFee').innerText = 'estimating…';
+            document.getElementById('bridgeReceive').innerText = 'estimating…';
+            try {
+                const { weth } = UNISWAP_CONFIG.ethereumSepolia;
+                const quoted = await getSwapQuote(weth, CCTP_CONFIG.ethereumSepolia.usdc, ethers.utils.parseEther(amount.toString()));
+                if (requestId !== _feeCalcRequestId) return; // a newer calc has since started
+                usdcAmount = parseFloat(ethers.utils.formatUnits(quoted, 6));
+            } catch (err) {
+                console.error('Swap quote error (ETH->USDC):', err);
+                if (requestId !== _feeCalcRequestId) return;
+                document.getElementById('bridgeFee').innerText = '—';
+                document.getElementById('bridgeReceive').innerText = 'quote unavailable';
+                document.getElementById('bridgeDestAmount').innerText = '0.00';
+                return;
+            }
+        }
+
+        const receiveUsdc = Math.max(0, usdcAmount - fee);
         document.getElementById('bridgeFee').innerText = `${fee.toFixed(4)} USDC`;
-        document.getElementById('bridgeReceive').innerText = `${receive.toFixed(2)} USDC`;
-        document.getElementById('bridgeDestAmount').innerText = receive.toFixed(2);
+
+        // Leg 2: if bridging TO ETH, quote what the post-mint Uniswap swap
+        // on Sepolia would yield.
+        if (usingEthDest && receiveUsdc > 0) {
+            document.getElementById('bridgeReceive').innerText = 'estimating…';
+            try {
+                const { weth } = UNISWAP_CONFIG.ethereumSepolia;
+                const quotedEth = await getSwapQuote(CCTP_CONFIG.ethereumSepolia.usdc, weth, ethers.utils.parseUnits(receiveUsdc.toFixed(6), 6));
+                if (requestId !== _feeCalcRequestId) return;
+                const ethOut = parseFloat(ethers.utils.formatEther(quotedEth));
+                document.getElementById('bridgeReceive').innerText = `≈ ${ethOut.toFixed(6)} ETH`;
+                document.getElementById('bridgeDestAmount').innerText = ethOut.toFixed(6);
+            } catch (err) {
+                console.error('Swap quote error (USDC->ETH):', err);
+                if (requestId !== _feeCalcRequestId) return;
+                document.getElementById('bridgeReceive').innerText = 'quote unavailable';
+                document.getElementById('bridgeDestAmount').innerText = '0.00';
+            }
+        } else {
+            document.getElementById('bridgeReceive').innerText = `${receiveUsdc.toFixed(2)} USDC`;
+            document.getElementById('bridgeDestAmount').innerText = receiveUsdc.toFixed(2);
+        }
     }
 
     async function setMaxBridgeAmount() {
@@ -2579,14 +2813,24 @@ nav button.glass:hover {
 
         const sourceChain = document.getElementById('bridgeSourceChain').value;
         try {
-            const sourceConfig = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
-            const sourceBal = await callWithChainFallback(sourceChain, (provider) => {
-                const sourceUsdc = new ethers.Contract(sourceConfig.usdc, ERC20_ABI, provider);
-                return withRpcRetry(() => sourceUsdc.balanceOf(currentAccount), { retries: 1 });
-            });
-            const balUsdc = parseFloat(ethers.utils.formatUnits(sourceBal, 6));
-
-            document.getElementById('bridgeAmount').value = (balUsdc - 0.0005).toFixed(2);
+            if (sourceChain === 'ethereumSepolia' && bridgeSourceToken === 'ETH') {
+                const ethBal = await callWithChainFallback('ethereumSepolia', (provider) =>
+                    withRpcRetry(() => provider.getBalance(currentAccount), { retries: 1 })
+                );
+                // Leave some ETH behind to cover gas for the swap + approve +
+                // burn transactions that still need to happen after this.
+                const gasBuffer = ethers.utils.parseEther('0.01');
+                const usable = ethBal.gt(gasBuffer) ? ethBal.sub(gasBuffer) : ethers.BigNumber.from(0);
+                document.getElementById('bridgeAmount').value = parseFloat(ethers.utils.formatEther(usable)).toFixed(6);
+            } else {
+                const sourceConfig = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
+                const sourceBal = await callWithChainFallback(sourceChain, (provider) => {
+                    const sourceUsdc = new ethers.Contract(sourceConfig.usdc, ERC20_ABI, provider);
+                    return withRpcRetry(() => sourceUsdc.balanceOf(currentAccount), { retries: 1 });
+                });
+                const balUsdc = parseFloat(ethers.utils.formatUnits(sourceBal, 6));
+                document.getElementById('bridgeAmount').value = Math.max(0, balUsdc - 0.0005).toFixed(2);
+            }
             calcBridgeFee();
         } catch (err) {
             console.error('Max amount error:', err);
@@ -2599,6 +2843,11 @@ nav button.glass:hover {
         const temp = sourceSelect.value;
         sourceSelect.value = destSelect.value;
         destSelect.value = temp;
+
+        // Reset both token pills to USDC after flipping so an "ETH"
+        // selection never silently carries over to the wrong leg.
+        setBridgeSourceToken('USDC', true);
+        setBridgeDestToken('USDC', true);
 
         document.getElementById('bridgeAmount').value = '';
         calcBridgeFee();
@@ -2636,6 +2885,24 @@ nav button.glass:hover {
     }
 
 
+    // Parses ERC20 Transfer logs out of a receipt and sums the amount sent
+    // TO `toAddress` from the given token contract. Used to read the exact
+    // amount a swap/mint actually produced, rather than trusting a quote.
+    function sumTransfersTo(receipt, tokenAddress, toAddress) {
+        const iface = new ethers.utils.Interface(['event Transfer(address indexed from, address indexed to, uint256 value)']);
+        let total = ethers.BigNumber.from(0);
+        for (const log of receipt.logs) {
+            if (log.address.toLowerCase() !== tokenAddress.toLowerCase()) continue;
+            try {
+                const parsed = iface.parseLog(log);
+                if (parsed.name === 'Transfer' && parsed.args.to.toLowerCase() === toAddress.toLowerCase()) {
+                    total = total.add(parsed.args.value);
+                }
+            } catch (e) { /* not a Transfer log — ignore */ }
+        }
+        return total;
+    }
+
     async function executeBridge() {
         if (!isConnected) {
             showToast('warning','Wallet Not Connected','Please connect your wallet before bridging.');
@@ -2657,6 +2924,11 @@ nav button.glass:hover {
             return;
         }
 
+        // ETH is only ever involved on the Ethereum Sepolia leg — Arc Testnet's
+        // native/only relevant asset is USDC itself, so it's always USDC there.
+        const srcIsEth = sourceChain === 'ethereumSepolia' && bridgeSourceToken === 'ETH';
+        const dstIsEth = destChain === 'ethereumSepolia' && bridgeDestToken === 'ETH';
+
         const status = document.getElementById('bridgeStatus');
         const execBtn = document.getElementById('bridgeExecuteBtn');
 
@@ -2669,103 +2941,176 @@ nav button.glass:hover {
         execBtn.style.opacity = '.6';
 
         let bridgeToast = null;
+        const onRpcRetry = (n, max) => setStatus(`⏳ RPC hiccup — retrying (${n}/${max})…`);
+        const destConfig = destChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
+        const srcDomain = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.domains.ETHEREUM_SEPOLIA : CCTP_CONFIG.domains.ARC_TESTNET;
+        const { swapRouter02, weth, poolFee } = UNISWAP_CONFIG.ethereumSepolia;
+
+        // Total steps just drives the "Step X/N" status label.
+        const totalSteps = 3 + (srcIsEth ? 1 : 0) + (dstIsEth ? 1 : 0);
+        let stepNum = 0;
+
+        // If a previous attempt already burned USDC but the attestation poll
+        // timed out, resume from there instead of burning (or swapping) again.
+        const pending = getPendingBridge(currentAccount, sourceChain, destChain);
+
         try {
-            // Force the wallet onto the source chain BEFORE any contract call.
-            // Without this, allowance()/approve()/depositForBurn() run against
-            // whatever network the wallet happened to be on (e.g. left over
-            // from a previous mint step), which reverts with an empty-data
-            // CALL_EXCEPTION because the source contract doesn't exist there.
-            setStatus('⏳ Switching to source network…');
-            await switchToChain(
-                sourceChain === 'ethereumSepolia' ? ETHEREUM_SEPOLIA_CHAIN.chainId : ARC_CHAIN.chainId,
-                sourceChain === 'ethereumSepolia' ? ETHEREUM_SEPOLIA_CHAIN : ARC_CHAIN
-            );
-            await new Promise(r => setTimeout(r, 400)); // let the wallet settle on the new network
+            let burnTxHash, displayAmt;
 
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
-            const signer = provider.getSigner();
+            if (pending) {
+                stepNum = srcIsEth ? 2 : 1; // swap+approve already happened before the burn
+                setStatus('⏳ Resuming previous bridge — retrieving attestation…');
+                bridgeToast = showToast('pending','Resuming Bridge','Found an already-confirmed burn — fetching Circle attestation…');
+                burnTxHash = pending.txHash;
+                displayAmt = pending.amount;
+            } else {
+                // Force the wallet onto the source chain BEFORE any contract call.
+                // Without this, allowance()/approve()/depositForBurn() run against
+                // whatever network the wallet happened to be on (e.g. left over
+                // from a previous mint step), which reverts with an empty-data
+                // CALL_EXCEPTION because the source contract doesn't exist there.
+                setStatus('⏳ Switching to source network…');
+                await switchToChain(
+                    sourceChain === 'ethereumSepolia' ? ETHEREUM_SEPOLIA_CHAIN.chainId : ARC_CHAIN.chainId,
+                    sourceChain === 'ethereumSepolia' ? ETHEREUM_SEPOLIA_CHAIN : ARC_CHAIN
+                );
+                await new Promise(r => setTimeout(r, 400)); // let the wallet settle on the new network
 
-            const sourceConfig = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
-            const destConfig = destChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
+                const provider = new ethers.providers.Web3Provider(window.ethereum);
+                const signer = provider.getSigner();
 
-            const destDomain = destChain === 'ethereumSepolia' ? CCTP_CONFIG.domains.ETHEREUM_SEPOLIA : CCTP_CONFIG.domains.ARC_TESTNET;
+                const sourceConfig = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
+                const destDomain = destChain === 'ethereumSepolia' ? CCTP_CONFIG.domains.ETHEREUM_SEPOLIA : CCTP_CONFIG.domains.ARC_TESTNET;
 
-            const srcDomain = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.domains.ETHEREUM_SEPOLIA : CCTP_CONFIG.domains.ARC_TESTNET;
-            const amtInWei = ethers.utils.parseUnits(amtStr, 6); // USDC has 6 decimals
+                let amtInWei; // final USDC amount (6 decimals) that gets burned
 
-            // Fetch the current Fast Transfer fee for this route instead of
-            // hardcoding it. Per Circle's docs, if maxFee is below the live
-            // minimum Fast Transfer fee, the burn is silently downgraded to a
-            // Standard Transfer (13-19 min finality on Sepolia) instead of
-            // failing outright — which is what was causing "Attestation not
-            // ready yet" even though the burn itself succeeded.
-            let maxFee = ethers.utils.parseUnits('0.0005', 6); // conservative fallback (must stay well below tiny test amounts)
-            try {
-                const feeResp = await fetch(`${CCTP_CONFIG.attestationApi.replace('/messages', '')}/burn/USDC/fees/${srcDomain}/${destDomain}`);
-                if (feeResp.ok) {
-                    const feeData = await feeResp.json();
-                    const fastFeeEntry = Array.isArray(feeData) ? feeData.find(f => f.finalityThreshold <= 1000) || feeData[0] : null;
-                    if (fastFeeEntry && typeof fastFeeEntry.minimumFee === 'number') {
-                        // minimumFee is in basis points; add a 20% buffer as Circle recommends
-                        const protocolFee = amtInWei.mul(Math.round(fastFeeEntry.minimumFee * 100)).div(1_000_000);
-                        const buffered = protocolFee.mul(120).div(100);
-                        if (buffered.gt(0)) maxFee = buffered;
+                if (srcIsEth) {
+                    // Step 0: swap ETH -> USDC on Uniswap V3 before touching CCTP at all.
+                    stepNum++;
+                    setStatus(`⏳ Step ${stepNum}/${totalSteps} — Swapping ETH → USDC on Uniswap…`);
+                    bridgeToast = showToast('pending','Swapping ETH → USDC','Swapping via Uniswap V3 before bridging…');
+
+                    const ethAmountWei = ethers.utils.parseEther(amtStr);
+                    let quotedOut;
+                    try {
+                        quotedOut = await getSwapQuote(weth, sourceConfig.usdc, ethAmountWei);
+                    } catch (quoteErr) {
+                        throw new Error('Could not get a Uniswap quote for ETH → USDC — the Sepolia testnet pool may be temporarily unavailable.');
                     }
+                    const minOut = applySlippage(quotedOut, 3); // 3% slippage tolerance
+
+                    const router = new ethers.Contract(swapRouter02, SWAP_ROUTER_02_ABI, signer);
+                    const swapTx = await withRpcRetry(
+                        () => router.exactInputSingle({
+                            tokenIn: weth,
+                            tokenOut: sourceConfig.usdc,
+                            fee: poolFee,
+                            recipient: currentAccount,
+                            amountIn: ethAmountWei,
+                            amountOutMinimum: minOut,
+                            sqrtPriceLimitX96: 0
+                        }, { value: ethAmountWei }),
+                        { onRetry: onRpcRetry }
+                    );
+                    updateToast(bridgeToast, 'pending','Confirming Swap','Waiting for the ETH → USDC swap to confirm…');
+                    setStatus(`⏳ Step ${stepNum}/${totalSteps} — Waiting for swap confirmation…`);
+                    const swapReceipt = await withRpcRetry(() => swapTx.wait(), { onRetry: onRpcRetry });
+
+                    // Trust the actual Transfer amount over the quote — price can
+                    // move slightly between quoting and execution.
+                    const received = sumTransfersTo(swapReceipt, sourceConfig.usdc, currentAccount);
+                    amtInWei = received.isZero() ? quotedOut : received;
+                } else {
+                    amtInWei = ethers.utils.parseUnits(amtStr, 6); // USDC has 6 decimals
                 }
-            } catch (feeErr) {
-                console.log('Fee lookup failed, using fallback maxFee:', feeErr);
-            }
-            // depositForBurn requires maxFee strictly < amount. Clamp so tiny
-            // test transfers never revert with "Max fee must be less than amount".
-            if (maxFee.gte(amtInWei)) {
-                maxFee = amtInWei.gt(1) ? amtInWei.sub(1) : ethers.BigNumber.from(0);
-            }
 
-            // Step 1: Approve TokenMessenger
-            setStatus('⏳ Step 1/3 — Approving USDC spend…');
-            bridgeToast = showToast('pending','Approving USDC','Requesting spend approval for USDC…');
-            const onRpcRetry = (n, max) => setStatus(`⏳ RPC hiccup — retrying (${n}/${max})…`);
+                // Fetch the current Fast Transfer fee for this route instead of
+                // hardcoding it. Per Circle's docs, if maxFee is below the live
+                // minimum Fast Transfer fee, the burn is silently downgraded to a
+                // Standard Transfer (13-19 min finality on Sepolia) instead of
+                // failing outright — which is what was causing "Attestation not
+                // ready yet" even though the burn itself succeeded.
+                let maxFee = ethers.utils.parseUnits('0.0005', 6); // conservative fallback (must stay well below tiny test amounts)
+                try {
+                    const feeResp = await fetch(`${CCTP_CONFIG.attestationApi.replace('/messages', '')}/burn/USDC/fees/${srcDomain}/${destDomain}`);
+                    if (feeResp.ok) {
+                        const feeData = await feeResp.json();
+                        const fastFeeEntry = Array.isArray(feeData) ? feeData.find(f => f.finalityThreshold <= 1000) || feeData[0] : null;
+                        if (fastFeeEntry && typeof fastFeeEntry.minimumFee === 'number') {
+                            // minimumFee is in basis points; add a 20% buffer as Circle recommends
+                            const protocolFee = amtInWei.mul(Math.round(fastFeeEntry.minimumFee * 100)).div(1_000_000);
+                            const buffered = protocolFee.mul(120).div(100);
+                            if (buffered.gt(0)) maxFee = buffered;
+                        }
+                    }
+                } catch (feeErr) {
+                    console.log('Fee lookup failed, using fallback maxFee:', feeErr);
+                }
+                // depositForBurn requires maxFee strictly < amount. Clamp so tiny
+                // test transfers never revert with "Max fee must be less than amount".
+                if (maxFee.gte(amtInWei)) {
+                    maxFee = amtInWei.gt(1) ? amtInWei.sub(1) : ethers.BigNumber.from(0);
+                }
 
-            const usdc = new ethers.Contract(sourceConfig.usdc, ERC20_ABI, signer);
-            const allowance = await withRpcRetry(
-                () => usdc.allowance(currentAccount, sourceConfig.tokenMessenger),
-                { onRetry: onRpcRetry }
-            );
+                // Step: Approve TokenMessenger
+                stepNum++;
+                setStatus(`⏳ Step ${stepNum}/${totalSteps} — Approving USDC spend…`);
+                bridgeToast = showToast('pending','Approving USDC','Requesting spend approval for USDC…');
 
-            if (allowance.lt(amtInWei)) {
-                const approveTx = await withRpcRetry(
-                    () => usdc.approve(sourceConfig.tokenMessenger, ethers.constants.MaxUint256),
+                const usdc = new ethers.Contract(sourceConfig.usdc, ERC20_ABI, signer);
+                const allowance = await withRpcRetry(
+                    () => usdc.allowance(currentAccount, sourceConfig.tokenMessenger),
                     { onRetry: onRpcRetry }
                 );
-                updateToast(bridgeToast, 'pending','Waiting for Approval','Confirming approval on-chain…');
-                setStatus('⏳ Step 1/3 — Waiting for approval confirmation…');
-                await withRpcRetry(() => approveTx.wait(), { onRetry: onRpcRetry });
+
+                if (allowance.lt(amtInWei)) {
+                    const approveTx = await withRpcRetry(
+                        () => usdc.approve(sourceConfig.tokenMessenger, ethers.constants.MaxUint256),
+                        { onRetry: onRpcRetry }
+                    );
+                    updateToast(bridgeToast, 'pending','Waiting for Approval','Confirming approval on-chain…');
+                    setStatus(`⏳ Step ${stepNum}/${totalSteps} — Waiting for approval confirmation…`);
+                    await withRpcRetry(() => approveTx.wait(), { onRetry: onRpcRetry });
+                }
+
+                // Step: Burn USDC on source chain
+                stepNum++;
+                setStatus(`⏳ Step ${stepNum}/${totalSteps} — Burning USDC on source chain…`);
+                updateToast(bridgeToast, 'pending','Burning USDC','Initiating CCTP burn transaction…');
+
+                const tokenMessenger = new ethers.Contract(sourceConfig.tokenMessenger, TOKEN_MESSENGER_ABI, signer);
+                const burnTx = await withRpcRetry(
+                    () => tokenMessenger.depositForBurn(
+                        amtInWei,
+                        destDomain,
+                        addressToBytes32(currentAccount),
+                        sourceConfig.usdc,
+                        ethers.constants.HashZero, // destinationCaller = any
+                        maxFee,
+                        1000 // minFinalityThreshold: 1000 or less = Fast Transfer (per Circle's CCTP v2 docs)
+                    ),
+                    { onRetry: onRpcRetry }
+                );
+
+                updateToast(bridgeToast, 'pending','Confirming Burn','Waiting for burn confirmation…');
+                setStatus(`⏳ Step ${stepNum}/${totalSteps} — Waiting for burn confirmation…`);
+                const burnReceipt = await withRpcRetry(() => burnTx.wait(), { onRetry: onRpcRetry });
+                burnTxHash = burnReceipt.transactionHash;
+                displayAmt = parseFloat(ethers.utils.formatUnits(amtInWei, 6));
+
+                // Persist the burn immediately. From this point on, the USDC is
+                // already gone from the source chain — if the attestation poll
+                // below times out, a retry must resume here, NOT burn (or swap) again.
+                savePendingBridge(currentAccount, sourceChain, destChain, {
+                    txHash: burnTxHash,
+                    amount: displayAmt,
+                    timestamp: Date.now()
+                });
             }
 
-            // Step 2: Burn USDC on source chain
-            setStatus('⏳ Step 2/3 — Burning USDC on source chain…');
-            updateToast(bridgeToast, 'pending','Burning USDC','Initiating CCTP burn transaction…');
-
-            const tokenMessenger = new ethers.Contract(sourceConfig.tokenMessenger, TOKEN_MESSENGER_ABI, signer);
-            const burnTx = await withRpcRetry(
-                () => tokenMessenger.depositForBurn(
-                    amtInWei,
-                    destDomain,
-                    addressToBytes32(currentAccount),
-                    sourceConfig.usdc,
-                    ethers.constants.HashZero, // destinationCaller = any
-                    maxFee,
-                    1000 // minFinalityThreshold: 1000 or less = Fast Transfer (per Circle's CCTP v2 docs)
-                ),
-                { onRetry: onRpcRetry }
-            );
-
-            updateToast(bridgeToast, 'pending','Confirming Burn','Waiting for burn confirmation…');
-            setStatus('⏳ Step 2/3 — Waiting for burn confirmation…');
-            const burnReceipt = await withRpcRetry(() => burnTx.wait(), { onRetry: onRpcRetry });
-
-            // Step 3: Mint USDC on destination chain
-            setStatus('⏳ Step 3/3 — Retrieving attestation and minting…');
+            // Step: Mint USDC on destination chain
+            stepNum++;
+            setStatus(`⏳ Step ${stepNum}/${totalSteps} — Retrieving attestation and minting…`);
             updateToast(bridgeToast, 'pending','Retrieving Attestation','Fetching Circle attestation…');
 
             // Poll for attestation — per Circle's official CCTP v2 API
@@ -2773,10 +3118,13 @@ nav button.glass:hover {
             // returns { messages: [{ status, message, attestation, ... }] }.
             // Only status === 'complete' means the attestation is signed.
             let attestationMsg = null;
-            const maxPollTime = 90000; // 90 seconds — gives Fast Transfer some slack on testnet
+            const maxPollTime = 90000; // 90 seconds per attempt — if it's not ready, the
+                                        // burn stays saved (see savePendingBridge above)
+                                        // so clicking "Bridge USDC" again just resumes
+                                        // polling instead of burning a second time.
             const pollInterval = 2000;
             const startTime = Date.now();
-            const attestationUrl = `${CCTP_CONFIG.attestationApi}/${srcDomain}?transactionHash=${burnReceipt.transactionHash}`;
+            const attestationUrl = `${CCTP_CONFIG.attestationApi}/${srcDomain}?transactionHash=${burnTxHash}`;
 
             while (!attestationMsg && Date.now() - startTime < maxPollTime) {
                 try {
@@ -2796,11 +3144,11 @@ nav button.glass:hover {
             }
 
             if (!attestationMsg) {
-                throw new Error('Attestation not ready yet — Circle is still confirming the burn. Try minting again in a minute.');
+                throw new Error('Attestation not ready yet — Circle is still confirming the burn. Your USDC was already burned; just click "Bridge USDC" again in a minute to resume — it will NOT burn a second time.');
             }
 
             updateToast(bridgeToast, 'pending','Minting USDC','Minting USDC on destination chain…');
-            setStatus('⏳ Step 3/3 — Minting USDC on destination chain…');
+            setStatus(`⏳ Step ${stepNum}/${totalSteps} — Minting USDC on destination chain…`);
 
             // Switch to destination chain
             await switchToChain(
@@ -2825,12 +3173,80 @@ nav button.glass:hover {
             );
 
             updateToast(bridgeToast, 'pending','Confirming Mint','Waiting for mint confirmation…');
-            setStatus('⏳ Step 3/3 — Waiting for mint confirmation…');
+            setStatus(`⏳ Step ${stepNum}/${totalSteps} — Waiting for mint confirmation…`);
             const mintReceipt = await withRpcRetry(() => mintTx.wait(), { onRetry: onRpcRetry });
 
-            const shortTx = mintReceipt.transactionHash.slice(0, 10) + '…';
+            // Mint succeeded — the pending burn is fully resolved, clear it so
+            // the next bridge starts fresh instead of trying to resume this one.
+            clearPendingBridge(currentAccount, sourceChain, destChain);
+
+            // Read the exact minted amount from the mint tx's Transfer log —
+            // it can be marginally less than what was burned (protocol fee).
+            const mintedWei = sumTransfersTo(mintReceipt, destConfig.usdc, currentAccount);
+            const mintedUsdc = mintedWei.isZero() ? displayAmt : parseFloat(ethers.utils.formatUnits(mintedWei, 6));
+
+            let finalReceiveLabel = `${mintedUsdc.toFixed(2)} USDC`;
+            let mintTxForDisplay = mintReceipt.transactionHash;
+
+            if (dstIsEth) {
+                // Final step: swap the freshly-minted USDC into ETH on Uniswap,
+                // then unwrap WETH -> native ETH straight to the user's wallet.
+                stepNum++;
+                setStatus(`⏳ Step ${stepNum}/${totalSteps} — Swapping USDC → ETH on Uniswap…`);
+                updateToast(bridgeToast, 'pending','Swapping USDC → ETH','Converting minted USDC to ETH via Uniswap…');
+
+                try {
+                    const swapAmountWei = mintedWei.isZero() ? ethers.utils.parseUnits(displayAmt.toString(), 6) : mintedWei;
+
+                    const usdcOnDest = new ethers.Contract(destConfig.usdc, ERC20_ABI, destSigner);
+                    const routerAllowance = await withRpcRetry(
+                        () => usdcOnDest.allowance(currentAccount, swapRouter02),
+                        { onRetry: onRpcRetry }
+                    );
+                    if (routerAllowance.lt(swapAmountWei)) {
+                        const approveSwapTx = await withRpcRetry(
+                            () => usdcOnDest.approve(swapRouter02, ethers.constants.MaxUint256),
+                            { onRetry: onRpcRetry }
+                        );
+                        setStatus(`⏳ Step ${stepNum}/${totalSteps} — Approving USDC for swap…`);
+                        await withRpcRetry(() => approveSwapTx.wait(), { onRetry: onRpcRetry });
+                    }
+
+                    const quotedEthOut = await getSwapQuote(destConfig.usdc, weth, swapAmountWei);
+                    const minEthOut = applySlippage(quotedEthOut, 3);
+
+                    const router = new ethers.Contract(swapRouter02, SWAP_ROUTER_02_ABI, destSigner);
+                    const swapData = router.interface.encodeFunctionData('exactInputSingle', [{
+                        tokenIn: destConfig.usdc,
+                        tokenOut: weth,
+                        fee: poolFee,
+                        recipient: UNI_ADDRESS_THIS, // keep WETH in the router so unwrapWETH9 can pay it out as ETH
+                        amountIn: swapAmountWei,
+                        amountOutMinimum: minEthOut,
+                        sqrtPriceLimitX96: 0
+                    }]);
+                    const unwrapData = router.interface.encodeFunctionData('unwrapWETH9', [minEthOut, currentAccount]);
+
+                    const swapBackTx = await withRpcRetry(
+                        () => router.multicall([swapData, unwrapData]),
+                        { onRetry: onRpcRetry }
+                    );
+                    setStatus(`⏳ Step ${stepNum}/${totalSteps} — Waiting for swap-to-ETH confirmation…`);
+                    const swapBackReceipt = await withRpcRetry(() => swapBackTx.wait(), { onRetry: onRpcRetry });
+
+                    finalReceiveLabel = `≈ ${parseFloat(ethers.utils.formatEther(quotedEthOut)).toFixed(6)} ETH`;
+                    mintTxForDisplay = swapBackReceipt.transactionHash;
+                } catch (swapBackErr) {
+                    // The bridge itself already succeeded — the USDC is safely in
+                    // the user's wallet even if this last conversion step fails.
+                    console.error('USDC -> ETH swap-back error:', swapBackErr);
+                    showToast('warning', 'Bridge OK, Swap-to-ETH Failed', `${mintedUsdc.toFixed(2)} USDC arrived safely, but converting it to ETH failed: ${friendlyTxError(swapBackErr)}. You can swap it manually from the Swap tab.`);
+                }
+            }
+
+            const shortTx = mintTxForDisplay.slice(0, 10) + '…';
             setStatus(`✅ Bridge complete! Tx: ${shortTx}`);
-            updateToast(bridgeToast, 'success', 'Bridge Successful! 🎉', `${amt} USDC bridged successfully. Tx: ${shortTx}`);
+            updateToast(bridgeToast, 'success', 'Bridge Successful! 🎉', `Received ${finalReceiveLabel}. Tx: ${shortTx}`);
 
             document.getElementById('bridgeAmount').value = '';
             calcBridgeFee();
@@ -2839,6 +3255,9 @@ nav button.glass:hover {
         } catch (err) {
             console.error('Bridge error:', err);
             if (err.code === 4001 || err.code === 'ACTION_REJECTED') {
+                // User only rejected a wallet prompt (swap/approve/burn/mint) — if
+                // a burn had already gone through earlier in this session it's
+                // still safely persisted for next time, so nothing to undo here.
                 setStatus('❌ Transaction rejected by user.');
                 updateToast(bridgeToast, 'error', 'Bridge Cancelled', 'You rejected the transaction in your wallet.');
             } else {
