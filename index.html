@@ -2055,7 +2055,7 @@ nav button.glass:hover {
 
     /* ── View switching ── */
     function hideAllOverlays() {
-        ['portfolioView','swapView','poolsView','eijiView','lendView'].forEach(id => {
+        ['portfolioView','swapView','bridgeView','poolsView','eijiView','lendView'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.classList.remove('open');
         });
@@ -2864,7 +2864,15 @@ nav button.glass:hover {
         return ethers.utils.hexStripZeros(bytes32);
     }
 
+    // Set right before we ask the wallet to switch networks ourselves (e.g.
+    // mid-bridge), and cleared shortly after. The 'chainChanged' listener below
+    // uses this to tell apart "we switched the chain on purpose, as part of a
+    // flow that's still running" from "the user flipped networks manually in
+    // their wallet" — only the latter should reload the page.
+    let programmaticChainSwitch = false;
+
     async function switchToChain(targetChainId, chainConfig) {
+        programmaticChainSwitch = true;
         try {
             await window.ethereum.request({
                 method: 'wallet_switchEthereumChain',
@@ -2877,10 +2885,17 @@ nav button.glass:hover {
                     params: [chainConfig]
                 });
             } else if (switchErr.code === 4001) {
+                programmaticChainSwitch = false;
                 throw new Error('Network switch was rejected in your wallet. Please approve switching networks to continue.');
             } else {
+                programmaticChainSwitch = false;
                 throw switchErr;
             }
+        } finally {
+            // Wallets fire 'chainChanged' asynchronously, often a tick or two
+            // after this request resolves — keep the flag up briefly so that
+            // event, whenever it lands, still reads it as "on purpose".
+            setTimeout(() => { programmaticChainSwitch = false; }, 1500);
         }
     }
 
@@ -3367,7 +3382,17 @@ nav button.glass:hover {
             if (accounts.length === 0) setDisconnectedUI();
             else connectWallet();
         });
-        window.ethereum.on('chainChanged', () => window.location.reload());
+        window.ethereum.on('chainChanged', () => {
+            // If this fired because our own code called switchToChain (e.g.
+            // mid-bridge, hopping to the source then destination network),
+            // do NOT reload — that would wipe the in-progress bridge status
+            // and dump the user back on the main menu even though the
+            // on-chain transaction went through fine. Only a manual network
+            // change by the user, made directly in their wallet, should
+            // trigger a reload.
+            if (programmaticChainSwitch) return;
+            window.location.reload();
+        });
     }
 
     /* ── Auto-reconnect wallet on page load/refresh ──
