@@ -1051,7 +1051,7 @@ nav button.glass:hover {
             <div class="glass rounded-[20px] p-5 mb-3">
                 <div class="flex items-center justify-between mb-3">
                     <span class="text-xs text-gray-400">From</span>
-                    <select id="bridgeSourceChain" class="bg-transparent border-none text-sm font-bold text-white outline-none cursor-pointer">
+                    <select id="bridgeSourceChain" onchange="updateBridgeBalances()" class="bg-transparent border-none text-sm font-bold text-white outline-none cursor-pointer">
                         <option value="ethereumSepolia">Ethereum Sepolia</option>
                         <option value="arcTestnet">Arc Testnet</option>
                     </select>
@@ -1077,7 +1077,7 @@ nav button.glass:hover {
             <div class="glass rounded-[20px] p-5 mt-3">
                 <div class="flex items-center justify-between mb-3">
                     <span class="text-xs text-gray-400">To</span>
-                    <select id="bridgeDestChain" class="bg-transparent border-none text-sm font-bold text-white outline-none cursor-pointer">
+                    <select id="bridgeDestChain" onchange="updateBridgeBalances()" class="bg-transparent border-none text-sm font-bold text-white outline-none cursor-pointer">
                         <option value="arcTestnet">Arc Testnet</option>
                         <option value="ethereumSepolia">Ethereum Sepolia</option>
                     </select>
@@ -1802,6 +1802,19 @@ nav button.glass:hover {
         blockExplorerUrls: ['https://testnet.arcscan.app/']
     };
 
+    const ETHEREUM_SEPOLIA_CHAIN = {
+        chainId: '0xaa36a7',
+        chainName: 'Ethereum Sepolia',
+        rpcUrls: [
+            'https://rpc.sepolia.org',
+            'https://sepolia.drpc.org',
+            'https://rpc.ankr.com/eth_sepolia',
+            'https://ethereum-sepolia.blockpi.network/v1/rpc/public'
+        ],
+        nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+        blockExplorerUrls: ['https://sepolia.etherscan.io/']
+    };
+
     /* ══════════════════════════════════════════════════
        CCTP CONFIGURATION
        Cross-Chain Transfer Protocol for bridging USDC
@@ -2431,6 +2444,22 @@ nav button.glass:hover {
     }
 
     /* ═══════════════════════════ BRIDGE FUNCTIONS ═══════════════════════════ */
+    // Helper: Get provider for specific chain
+    async function getChainProvider(chainName) {
+        if (chainName === 'ethereumSepolia') {
+            // Use Ethereum Sepolia RPC directly
+            const chainConfig = ETHEREUM_SEPOLIA_CHAIN;
+            return new ethers.providers.JsonRpcProvider(chainConfig.rpcUrls[0]);
+        } else if (chainName === 'arcTestnet') {
+            // Use Arc Testnet RPC directly
+            const chainConfig = ARC_CHAIN;
+            return new ethers.providers.JsonRpcProvider(chainConfig.rpcUrls[0]);
+        } else {
+            // Fallback to wallet provider
+            return new ethers.providers.Web3Provider(window.ethereum);
+        }
+    }
+
     async function updateBridgeBalances() {
         if (!isConnected) {
             document.getElementById('bridgeSourceBal').innerText = 'Balance: —';
@@ -2442,18 +2471,17 @@ nav button.glass:hover {
         const destChain = document.getElementById('bridgeDestChain').value;
 
         try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
-            const signer = provider.getSigner();
-
-            // Get source chain balance
+            // Get source chain balance using chain-specific provider
             const sourceConfig = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
-            const sourceUsdc = new ethers.Contract(sourceConfig.usdc, ERC20_ABI, provider);
+            const sourceProvider = await getChainProvider(sourceChain);
+            const sourceUsdc = new ethers.Contract(sourceConfig.usdc, ERC20_ABI, sourceProvider);
             const sourceBal = await withRpcRetry(() => sourceUsdc.balanceOf(currentAccount));
             document.getElementById('bridgeSourceBal').innerText = `Balance: ${parseFloat(ethers.utils.formatUnits(sourceBal, 6)).toFixed(2)} USDC`;
 
-            // Get destination chain balance
+            // Get destination chain balance using chain-specific provider
             const destConfig = destChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
-            const destUsdc = new ethers.Contract(destConfig.usdc, ERC20_ABI, provider);
+            const destProvider = await getChainProvider(destChain);
+            const destUsdc = new ethers.Contract(destConfig.usdc, ERC20_ABI, destProvider);
             const destBal = await withRpcRetry(() => destUsdc.balanceOf(currentAccount));
             document.getElementById('bridgeDestBal').innerText = `Balance: ${parseFloat(ethers.utils.formatUnits(destBal, 6)).toFixed(2)} USDC`;
 
@@ -2482,9 +2510,9 @@ nav button.glass:hover {
 
         const sourceChain = document.getElementById('bridgeSourceChain').value;
         try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const sourceProvider = await getChainProvider(sourceChain);
             const sourceConfig = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
-            const sourceUsdc = new ethers.Contract(sourceConfig.usdc, ERC20_ABI, provider);
+            const sourceUsdc = new ethers.Contract(sourceConfig.usdc, ERC20_ABI, sourceProvider);
             const sourceBal = await withRpcRetry(() => sourceUsdc.balanceOf(currentAccount));
             const balUsdc = parseFloat(ethers.utils.formatUnits(sourceBal, 6));
 
@@ -2703,6 +2731,7 @@ nav button.glass:hover {
         currentBalance = bal;
         renderPortfolioData(account, bal);
         updateSwapBalances();
+        updateBridgeBalances();
     }
 
     function setDisconnectedUI() {
@@ -2713,6 +2742,7 @@ nav button.glass:hover {
         currentBalance = '0';
         clearPortfolioData();
         updateSwapBalances();
+        updateBridgeBalances();
     }
 
     async function connectWallet() {
