@@ -164,6 +164,27 @@ svg{width:100%;height:100%}
     background: linear-gradient(135deg,#3478ff,#8b5cf6);
     border-color: transparent;
 }
+.stake-token-select {
+    width: 100%;
+    background: rgba(92,120,255,.12);
+    border: 1px solid rgba(92,120,255,.3);
+    border-radius: 14px;
+    padding: 12px 40px 12px 14px;
+    font-weight: 700; font-size: .95rem;
+    color: #fff;
+    cursor: pointer;
+    appearance: none; -webkit-appearance: none; -moz-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%239aa5c9' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    transition: .2s;
+}
+.stake-token-select:hover { background-color: rgba(92,120,255,.2); border-color: rgba(92,120,255,.5); }
+.stake-token-select:disabled { opacity: .5; cursor: not-allowed; }
+.stake-token-select option { background: #0b0f1f; color: #fff; }
+.stake-token-note {
+    font-size: 11px; color: rgba(255,255,255,.35); margin-top: 6px;
+}
 .swap-arrow-btn {
     width:44px;height:44px;border-radius:50%;
     background:rgba(92,120,255,.15);border:1px solid rgba(92,120,255,.3);
@@ -588,6 +609,58 @@ nav button.glass:hover {
     animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
 }
 
+/* -- Stake overlay (cinematic fade-scale-blur) -- */
+#stakeView {
+    position: fixed; inset: 0; z-index: 200;
+    background: #040816;
+    transform: scale(0.92);
+    opacity: 0;
+    filter: blur(8px);
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow-y: auto;
+    will-change: transform, opacity, filter;
+    -webkit-overflow-scrolling: touch;
+    pointer-events: none;
+}
+#stakeView.open {
+    transform: scale(1);
+    opacity: 1;
+    filter: blur(0px);
+    pointer-events: auto;
+}
+
+.stake-header {
+    animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+
+.stake-content {
+    animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
+
+.tier-card {
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(92,120,255,.2);
+    border-radius: 18px;
+    padding: 18px 16px;
+    cursor: pointer;
+    transition: .2s;
+}
+.tier-card:hover { border-color: rgba(92,120,255,.45); }
+.tier-card.tier-active {
+    border-color: transparent;
+    background: linear-gradient(135deg,rgba(52,120,255,.22),rgba(139,92,246,.22));
+    box-shadow: 0 0 0 1px rgba(139,92,246,.5) inset;
+}
+
+.stake-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px; margin-bottom: 10px;
+    background: rgba(255,255,255,.03);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 14px;
+    flex-wrap: wrap; gap: 10px;
+}
+
 /* ── Bridge overlay ── */
 #bridgeView {
     position: fixed; inset: 0; z-index: 200;
@@ -717,6 +790,7 @@ nav button.glass:hover {
         <button id="navBridge" onclick="showBridge()" class="px-6 py-3 rounded-xl">Bridge</button>
         <button id="navPools" onclick="showPools()" class="px-6 py-3 rounded-xl">Liquidity</button>
         <button id="navLend" onclick="showLend()" class="px-6 py-3 rounded-xl">Lend & Borrow</button>
+        <button id="navStake" onclick="showStake()" class="px-6 py-3 rounded-xl">Stake</button>
     </nav>
     <div class="flex gap-2 sm:gap-3 items-center flex-shrink-0">
         <div class="hidden sm:block glass px-4 py-3 rounded-xl text-sm whitespace-nowrap">🟢 ARC TESTNET</div>
@@ -732,6 +806,7 @@ nav button.glass:hover {
     <button onclick="showBridge(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Bridge</button>
     <button onclick="showPools(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Liquidity</button>
     <button onclick="showLend(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Lend &amp; Borrow</button>
+<button onclick="showStake(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Stake</button>
 </div>
 </header>
 
@@ -778,7 +853,7 @@ nav button.glass:hover {
             </div>
             <div class="flex flex-wrap gap-3">
                 <div class="trust-badge">⛓️ ARC Testnet Verified</div>
-                <div class="trust-badge">🛡️ Audited Contracts</div>
+                <div class="trust-badge">📖 Open Source Contracts</div>
                 <div class="trust-badge">👥 8.3K+ Active Users</div>
             </div>
         </div>
@@ -792,8 +867,8 @@ nav button.glass:hover {
                             <span class="relative inline-flex rounded-full h-2 w-2 bg-green-400"></span>
                         </span>
                     </div>
-                    <div id="heroTVL" class="font-black leading-tight" style="font-size:clamp(1rem,2vw,1.45rem);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">$4.8M</div>
-                    <div id="heroTVLChange" class="text-green-400 text-sm">↗ 14.2% from last 7 days</div>
+                    <div id="heroTVL" class="font-black leading-tight" style="font-size:clamp(1rem,2vw,1.45rem);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">—</div>
+                    <div id="heroTVLChange" class="text-gray-400 text-sm">Reading on-chain data…</div>
                 </div>
                 <div class="glass px-4 py-2 rounded-xl flex-shrink-0 text-sm font-semibold">7D</div>
             </div>
@@ -803,10 +878,10 @@ nav button.glass:hover {
                 </svg>
             </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-                <div class="glass rounded-3xl p-3 card min-w-0"><div class="text-gray-400 text-xs mb-0.5">Volume</div><div id="heroVolume" class="font-black leading-tight truncate" style="font-size:clamp(.95rem,1.8vw,1.35rem);">$12M</div><div id="heroVolumeChange" class="text-green-400 text-xs mt-0.5">+8.6%</div></div>
-                <div class="glass rounded-3xl p-3 card min-w-0"><div class="text-gray-400 text-xs mb-0.5">Pools</div><div id="heroPools" class="font-black leading-tight truncate" style="font-size:clamp(.95rem,1.8vw,1.35rem);">18</div><div class="text-cyan-400 text-xs mt-0.5">Active</div></div>
-                <div class="glass rounded-3xl p-3 card min-w-0"><div class="text-gray-400 text-xs mb-0.5">Stakers</div><div id="heroStakers" class="font-black leading-tight truncate" style="font-size:clamp(.95rem,1.8vw,1.35rem);">8.2K</div><div class="text-purple-400 text-xs mt-0.5">Users</div></div>
-                <div class="glass rounded-3xl p-3 card min-w-0"><div class="text-gray-400 text-xs mb-0.5">APR</div><div id="heroAPR" class="font-black leading-tight truncate" style="font-size:clamp(.95rem,1.8vw,1.35rem);">24%</div><div id="heroAPRChange" class="text-green-400 text-xs mt-0.5">+3.2%</div></div>
+                <div class="glass rounded-3xl p-3 card min-w-0"><div class="text-gray-400 text-xs mb-0.5">Volume</div><div id="heroVolume" class="font-black leading-tight truncate" style="font-size:clamp(.95rem,1.8vw,1.35rem);">—</div><div id="heroVolumeChange" class="text-gray-400 text-xs mt-0.5">Coming soon</div></div>
+                <div class="glass rounded-3xl p-3 card min-w-0"><div class="text-gray-400 text-xs mb-0.5">Pools</div><div id="heroPools" class="font-black leading-tight truncate" style="font-size:clamp(.95rem,1.8vw,1.35rem);">—</div><div class="text-cyan-400 text-xs mt-0.5">Configured</div></div>
+                <div class="glass rounded-3xl p-3 card min-w-0"><div class="text-gray-400 text-xs mb-0.5">Stakers</div><div id="heroStakers" class="font-black leading-tight truncate" style="font-size:clamp(.95rem,1.8vw,1.35rem);">—</div><div class="text-gray-400 text-xs mt-0.5">Coming soon</div></div>
+                <div class="glass rounded-3xl p-3 card min-w-0"><div class="text-gray-400 text-xs mb-0.5">APR</div><div id="heroAPR" class="font-black leading-tight truncate" style="font-size:clamp(.95rem,1.8vw,1.35rem);">—</div><div id="heroAPRChange" class="text-gray-400 text-xs mt-0.5">Coming soon</div></div>
             </div>
         </div>
     </div>
@@ -1813,9 +1888,102 @@ nav button.glass:hover {
     </div>
 </div>
 
+<!-- ============ STAKE VIEW ============ -->
+<div id="stakeView" class="gridbg">
+    <div class="orb1"></div><div class="orb2"></div>
+
+    <div class="pf-header stake-header">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+                <button onclick="showHome()" class="glass w-10 h-10 rounded-xl flex items-center justify-center text-lg hover:border-white/30 transition flex-shrink-0">&#8592;</button>
+                <div class="min-w-0">
+                    <h2 class="text-lg sm:text-2xl font-black leading-tight">Stake</h2>
+                    <p class="text-gray-400 text-xs hidden sm:block">ARC Testnet &middot; Pick any whitelisted token, lock it, earn rewards in that same token</p>
+                </div>
+            </div>
+            <div class="glass px-2.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap"><span class="sm:hidden">🟢</span><span class="hidden sm:inline">🟢 ARC TESTNET</span></div>
+        </div>
+    </div>
+
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 stake-content">
+
+        <!-- Stats bar (reflects the currently selected token below) -->
+        <div class="grid grid-cols-3 gap-2 sm:gap-4 mb-10">
+            <div class="pool-stat-pill">
+                <div class="text-gray-400 text-xs mb-1">Total Staked</div>
+                <div class="text-lg sm:text-2xl font-black" id="stakeTotalStaked">—</div>
+                <div class="text-gray-500 text-xs mt-0.5 stake-token-unit">—</div>
+            </div>
+            <div class="pool-stat-pill">
+                <div class="text-gray-400 text-xs mb-1">Your Staked</div>
+                <div class="text-lg sm:text-2xl font-black" id="stakeYourStaked">—</div>
+                <div class="text-gray-500 text-xs mt-0.5 stake-token-unit">—</div>
+            </div>
+            <div class="pool-stat-pill">
+                <div class="text-gray-400 text-xs mb-1">Claimable</div>
+                <div class="text-lg sm:text-2xl font-black" id="stakeYourClaimable">—</div>
+                <div class="text-gray-500 text-xs mt-0.5 stake-token-unit">—</div>
+            </div>
+        </div>
+
+        <!-- New stake panel -->
+        <div class="glass rounded-3xl p-5 sm:p-8 mb-10">
+            <h3 class="text-xl font-black mb-4">New Stake</h3>
+            <p class="text-gray-400 text-sm mb-4">Pick a token, then a lock tier. Longer locks earn a higher fixed APR, paid in the same token you stake.</p>
+
+            <div class="mb-5">
+                <p class="text-xs text-gray-400 mb-2">Token</p>
+                <select id="stakeTokenPicker" class="stake-token-select" onchange="selectStakeToken(this.value)" disabled>
+                    <option value="">Loading tokens…</option>
+                </select>
+                <p id="stakeTokenNote" class="stake-token-note hidden"></p>
+            </div>
+
+            <div id="stakeTierGrid" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+                <div class="tier-card text-center text-gray-500 text-sm col-span-3">Loading tiers…</div>
+            </div>
+
+            <div class="liq-input-wrap mb-4">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs text-gray-400" id="stakeAmountLabel">Amount</span>
+                    <span class="text-xs text-gray-400">Balance: <span id="stakeTokenBal">—</span> &nbsp;<button onclick="setStakeMax()" class="text-blue-400 hover:text-blue-300">MAX</button></span>
+                </div>
+                <input id="stakeAmount" type="number" placeholder="0.00" min="0" step="0.0001" oninput="updateStakePreview()">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 mb-6 text-sm">
+                <div class="pool-stat-pill" style="text-align:left; padding:10px 14px;">
+                    <div class="text-gray-400 text-xs">Lock ends</div>
+                    <div class="font-bold mt-1" id="stakePreviewUnlock">—</div>
+                </div>
+                <div class="pool-stat-pill" style="text-align:left; padding:10px 14px;">
+                    <div class="text-gray-400 text-xs">Est. reward at maturity</div>
+                    <div class="font-bold mt-1 text-green-400" id="stakePreviewReward">—</div>
+                </div>
+            </div>
+
+            <button class="lend-main-btn" id="btnStake" onclick="doStake()">Connect Wallet</button>
+            <p id="stakeStatus" class="text-center text-xs text-gray-500 mt-3 hidden"></p>
+        </div>
+
+        <!-- My stakes -->
+        <div class="glass rounded-3xl p-5 sm:p-8">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-black">My Stakes</h3>
+                <button onclick="loadMyStakes()" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">⟳ Refresh</button>
+            </div>
+            <div id="myStakesList">
+                <p class="text-gray-500 text-sm text-center py-6">Connect your wallet to see your stakes.</p>
+            </div>
+        </div>
+
+    </div>
+</div>
+
 <!-- ============ EIJI AI AGENT ============ -->
 <div id="eijiView" class="gridbg">
     <div class="eiji-header">
+
         <div class="px-4 py-3.5 flex items-center justify-between gap-3">
             <div class="flex items-center gap-3 min-w-0">
                 <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#3478ff,#8b5cf6,#d66bff);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">&#10022;</div>
@@ -2116,7 +2284,7 @@ nav button.glass:hover {
 
     /* ── View switching ── */
     function hideAllOverlays() {
-        ['portfolioView','swapView','bridgeView','poolsView','eijiView','lendView'].forEach(id => {
+        ['portfolioView','swapView','bridgeView','poolsView','eijiView','lendView','stakeView'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.classList.remove('open');
         });
@@ -2124,7 +2292,7 @@ nav button.glass:hover {
     }
 
     function setNavActive(id) {
-        ['navHome','navPortfolio','navSwap','navPools','navEiji','navLend'].forEach(n => {
+        ['navHome','navPortfolio','navSwap','navPools','navEiji','navLend','navStake'].forEach(n => {
             const el = document.getElementById(n);
             if (!el) return;
             el.classList.remove('glass','nav-active');
@@ -2235,7 +2403,502 @@ nav button.glass:hover {
         USDT              : '0x175CdB1D338945f0D851A741ccF787D343E57952',
         cirBTC            : '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF',
         LendingBorrowing  : '0x15e803e1Bac195896B15561337aA97cd0ffBcD58',
+        // TODO: fill in after running scripts/deploy.js from the
+        // arcentic-staking project (ArcenticStakingMultiToken.sol)
+        ArcenticStaking   : '0x473d6b0a414d6E72Cc40A040dC38d9d0AC635D5d',
     };
+
+    /* ArcenticStakingMultiToken ABI — true multi-token staking: any whitelisted
+       ERC-20 can be staked, each with its own independent lock tiers. */
+    const STAKING_ABI = [
+        'function supportedTokensLength() view returns (uint256)',
+        'function supportedTokenAt(uint256) view returns (address)',
+        'function tokenSupported(address token) view returns (bool)',
+        'function tiersLength(address token) view returns (uint256)',
+        'function tierAt(address token, uint256 tierId) view returns (uint256 lockDuration, uint256 aprBps, bool active)',
+        'function stake(address token, uint256 tierId, uint256 amount)',
+        'function claimReward(uint256 stakeId)',
+        'function unstake(uint256 stakeId)',
+        'function emergencyUnstake(uint256 stakeId)',
+        'function stakeCountOf(address user) view returns (uint256)',
+        'function stakesOf(address, uint256) view returns (address token, uint256 tierId, uint256 amount, uint256 startTime, uint256 lockDuration, uint256 aprBps, uint256 claimedReward, uint256 reservedReward, bool withdrawn)',
+        'function pendingReward(address user, uint256 stakeId) view returns (uint256)',
+        'function isUnlocked(address user, uint256 stakeId) view returns (bool)',
+        'function totalStakedOf(address token) view returns (uint256)',
+        'function rewardPoolBalanceOf(address token) view returns (uint256)',
+        'function BPS_DENOMINATOR() view returns (uint256)',
+    ];
+
+    /* ══════════════════════════════════════════════════
+       STAKE TAB — ArcenticStakingMultiToken wiring
+       Real multi-token staking: pick any owner-whitelisted ERC-20, then a
+       fixed lock tier for that token. Rewards paid in the staked token itself.
+    ══════════════════════════════════════════════════ */
+    let stakeTokens = [];          // [{addr, sym, decimals, icon}] — on-chain supported tokens
+    let selectedStakeToken = null; // address of the currently selected token
+    let stakeTiers = [];            // [{id, lockDuration, aprBps, active}] for selectedStakeToken
+    let selectedTierId = null;
+    const stakeTokenMetaCache = {}; // lowercased addr -> {sym, decimals, icon}
+
+    function stakingConfigured() {
+        return CONTRACT_ADDRS.ArcenticStaking &&
+               CONTRACT_ADDRS.ArcenticStaking !== '0x0000000000000000000000000000000000000000';
+    }
+
+    /* Local-only preview list shown in the token dropdown while the staking
+       contract isn't deployed yet, so the UI can still be tested end-to-end
+       instead of rendering an empty picker. Marked with preview:true so the
+       rest of the flow knows not to hit the chain for these. */
+    const STAKE_PREVIEW_SYMS = ['USDC', 'EURC', 'USDT', 'CENTIC'];
+    function previewStakeTokens() {
+        return TOKENS
+            .filter(t => STAKE_PREVIEW_SYMS.includes(t.sym))
+            .map(t => ({ addr: t.addr, sym: t.sym, decimals: t.decimals, icon: t.icon, name: t.name, preview: true }));
+    }
+
+    /* Sample lock tiers matching the Tier struct in ArcenticStakingMultiToken.sol
+       (lockDuration in seconds, aprBps in basis points). These are NOT read from
+       chain — just placeholders so the tier cards + APR/reward math can be
+       exercised in the UI before the owner calls addTier() for real. */
+    const STAKE_PREVIEW_TIERS = [
+        { id: 0, lockDuration: 30  * 86400, aprBps: 400,  active: true },  // 30d  @ 4%
+        { id: 1, lockDuration: 90  * 86400, aprBps: 900,  active: true },  // 90d  @ 9%
+        { id: 2, lockDuration: 180 * 86400, aprBps: 1500, active: true }, // 180d @ 15%
+    ];
+    function previewStakeTiers() {
+        return STAKE_PREVIEW_TIERS.map(t => ({ ...t, preview: true }));
+    }
+
+    function fmtDuration(seconds) {
+        const days = Math.round(seconds / 86400);
+        if (days % 30 === 0 && days >= 30) return (days / 30) + 'mo';
+        return days + 'd';
+    }
+
+    function fmtApr(aprBps) {
+        return (aprBps / 100).toFixed(aprBps % 100 === 0 ? 0 : 2) + '%';
+    }
+
+    function currentStakeTokenMeta() {
+        return stakeTokens.find(t => t.addr === selectedStakeToken) || { sym: '', decimals: 18 };
+    }
+
+    /* Resolve symbol/decimals/icon for a staking token: prefer the local TOKENS
+       registry (has nice icons), fall back to an on-chain ERC-20 read for tokens
+       the owner whitelisted that aren't in that list. Cached either way. */
+    async function getStakeTokenMeta(addr, provider) {
+        const key = addr.toLowerCase();
+        if (stakeTokenMetaCache[key]) return stakeTokenMetaCache[key];
+        const local = TOKENS.find(t => t.addr && t.addr.toLowerCase() === key);
+        if (local) {
+            const meta = { sym: local.sym, decimals: local.decimals, icon: local.icon };
+            stakeTokenMetaCache[key] = meta;
+            return meta;
+        }
+        try {
+            const erc20 = new ethers.Contract(addr, ['function symbol() view returns (string)', 'function decimals() view returns (uint8)'], provider);
+            const [sym, decimals] = await Promise.all([erc20.symbol(), erc20.decimals()]);
+            const meta = { sym, decimals, icon: '' };
+            stakeTokenMetaCache[key] = meta;
+            return meta;
+        } catch (err) {
+            console.error('getStakeTokenMeta error for', addr, err);
+            const meta = { sym: addr.slice(0, 6) + '…', decimals: 18, icon: '' };
+            stakeTokenMetaCache[key] = meta;
+            return meta;
+        }
+    }
+
+    async function showStake() {
+        hideAllOverlays();
+        document.getElementById('stakeView').classList.add('open');
+        document.body.style.overflow = 'hidden';
+        setNavActive('navStake');
+
+        if (!stakingConfigured()) {
+            stakeTokens = previewStakeTokens();
+            selectedStakeToken = stakeTokens.length > 0 ? stakeTokens[0].addr : null;
+            renderStakeTokenPicker();
+            stakeTiers = previewStakeTiers();
+            selectedTierId = stakeTiers.length > 0 ? stakeTiers[0].id : null;
+            renderTierGrid();
+            const note = document.getElementById('stakeTokenNote');
+            note.innerText = 'Preview only — staking contract not deployed yet. Tiers/APR shown are sample values. Deploy ArcenticStakingMultiToken.sol, call addTier(), and update CONTRACT_ADDRS.ArcenticStaking to go live.';
+            note.classList.remove('hidden');
+            document.querySelectorAll('.stake-token-unit').forEach(el => el.innerText = selectedStakeToken ? currentStakeTokenMeta().sym : '—');
+            updateStakePreview();
+            document.getElementById('btnStake').innerText = 'Not deployed yet';
+            document.getElementById('btnStake').disabled = true;
+            return;
+        }
+        document.getElementById('stakeTokenNote').classList.add('hidden');
+
+        await loadStakeTokens();
+        await loadStakeTiersForSelected();
+        await refreshStakeStats();
+        if (isConnected) await loadMyStakes();
+        updateStakeButtonLabel();
+    }
+
+    /* Load every token the owner has whitelisted (and still has staking enabled) */
+    async function loadStakeTokens() {
+        try {
+            const provider = readOnlyProvider() || (window.ethereum ? new ethers.providers.Web3Provider(window.ethereum) : null);
+            if (!provider) throw new Error('No RPC provider available');
+            const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, provider);
+            const count = (await staking.supportedTokensLength()).toNumber();
+            const list = [];
+            for (let i = 0; i < count; i++) {
+                const addr = await staking.supportedTokenAt(i);
+                const isSupported = await staking.tokenSupported(addr);
+                if (!isSupported) continue; // owner paused new stakes for this token
+                const meta = await getStakeTokenMeta(addr, provider);
+                list.push({ addr, ...meta });
+            }
+            stakeTokens = list;
+            if (!selectedStakeToken || !list.some(t => t.addr === selectedStakeToken)) {
+                selectedStakeToken = list.length > 0 ? list[0].addr : null;
+            }
+            renderStakeTokenPicker();
+        } catch (err) {
+            console.error('loadStakeTokens error:', err);
+            const sel = document.getElementById('stakeTokenPicker');
+            sel.innerHTML = `<option value="">Couldn't load tokens: ${err.message || err}</option>`;
+            sel.disabled = true;
+        }
+    }
+
+    function renderStakeTokenPicker() {
+        const sel = document.getElementById('stakeTokenPicker');
+        if (stakeTokens.length === 0) {
+            sel.innerHTML = '<option value="">No tokens whitelisted for staking yet.</option>';
+            sel.disabled = true;
+            return;
+        }
+        sel.disabled = false;
+        sel.innerHTML = stakeTokens.map(tok => {
+            const label = tok.sym + (tok.name ? ' — ' + tok.name : '') + (tok.preview ? ' (preview)' : '');
+            const selected = tok.addr === selectedStakeToken ? ' selected' : '';
+            return `<option value="${tok.addr}"${selected}>${label}</option>`;
+        }).join('');
+    }
+
+    async function selectStakeToken(addr) {
+        if (selectedStakeToken === addr) return;
+        selectedStakeToken = addr;
+        selectedTierId = null;
+        document.getElementById('stakeAmount').value = '';
+        renderStakeTokenPicker();
+        document.querySelectorAll('.stake-token-unit').forEach(el => el.innerText = currentStakeTokenMeta().sym || '—');
+
+        if (!stakingConfigured()) {
+            // Preview mode: no live contract to query, just reflect the pick in the UI.
+            stakeTiers = previewStakeTiers();
+            selectedTierId = stakeTiers.length > 0 ? stakeTiers[0].id : null;
+            renderTierGrid();
+            updateStakePreview();
+            return;
+        }
+
+        await loadStakeTiersForSelected();
+        await refreshStakeStats();
+        if (isConnected) await loadMyStakes();
+        updateStakePreview();
+        updateStakeButtonLabel();
+    }
+
+    async function loadStakeTiersForSelected() {
+        if (!selectedStakeToken) {
+            stakeTiers = [];
+            renderTierGrid();
+            return;
+        }
+        try {
+            const provider = readOnlyProvider() || (window.ethereum ? new ethers.providers.Web3Provider(window.ethereum) : null);
+            if (!provider) throw new Error('No RPC provider available');
+            const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, provider);
+            const count = (await staking.tiersLength(selectedStakeToken)).toNumber();
+            const tiers = [];
+            for (let i = 0; i < count; i++) {
+                const t = await staking.tierAt(selectedStakeToken, i);
+                tiers.push({ id: i, lockDuration: t.lockDuration.toNumber(), aprBps: t.aprBps.toNumber(), active: t.active });
+            }
+            stakeTiers = tiers;
+            const firstActive = tiers.find(t => t.active);
+            selectedTierId = firstActive ? firstActive.id : null;
+            renderTierGrid();
+        } catch (err) {
+            console.error('loadStakeTiersForSelected error:', err);
+            document.getElementById('stakeTierGrid').innerHTML =
+                `<p class="text-red-400 text-sm text-center col-span-3">Couldn't load tiers: ${err.message || err}</p>`;
+        }
+    }
+
+    function renderTierGrid() {
+        const grid = document.getElementById('stakeTierGrid');
+        grid.innerHTML = '';
+        if (stakeTiers.length === 0) {
+            grid.innerHTML = '<p class="text-gray-500 text-sm text-center col-span-3">No tiers configured yet.</p>';
+            return;
+        }
+        stakeTiers.forEach(t => {
+            const card = document.createElement('div');
+            card.className = 'tier-card' + (t.id === selectedTierId ? ' tier-active' : '') + (!t.active ? ' opacity-40 pointer-events-none' : '');
+            card.innerHTML = `
+                <div class="text-2xl font-black">${fmtDuration(t.lockDuration)}</div>
+                <div class="text-green-400 font-bold text-sm mt-1">${fmtApr(t.aprBps)} APR</div>
+                <div class="text-gray-500 text-xs mt-1">${t.preview ? 'Preview' : (t.active ? 'Open' : 'Closed')}</div>
+            `;
+            card.onclick = () => { selectedTierId = t.id; renderTierGrid(); updateStakePreview(); };
+            grid.appendChild(card);
+        });
+    }
+
+    async function refreshStakeStats() {
+        try {
+            document.querySelectorAll('.stake-token-unit').forEach(el => el.innerText = '—');
+            if (!selectedStakeToken) {
+                document.getElementById('stakeTotalStaked').innerText = '—';
+                document.getElementById('stakeTokenBal').innerText = '—';
+                return;
+            }
+            const meta = currentStakeTokenMeta();
+            document.querySelectorAll('.stake-token-unit').forEach(el => el.innerText = meta.sym || '—');
+            document.getElementById('stakeAmountLabel').innerText = (meta.sym || 'Token') + ' Amount';
+
+            const provider = readOnlyProvider() || (window.ethereum ? new ethers.providers.Web3Provider(window.ethereum) : null);
+            if (!provider) return;
+            const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, provider);
+            const total = await staking.totalStakedOf(selectedStakeToken);
+            document.getElementById('stakeTotalStaked').innerText = fmtBal(ethers.utils.formatUnits(total, meta.decimals));
+
+            if (isConnected) {
+                const erc20 = new ethers.Contract(selectedStakeToken, ERC20_ABI, provider);
+                const bal = await erc20.balanceOf(currentAccount);
+                document.getElementById('stakeTokenBal').innerText = fmtBal(ethers.utils.formatUnits(bal, meta.decimals));
+            } else {
+                document.getElementById('stakeTokenBal').innerText = '—';
+                document.getElementById('stakeYourStaked').innerText = '—';
+                document.getElementById('stakeYourClaimable').innerText = '—';
+            }
+        } catch (err) {
+            console.error('refreshStakeStats error:', err);
+        }
+    }
+
+    function setStakeMax() {
+        const balText = document.getElementById('stakeTokenBal').innerText;
+        if (balText && balText !== '—') {
+            document.getElementById('stakeAmount').value = balText.replace(/,/g, '');
+            updateStakePreview();
+        }
+    }
+
+    function updateStakePreview() {
+        const amtStr = document.getElementById('stakeAmount').value;
+        const tier = stakeTiers.find(t => t.id === selectedTierId);
+        const meta = currentStakeTokenMeta();
+        const unlockEl = document.getElementById('stakePreviewUnlock');
+        const rewardEl = document.getElementById('stakePreviewReward');
+        if (!tier || !amtStr || isNaN(parseFloat(amtStr)) || parseFloat(amtStr) <= 0) {
+            unlockEl.innerText = '—';
+            rewardEl.innerText = '—';
+            return;
+        }
+        const unlockDate = new Date(Date.now() + tier.lockDuration * 1000);
+        unlockEl.innerText = unlockDate.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+        const amt = parseFloat(amtStr);
+        const reward = (amt * tier.aprBps * tier.lockDuration) / (10000 * 365 * 86400);
+        rewardEl.innerText = fmtBal(reward.toString()) + ' ' + (meta.sym || '');
+    }
+
+    function updateStakeButtonLabel() {
+        const btn = document.getElementById('btnStake');
+        if (!stakingConfigured()) return;
+        const meta = currentStakeTokenMeta();
+        btn.innerText = isConnected ? ('Stake ' + (meta.sym || '')) : 'Connect Wallet';
+    }
+
+    async function doStake() {
+        if (!window.ethereum) { alert('Install a wallet like MetaMask first.'); return; }
+        if (!isConnected) { await connectWallet(); updateStakeButtonLabel(); return; }
+        if (!stakingConfigured()) return;
+
+        const status = document.getElementById('stakeStatus');
+        const btn = document.getElementById('btnStake');
+        const setStatus = (msg, hide = false) => { status.innerText = msg; status.classList.toggle('hidden', hide); };
+
+        if (!selectedStakeToken) { setStatus('Pick a token first.'); return; }
+        const tier = stakeTiers.find(t => t.id === selectedTierId);
+        if (!tier) { setStatus('Pick a lock tier first.'); return; }
+        const amtStr = document.getElementById('stakeAmount').value;
+        if (!amtStr || parseFloat(amtStr) <= 0) { setStatus('Enter an amount to stake.'); return; }
+
+        const meta = currentStakeTokenMeta();
+        btn.disabled = true;
+        btn.style.opacity = '.6';
+        let toast = null;
+        try {
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const signer = provider.getSigner();
+            const amtWei = ethers.utils.parseUnits(parseFloat(amtStr).toFixed(meta.decimals), meta.decimals);
+            const onRpcRetry = (n, max) => setStatus(`⏳ RPC hiccup — retrying (${n}/${max})…`);
+
+            setStatus(`⏳ Step 1/2 — Approving ${meta.sym} spend…`);
+            toast = showToast('pending', `Approving ${meta.sym}`, 'Requesting spend approval…');
+            const tokenContract = new ethers.Contract(selectedStakeToken, ERC20_ABI, signer);
+            const allowance = await withRpcRetry(
+                () => tokenContract.allowance(currentAccount, CONTRACT_ADDRS.ArcenticStaking),
+                { onRetry: onRpcRetry }
+            );
+            if (allowance.lt(amtWei)) {
+                const approveTx = await withRpcRetry(
+                    () => tokenContract.approve(CONTRACT_ADDRS.ArcenticStaking, ethers.constants.MaxUint256),
+                    { onRetry: onRpcRetry }
+                );
+                updateToast(toast, 'pending', 'Waiting for Approval', 'Confirming approval on-chain…');
+                setStatus('⏳ Step 1/2 — Waiting for approval confirmation…');
+                await withRpcRetry(() => approveTx.wait(), { onRetry: onRpcRetry });
+            }
+
+            setStatus('⏳ Step 2/2 — Sending stake transaction…');
+            updateToast(toast, 'pending', 'Staking', `Staking ${amtStr} ${meta.sym} for ${fmtDuration(tier.lockDuration)}…`);
+            const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, signer);
+            const tx = await withRpcRetry(() => staking.stake(selectedStakeToken, tier.id, amtWei), { onRetry: onRpcRetry });
+            await withRpcRetry(() => tx.wait(), { onRetry: onRpcRetry });
+
+            updateToast(toast, 'success', 'Staked!', `Locked ${amtStr} ${meta.sym} for ${fmtDuration(tier.lockDuration)}.`, 6000);
+            setStatus('✅ Staked successfully.');
+            document.getElementById('stakeAmount').value = '';
+            updateStakePreview();
+            await refreshStakeStats();
+            await loadMyStakes();
+        } catch (err) {
+            console.error('doStake error:', err);
+            const msg = (err && err.reason) || (err && err.message) || String(err);
+            setStatus('❌ ' + msg);
+            if (toast) updateToast(toast, 'error', 'Stake Failed', msg, 6000);
+            else showToast('error', 'Stake Failed', msg, 6000);
+        } finally {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+        }
+    }
+
+    /* Lists ALL of the user's stakes across every token they've ever staked (each
+       row shows its own token symbol). The "Your Staked"/"Claimable" stat pills at
+       the top only total the currently-selected token, to match "Total Staked". */
+    async function loadMyStakes() {
+        const list = document.getElementById('myStakesList');
+        if (!isConnected || !stakingConfigured()) {
+            list.innerHTML = '<p class="text-gray-500 text-sm text-center py-6">Connect your wallet to see your stakes.</p>';
+            return;
+        }
+        list.innerHTML = '<p class="text-gray-500 text-sm text-center py-6">Loading…</p>';
+        try {
+            const provider = readOnlyProvider() || new ethers.providers.Web3Provider(window.ethereum);
+            const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, provider);
+            const count = (await staking.stakeCountOf(currentAccount)).toNumber();
+
+            const selMeta = currentStakeTokenMeta();
+            if (count === 0) {
+                list.innerHTML = '<p class="text-gray-500 text-sm text-center py-6">No stakes yet — open one above.</p>';
+                document.getElementById('stakeYourStaked').innerText = '0';
+                document.getElementById('stakeYourClaimable').innerText = '0';
+                return;
+            }
+
+            let selTotalStaked = ethers.BigNumber.from(0);
+            let selTotalClaimable = ethers.BigNumber.from(0);
+            list.innerHTML = '';
+            let rendered = 0;
+
+            for (let i = 0; i < count; i++) {
+                const s = await staking.stakesOf(currentAccount, i);
+                if (s.withdrawn) continue;
+                const pending = await staking.pendingReward(currentAccount, i);
+                const unlocked = await staking.isUnlocked(currentAccount, i);
+                const meta = await getStakeTokenMeta(s.token, provider);
+
+                if (selectedStakeToken && s.token.toLowerCase() === selectedStakeToken.toLowerCase()) {
+                    selTotalStaked = selTotalStaked.add(s.amount);
+                    selTotalClaimable = selTotalClaimable.add(pending);
+                }
+
+                const unlockDate = new Date((s.startTime.toNumber() + s.lockDuration.toNumber()) * 1000);
+                const row = document.createElement('div');
+                row.className = 'stake-row';
+                row.innerHTML = `
+                    <div>
+                        <div class="font-bold">${fmtBal(ethers.utils.formatUnits(s.amount, meta.decimals))} ${meta.sym}</div>
+                        <div class="text-xs text-gray-400 mt-0.5">${fmtApr(s.aprBps)} APR &middot; ${unlocked ? 'Unlocked' : 'Unlocks ' + unlockDate.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' })}</div>
+                        <div class="text-xs text-green-400 mt-0.5">Claimable: ${fmtBal(ethers.utils.formatUnits(pending, meta.decimals))} ${meta.sym}</div>
+                    </div>
+                    <div class="flex gap-2 flex-wrap">
+                        <button class="glass px-3 py-2 rounded-xl text-xs hover:border-white/30 transition" onclick="doClaimReward(${i})">Claim</button>
+                        ${unlocked
+                            ? `<button class="glass px-3 py-2 rounded-xl text-xs hover:border-white/30 transition" onclick="doUnstake(${i})">Unstake</button>`
+                            : `<button class="glass px-3 py-2 rounded-xl text-xs hover:border-white/30 transition text-red-400" onclick="doEmergencyUnstake(${i})">Exit early</button>`}
+                    </div>
+                `;
+                list.appendChild(row);
+                rendered++;
+            }
+
+            document.getElementById('stakeYourStaked').innerText = fmtBal(ethers.utils.formatUnits(selTotalStaked, selMeta.decimals || 18));
+            document.getElementById('stakeYourClaimable').innerText = fmtBal(ethers.utils.formatUnits(selTotalClaimable, selMeta.decimals || 18));
+
+            if (rendered === 0) {
+                list.innerHTML = '<p class="text-gray-500 text-sm text-center py-6">No active stakes — open one above.</p>';
+            }
+        } catch (err) {
+            console.error('loadMyStakes error:', err);
+            list.innerHTML = `<p class="text-red-400 text-sm text-center py-6">Couldn't load stakes: ${err.message || err}</p>`;
+        }
+    }
+
+    async function doClaimReward(stakeId) {
+        await runStakeAction(
+            (staking) => staking.claimReward(stakeId),
+            'Claiming Reward', 'Reward claimed!'
+        );
+    }
+
+    async function doUnstake(stakeId) {
+        await runStakeAction(
+            (staking) => staking.unstake(stakeId),
+            'Unstaking', 'Unstaked — principal + reward returned.'
+        );
+    }
+
+    async function doEmergencyUnstake(stakeId) {
+        if (!confirm('Exiting before the lock ends forfeits this stake\'s accrued reward, and may incur an early-exit penalty. Continue?')) return;
+        await runStakeAction(
+            (staking) => staking.emergencyUnstake(stakeId),
+            'Exiting Early', 'Exited — principal returned (reward forfeited).'
+        );
+    }
+
+    async function runStakeAction(txFn, pendingLabel, successLabel) {
+        if (!window.ethereum || !isConnected) { alert('Connect your wallet first.'); return; }
+        let toast = showToast('pending', pendingLabel, 'Sending transaction…');
+        try {
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const signer = provider.getSigner();
+            const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, signer);
+            const onRpcRetry = (n, max) => updateToast(toast, 'pending', pendingLabel, `RPC hiccup — retrying (${n}/${max})…`);
+            const tx = await withRpcRetry(() => txFn(staking), { onRetry: onRpcRetry });
+            updateToast(toast, 'pending', pendingLabel, 'Waiting for confirmation…');
+            await withRpcRetry(() => tx.wait(), { onRetry: onRpcRetry });
+            updateToast(toast, 'success', 'Success', successLabel, 6000);
+            await refreshStakeStats();
+            await loadMyStakes();
+        } catch (err) {
+            console.error('runStakeAction error:', err);
+            const msg = (err && err.reason) || (err && err.message) || String(err);
+            updateToast(toast, 'error', 'Transaction Failed', msg, 6000);
+        }
+    }
 
     /* Minimal ERC-20 ABI (approve + balanceOf + decimals) */
     const ERC20_ABI = [
@@ -3410,6 +4073,16 @@ nav button.glass:hover {
         updateBridgeBalances();
     }
 
+    document.addEventListener('walletConnected', () => {
+        if (!stakingConfigured()) return;
+        updateStakeButtonLabel();
+        const view = document.getElementById('stakeView');
+        if (view && view.classList.contains('open')) {
+            refreshStakeStats();
+            loadMyStakes();
+        }
+    });
+
     async function connectWallet() {
         if (!window.ethereum) {
             showToast('error','No Wallet Detected','Please install MetaMask or a compatible browser wallet.');
@@ -3923,11 +4596,14 @@ nav button.glass:hover {
        Falls back to a smooth simulated live feed if no provider
        is available, so the dashboard always feels "live".
     ══════════════════════════════════════════════════ */
-    const POOLS_ACTIVE = 18; // shown as "Pools" stat
+    // "Pools" stat = jumlah token yang benar-benar dikonfigurasi di TOKENS,
+    // bukan angka yang dikarang. Diisi setelah TOKENS terdefinisi di bawah.
+    let POOLS_ACTIVE = null;
 
-    // rolling 7-day-style history for the hero sparkline (12 points)
-    let tvlHistory = [3.95, 4.05, 4.0, 4.15, 4.1, 4.22, 4.18, 4.32, 4.45, 4.4, 4.6, 4.8]; // $M
-    let liveStats  = { volume: 12.0, stakers: 8200, apr: 24.0 };
+    // Riwayat TVL hanya diisi dari data on-chain asli (fetchOnChainTVL).
+    // Tidak ada seed/fallback palsu — kalau belum ada data, grafik & angka
+    // tetap kosong ("—") daripada menampilkan tren yang dikarang.
+    let tvlHistory = [];
 
     function readOnlyProvider() {
         // A view/read call doesn't require the user to have connected their wallet —
@@ -3969,13 +4645,8 @@ nav button.glass:hover {
         return Math.round(n).toString();
     }
 
-    /* small bounded random walk used as a fallback / to keep secondary stats animated */
-    function randomWalk(value, pct) {
-        const delta = value * pct * (Math.random() * 2 - 1);
-        return Math.max(0, value + delta);
-    }
-
     function redrawHeroChart(history) {
+        if (!history || history.length < 2) return; // belum ada cukup data riil untuk digambar
         const min = Math.min(...history), max = Math.max(...history);
         const span = (max - min) || 1;
         const stepX = 1000 / (history.length - 1);
@@ -3989,57 +4660,76 @@ nav button.glass:hover {
     }
 
     async function refreshLiveStats() {
-        // ── TVL: prefer real on-chain reserves, otherwise simulate a gentle drift ──
-        const onChainTvlUsd = await fetchOnChainTVL();
-        let latestTvlM;
-        if (onChainTvlUsd !== null && onChainTvlUsd > 0) {
-            latestTvlM = onChainTvlUsd / 1e6;
-        } else {
-            latestTvlM = randomWalk(tvlHistory[tvlHistory.length - 1], 0.012);
-        }
-        tvlHistory.push(latestTvlM);
-        if (tvlHistory.length > 12) tvlHistory.shift();
-
-        const firstM = tvlHistory[0];
-        // Guard against a tiny/zero seed value producing an absurd multiplier
-        // (e.g. 200,000,000%) once real on-chain TVL kicks in.
-        const hasSaneBaseline = firstM > latestTvlM * 0.001;
-        const pctChange = hasSaneBaseline ? ((latestTvlM - firstM) / firstM) * 100 : null;
-
-        const tvlEl = document.getElementById('heroTVL');
+        const tvlEl       = document.getElementById('heroTVL');
         const tvlChangeEl = document.getElementById('heroTVLChange');
-        if (tvlEl) tvlEl.innerText = fmtUsdCompact(latestTvlM * 1e6);
-        if (tvlChangeEl) {
-            if (pctChange === null) {
-                tvlChangeEl.innerText = '↗ New';
-                tvlChangeEl.className = 'text-green-400';
-            } else {
-                const up = pctChange >= 0;
-                const clamped = Math.min(Math.abs(pctChange), 999.9);
-                tvlChangeEl.innerText = `${up ? '↗' : '↘'} ${clamped.toFixed(1)}% from last 7 days`;
-                tvlChangeEl.className = up ? 'text-green-400' : 'text-red-400';
+        const poolsEl     = document.getElementById('heroPools');
+
+        // "Pools" = jumlah token yang benar-benar terdaftar di TOKENS. Data
+        // riil dari config, bukan angka yang dikarang.
+        if (POOLS_ACTIVE === null && typeof TOKENS !== 'undefined') {
+            POOLS_ACTIVE = TOKENS.length;
+        }
+        if (poolsEl && POOLS_ACTIVE !== null) poolsEl.innerText = POOLS_ACTIVE.toString();
+
+        // ── TVL: HANYA dari data on-chain asli. Kalau kontrak tidak
+        // terjangkau / belum ada provider, tampilkan status apa adanya,
+        // jangan mengarang angka. ──
+        const onChainTvlUsd = await fetchOnChainTVL();
+        if (onChainTvlUsd !== null && onChainTvlUsd > 0) {
+            const latestTvlM = onChainTvlUsd / 1e6;
+            tvlHistory.push(latestTvlM);
+            if (tvlHistory.length > 12) tvlHistory.shift();
+
+            if (tvlEl) tvlEl.innerText = fmtUsdCompact(latestTvlM * 1e6);
+
+            if (tvlHistory.length > 1) {
+                const firstM = tvlHistory[0];
+                const hasSaneBaseline = firstM > latestTvlM * 0.001;
+                const pctChange = hasSaneBaseline ? ((latestTvlM - firstM) / firstM) * 100 : null;
+                if (tvlChangeEl) {
+                    if (pctChange === null) {
+                        tvlChangeEl.innerText = 'Live on-chain data';
+                        tvlChangeEl.className = 'text-green-400 text-sm';
+                    } else {
+                        const up = pctChange >= 0;
+                        const clamped = Math.min(Math.abs(pctChange), 999.9);
+                        tvlChangeEl.innerText = `${up ? '↗' : '↘'} ${clamped.toFixed(1)}% this session`;
+                        tvlChangeEl.className = (up ? 'text-green-400' : 'text-red-400') + ' text-sm';
+                    }
+                }
+            } else if (tvlChangeEl) {
+                tvlChangeEl.innerText = 'Live on-chain data';
+                tvlChangeEl.className = 'text-green-400 text-sm';
+            }
+            redrawHeroChart(tvlHistory);
+        } else {
+            // Tidak ada wallet/provider terinjeksi, atau kontrak tidak
+            // terjangkau di alamat itu — tampilkan status jujur, jangan
+            // menampilkan angka.
+            if (tvlEl) tvlEl.innerText = '—';
+            if (tvlChangeEl) {
+                tvlChangeEl.innerText = typeof window.ethereum === 'undefined'
+                    ? 'Connect a wallet to view TVL'
+                    : 'On-chain data unavailable';
+                tvlChangeEl.className = 'text-gray-400 text-sm';
             }
         }
-        redrawHeroChart(tvlHistory);
 
-        // ── Secondary stats: animate with a believable live drift ──
-        liveStats.volume  = randomWalk(liveStats.volume, 0.01);
-        liveStats.stakers = randomWalk(liveStats.stakers, 0.003);
-        liveStats.apr     = randomWalk(liveStats.apr, 0.01);
+        // ── Volume / Stakers / APR: TIDAK ADA sumber data on-chain untuk
+        // metrik ini di proyek ini saat ini (butuh event-indexer terpisah).
+        // Daripada mengarang angka yang bergerak sendiri, tampilkan status
+        // jujur sampai indexer-nya benar-benar dibangun. ──
+        const volEl        = document.getElementById('heroVolume');
+        const volChangeEl  = document.getElementById('heroVolumeChange');
+        const stakersEl    = document.getElementById('heroStakers');
+        const aprEl        = document.getElementById('heroAPR');
+        const aprChangeEl  = document.getElementById('heroAPRChange');
 
-        const volEl = document.getElementById('heroVolume');
-        const volChangeEl = document.getElementById('heroVolumeChange');
-        const stakersEl = document.getElementById('heroStakers');
-        const aprEl = document.getElementById('heroAPR');
-        const aprChangeEl = document.getElementById('heroAPRChange');
-        const poolsEl = document.getElementById('heroPools');
-
-        if (volEl) volEl.innerText = fmtUsdCompact(liveStats.volume * 1e6);
-        if (volChangeEl) volChangeEl.innerText = (liveStats.volume >= 12 ? '+' : '') + ((liveStats.volume - 12) / 12 * 100).toFixed(1) + '%';
-        if (stakersEl) stakersEl.innerText = fmtCount(liveStats.stakers);
-        if (aprEl) aprEl.innerText = liveStats.apr.toFixed(1) + '%';
-        if (aprChangeEl) aprChangeEl.innerText = (liveStats.apr >= 24 ? '+' : '') + (liveStats.apr - 24).toFixed(1) + '%';
-        if (poolsEl) poolsEl.innerText = POOLS_ACTIVE.toString();
+        if (volEl) volEl.innerText = '—';
+        if (volChangeEl) volChangeEl.innerText = 'Coming soon';
+        if (stakersEl) stakersEl.innerText = '—';
+        if (aprEl) aprEl.innerText = '—';
+        if (aprChangeEl) aprChangeEl.innerText = 'Coming soon';
     }
 
     // kick off immediately, then keep polling every 4s for a "live" feel
