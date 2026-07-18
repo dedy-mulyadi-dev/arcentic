@@ -156,6 +156,35 @@ svg{width:100%;height:100%}
     animation: fadeInUp .35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* ── Trading Hub overlay ── */
+#tradingHubView {
+    position: fixed; inset: 0; z-index: 200;
+    background: #040816;
+    transform: scale(0.92);
+    opacity: 0;
+    filter: blur(8px);
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow-y: auto;
+    will-change: transform, opacity, filter;
+    -webkit-overflow-scrolling: touch;
+    pointer-events: none;
+}
+#tradingHubView.open {
+    transform: scale(1);
+    opacity: 1;
+    filter: blur(0px);
+    pointer-events: auto;
+}
+.trade-card {
+    background: rgba(255,255,255,.03);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 24px;
+    padding: 28px;
+    cursor: pointer;
+    transition: .3s;
+}
+.trade-card:hover { transform: translateY(-5px); border-color: rgba(255,255,255,.2); }
+
 /* ── Swap overlay ── */
 #swapView {
     position: fixed; inset: 0; z-index: 200;
@@ -225,6 +254,13 @@ svg{width:100%;height:100%}
 .stake-token-select:hover { background-color: rgba(92,120,255,.2); border-color: rgba(92,120,255,.5); }
 .stake-token-select:disabled { opacity: .5; cursor: not-allowed; }
 .stake-token-select option { background: #0b0f1f; color: #fff; }
+
+/* ── Admin panel dropdowns — same "style the <option> list" trick as
+   .stake-token-select above, kept as its own class so it can never affect
+   the Stake page's picker even if one of them changes later. ── */
+.admin-select { background: rgba(255,255,255,.04); border: 1px solid rgba(92,120,255,.2); color: #fff; }
+.admin-select option { background: #0b0f1f; color: #fff; }
+.admin-select:hover { border-color: rgba(92,120,255,.4); }
 .stake-token-note {
     font-size: 11px; color: rgba(255,255,255,.35); margin-top: 6px;
 }
@@ -829,6 +865,7 @@ nav button.glass:hover {
     <nav class="hidden lg:flex gap-1" id="mainNav">
         <button id="navHome"      onclick="showHome()"      class="glass px-6 py-3 rounded-xl nav-active">Home</button>
         <button id="navPortfolio" onclick="showPortfolio()" class="px-6 py-3 rounded-xl">Portfolio</button>
+        <button id="navTrading" onclick="showTradingHub()" class="px-6 py-3 rounded-xl">Trading</button>
         <button id="navSwap" onclick="showSwap()" class="px-6 py-3 rounded-xl">Swap</button>
         <button id="navBridge" onclick="showBridge()" class="px-6 py-3 rounded-xl">Bridge</button>
         <button id="navPools" onclick="showPools()" class="px-6 py-3 rounded-xl">Liquidity</button>
@@ -846,6 +883,7 @@ nav button.glass:hover {
 <div id="mobileNav" class="hidden lg:hidden border-t border-white/10 bg-[#050918]/95 backdrop-blur-xl px-4 py-3 flex flex-col gap-1">
     <button onclick="showHome(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Home</button>
     <button onclick="showPortfolio(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Portfolio</button>
+    <button onclick="showTradingHub(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Trading</button>
     <button onclick="showSwap(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Swap</button>
     <button onclick="showBridge(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Bridge</button>
     <button onclick="showPools(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Liquidity</button>
@@ -893,7 +931,7 @@ nav button.glass:hover {
             <h2 class="text-4xl sm:text-5xl lg:text-7xl font-black leading-none mb-6">The Next<br>Generation<br><span class="bg-gradient-to-r from-purple-400 to-cyan-400 text-transparent bg-clip-text">DeFi Experience</span></h2>
             <p class="text-gray-300 text-base sm:text-xl lg:text-2xl leading-relaxed mb-8">Trade, stake, manage pools and track your ARC testnet assets with ARCENTIC. Modern infrastructure for decentralized finance.</p>
             <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-8">
-                <button onclick="showSwap()" class="gradient px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl font-bold glow text-center">Start Trading →</button>
+                <button onclick="showTradingHub()" class="gradient px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl font-bold glow text-center">Start Trading →</button>
                 <button onclick="showPortfolio()" class="glass px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl font-bold text-center">Open Portfolio</button>
             </div>
             <div class="flex flex-wrap gap-3">
@@ -949,6 +987,54 @@ nav button.glass:hover {
         </div>
     </div>
 </main>
+
+<!-- ═══════════════════════════ TRADING HUB VIEW ═══════════════════════════ -->
+<div id="tradingHubView" class="gridbg">
+    <div class="orb1"></div>
+    <div class="orb2"></div>
+
+    <div class="pf-header pf-header-anim">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <button onclick="showHome()" class="glass w-10 h-10 rounded-xl flex items-center justify-center text-lg hover:border-white/30 transition">←</button>
+                <div>
+                    <h2 class="text-2xl font-black">Trading</h2>
+                    <p class="text-gray-400 text-xs">ARCENTIC · Semua alat trading dalam satu tempat</p>
+                </div>
+            </div>
+            <div class="glass px-2.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap"><span class="sm:hidden">🟢</span><span class="hidden sm:inline">🟢 ARC TESTNET</span></div>
+        </div>
+    </div>
+
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 pf-content">
+        <div class="glass inline-flex px-4 py-1.5 rounded-full mb-4 text-xs text-gray-300">🔀 Spot / Swap</div>
+        <h3 class="text-3xl sm:text-4xl font-black mb-3">Trading Center</h3>
+        <p class="text-gray-400 max-w-2xl mb-8">Swap token, kelola liquidity pool, bridge aset lintas chain, dan pantau portfolio-mu — semuanya terhubung langsung ke smart contract ARC Testnet.</p>
+
+        <div class="grid md:grid-cols-4 gap-6">
+            <div class="trade-card" onclick="showSwap()">
+                <div class="text-3xl mb-3">⚡</div>
+                <h3 class="text-xl font-bold mb-2">Swap</h3>
+                <p class="text-gray-400 text-sm">Tukar token secara instan dengan slippage minimal.</p>
+            </div>
+            <div class="trade-card" onclick="showPools()">
+                <div class="text-3xl mb-3">💧</div>
+                <h3 class="text-xl font-bold mb-2">Liquidity</h3>
+                <p class="text-gray-400 text-sm">Sediakan likuiditas ke pool dan dapatkan fee.</p>
+            </div>
+            <div class="trade-card" onclick="showBridge()">
+                <div class="text-3xl mb-3">🌉</div>
+                <h3 class="text-xl font-bold mb-2">Bridge</h3>
+                <p class="text-gray-400 text-sm">Pindahkan USDC lintas jaringan lewat CCTP.</p>
+            </div>
+            <div class="trade-card" onclick="showPortfolio()">
+                <div class="text-3xl mb-3">📊</div>
+                <h3 class="text-xl font-bold mb-2">Portfolio</h3>
+                <p class="text-gray-400 text-sm">Pantau saldo dan aset wallet-mu secara real-time.</p>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- ═══════════════════════════ SWAP VIEW ═══════════════════════════ -->
 <div id="swapView" class="gridbg">
@@ -2386,7 +2472,7 @@ nav button.glass:hover {
 
     /* ── View switching ── */
     function hideAllOverlays() {
-        ['portfolioView','swapView','bridgeView','poolsView','eijiView','lendView','stakeView','adminView'].forEach(id => {
+        ['portfolioView','swapView','bridgeView','poolsView','eijiView','lendView','stakeView','adminView','tradingHubView'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.classList.remove('open');
         });
@@ -2394,7 +2480,7 @@ nav button.glass:hover {
     }
 
     function setNavActive(id) {
-        ['navHome','navPortfolio','navSwap','navPools','navEiji','navLend','navStake','navAdmin'].forEach(n => {
+        ['navHome','navPortfolio','navSwap','navPools','navEiji','navLend','navStake','navAdmin','navTrading'].forEach(n => {
             const el = document.getElementById(n);
             if (!el) return;
             el.classList.remove('glass','nav-active');
@@ -2414,6 +2500,13 @@ nav button.glass:hover {
         document.body.style.overflow = 'hidden';
         setNavActive('navPortfolio');
         if (isConnected) renderPortfolioData(currentAccount, currentBalance);
+    }
+
+    function showTradingHub() {
+        hideAllOverlays();
+        document.getElementById('tradingHubView').classList.add('open');
+        document.body.style.overflow = 'hidden';
+        setNavActive('navTrading');
     }
 
     function showSwap() {
@@ -2766,10 +2859,8 @@ nav button.glass:hover {
             const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, readOnlyProvider());
             const len = (await staking.tiersLength(srcToken)).toNumber();
             if (len === 0) { showToast('error','No Tiers Found', `${srcSym} has no tiers on-chain yet — add some in "Add a new tier" first.`); return; }
-            for (let i = 0; i < len; i++) {
-                const t = await staking.tierAt(srcToken, i);
-                tiers.push({ lockDuration: t.lockDuration.toNumber(), aprBps: t.aprBps.toNumber(), active: t.active });
-            }
+            const rawTiers = await Promise.all(Array.from({ length: len }, (_, i) => staking.tierAt(srcToken, i)));
+            tiers = rawTiers.map(t => ({ lockDuration: t.lockDuration.toNumber(), aprBps: t.aprBps.toNumber(), active: t.active }));
         } catch (err) {
             console.error('adminCopyTiers read error:', err);
             showToast('error','Read Failed', (err && err.reason) || (err && err.message) || String(err), 8000);
@@ -2911,10 +3002,11 @@ nav button.glass:hover {
         let tvl = null, tokenRows = '', onChainOwner = null, isPaused = null, treasuryAddr = null, penaltyBps = null;
         let lendOwner = null, lendCollFactor = null, lendPrice = null, lendPoolUsdc = null;
 
-        // Status on-chain, TVL, dan status LendingBorrowing saling independen,
+        // Status on-chain, TVL, LendingBorrowing status, dan status per-token
+        // (whitelisted/enabled/tier count) semuanya independen satu sama lain —
         // jalankan bersamaan (Promise.allSettled) alih-alih berurutan supaya
         // panel admin tidak menunggu berkali-kali lipat waktu round-trip RPC.
-        const [statusResult, tvlResult, lendResult] = await Promise.allSettled([
+        const [statusResult, tvlResult, lendResult, tokenStatusResult] = await Promise.allSettled([
             (async () => {
                 const provider = readOnlyProvider();
                 const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, provider);
@@ -2937,6 +3029,20 @@ nav button.glass:hover {
                     price: parseFloat(ethers.utils.formatUnits(price, USDC_DECIMALS)),
                     poolBal: parseFloat(ethers.utils.formatUnits(poolBal, USDC_DECIMALS)),
                 };
+            })(),
+            (async () => {
+                const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, readOnlyProvider());
+                return Promise.all(TOKENS.map(async (t) => {
+                    try {
+                        const [supported, tierCount] = await Promise.all([
+                            staking.tokenSupported(t.addr),
+                            staking.tiersLength(t.addr)
+                        ]);
+                        return { ...t, supported, tierCount: tierCount.toNumber() };
+                    } catch (err) {
+                        return { ...t, supported: null, tierCount: null };
+                    }
+                }));
             })()
         ]);
 
@@ -2964,20 +3070,8 @@ nav button.glass:hover {
         // Live on-chain status per known token (tokenSupported / tiersLength) so
         // the admin can see at a glance what still needs setup, instead of a
         // plain address list — this reads real contract state, nothing implied.
-        try {
-            const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, readOnlyProvider());
-            const tokenStatuses = await Promise.all(TOKENS.map(async (t) => {
-                try {
-                    const [supported, tierCount] = await Promise.all([
-                        staking.tokenSupported(t.addr),
-                        staking.tiersLength(t.addr)
-                    ]);
-                    return { ...t, supported, tierCount: tierCount.toNumber() };
-                } catch (err) {
-                    return { ...t, supported: null, tierCount: null };
-                }
-            }));
-            tokenRows = tokenStatuses.map(t => {
+        if (tokenStatusResult.status === 'fulfilled') {
+            tokenRows = tokenStatusResult.value.map(t => {
                 const statusBadge = t.supported === null
                     ? '<span class="text-gray-500 text-xs">status unavailable</span>'
                     : t.supported
@@ -2993,8 +3087,8 @@ nav button.glass:hover {
                     </span>
                 </div>`;
             }).join('');
-        } catch (err) {
-            console.error('admin token list error:', err);
+        } else {
+            console.error('admin token list error:', tokenStatusResult.reason);
             tokenRows = TOKENS.map(t => `
                 <div class="token-row">
                     <span>${t.sym}${t.name ? ' — ' + t.name : ''}</span>
@@ -3087,7 +3181,7 @@ nav button.glass:hover {
                     <div class="mt-6 pt-6" style="border-top:1px solid rgba(255,255,255,.08);">
                         <p class="text-xs text-gray-400 mb-2">Quick setup from a known token — sends addToken() then setTokenSupported(token, true) as two real transactions, so you don't have to copy/paste addresses.</p>
                         <div class="flex flex-col sm:flex-row gap-2">
-                            <select id="adminQuickToken" class="w-full sm:flex-1 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <select id="adminQuickToken" class="admin-select w-full sm:flex-1 px-3 py-2 rounded-lg text-sm">
                                 ${TOKENS.map(t => `<option value="${t.addr}">${t.sym}${t.name ? ' — ' + t.name : ''}</option>`).join('')}
                             </select>
                             <button onclick="adminQuickWhitelistEnable()" class="token-select-btn tok-active sm:w-56">Whitelist + Enable</button>
@@ -3130,13 +3224,13 @@ nav button.glass:hover {
                     <div class="grid sm:grid-cols-2 gap-6">
                         <div>
                             <p class="text-xs text-gray-400 mb-2">Source token (read tiers from)</p>
-                            <select id="adminCopyTiersSrc" class="w-full px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <select id="adminCopyTiersSrc" class="admin-select w-full px-3 py-2 rounded-lg text-sm">
                                 ${TOKENS.map(t => `<option value="${t.addr}">${t.sym}${t.name ? ' — ' + t.name : ''}</option>`).join('')}
                             </select>
                         </div>
                         <div>
                             <p class="text-xs text-gray-400 mb-2">Target token (add tiers to)</p>
-                            <select id="adminCopyTiersDest" class="w-full px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <select id="adminCopyTiersDest" class="admin-select w-full px-3 py-2 rounded-lg text-sm">
                                 ${TOKENS.map(t => `<option value="${t.addr}">${t.sym}${t.name ? ' — ' + t.name : ''}</option>`).join('')}
                             </select>
                         </div>
@@ -3259,9 +3353,12 @@ nav button.glass:hover {
         document.getElementById('stakeTokenNote').classList.add('hidden');
 
         await loadStakeTokens();
-        await loadStakeTiersForSelected();
-        await refreshStakeStats();
-        if (isConnected) await loadMyStakes();
+        // These three don't depend on each other (only on selectedStakeToken,
+        // which loadStakeTokens already set) — run them together instead of
+        // waiting on each one in turn.
+        const tasks = [loadStakeTiersForSelected(), refreshStakeStats()];
+        if (isConnected) tasks.push(loadMyStakes());
+        await Promise.all(tasks);
         updateStakeButtonLabel();
     }
 
@@ -3272,17 +3369,20 @@ nav button.glass:hover {
             if (!provider) throw new Error('No RPC provider available');
             const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, provider);
             const count = (await staking.supportedTokensLength()).toNumber();
-            const list = [];
-            for (let i = 0; i < count; i++) {
-                const addr = await staking.supportedTokenAt(i);
+
+            // Fetch every token's address, support flag, and metadata concurrently
+            // instead of one at a time — with several whitelisted tokens this was
+            // N sequential RPC round-trips, which is what made opening Stake feel slow.
+            const addrs = await Promise.all(Array.from({ length: count }, (_, i) => staking.supportedTokenAt(i)));
+            const entries = await Promise.all(addrs.map(async (addr) => {
                 const isSupported = await staking.tokenSupported(addr);
-                if (!isSupported) continue; // owner paused new stakes for this token
+                if (!isSupported) return null; // owner paused new stakes for this token
                 const meta = await getStakeTokenMeta(addr, provider);
-                list.push({ addr, ...meta });
-            }
-            stakeTokens = list;
-            if (!selectedStakeToken || !list.some(t => t.addr === selectedStakeToken)) {
-                selectedStakeToken = list.length > 0 ? list[0].addr : null;
+                return { addr, ...meta };
+            }));
+            stakeTokens = entries.filter(Boolean);
+            if (!selectedStakeToken || !stakeTokens.some(t => t.addr === selectedStakeToken)) {
+                selectedStakeToken = stakeTokens.length > 0 ? stakeTokens[0].addr : null;
             }
             renderStakeTokenPicker();
         } catch (err) {
@@ -3325,9 +3425,12 @@ nav button.glass:hover {
             return;
         }
 
-        await loadStakeTiersForSelected();
-        await refreshStakeStats();
-        if (isConnected) await loadMyStakes();
+        // Same as showStake(): these are independent of each other, so run
+        // them together instead of one after another — this is the delay
+        // you feel every time you pick a different token in the dropdown.
+        const tasks = [loadStakeTiersForSelected(), refreshStakeStats()];
+        if (isConnected) tasks.push(loadMyStakes());
+        await Promise.all(tasks);
         updateStakePreview();
         updateStakeButtonLabel();
     }
@@ -3548,13 +3651,26 @@ nav button.glass:hover {
             list.innerHTML = '';
             let rendered = 0;
 
-            for (let i = 0; i < count; i++) {
-                const s = await staking.stakesOf(currentAccount, i);
-                if (s.withdrawn) continue;
-                const pending = await staking.pendingReward(currentAccount, i);
-                const unlocked = await staking.isUnlocked(currentAccount, i);
-                const meta = await getStakeTokenMeta(s.token, provider);
+            // Fetch every stake's raw data concurrently, figure out which ones
+            // are still active, then fetch reward/unlock/meta for those
+            // concurrently too — this used to be up to 4 sequential RPC calls
+            // PER stake, which is what made "My Stakes" slow to render for
+            // wallets with several open positions. Order is preserved so the
+            // list renders in the same index order as before.
+            const idxs = Array.from({ length: count }, (_, i) => i);
+            const rawStakes = await Promise.all(idxs.map(i => staking.stakesOf(currentAccount, i)));
+            const activeIdxs = idxs.filter(i => !rawStakes[i].withdrawn);
+            const details = await Promise.all(activeIdxs.map(async (i) => {
+                const s = rawStakes[i];
+                const [pending, unlocked, meta] = await Promise.all([
+                    staking.pendingReward(currentAccount, i),
+                    staking.isUnlocked(currentAccount, i),
+                    getStakeTokenMeta(s.token, provider)
+                ]);
+                return { i, s, pending, unlocked, meta };
+            }));
 
+            for (const { i, s, pending, unlocked, meta } of details) {
                 if (selectedStakeToken && s.token.toLowerCase() === selectedStakeToken.toLowerCase()) {
                     selTotalStaked = selTotalStaked.add(s.amount);
                     selTotalClaimable = selTotalClaimable.add(pending);
