@@ -791,6 +791,7 @@ nav button.glass:hover {
         <button id="navPools" onclick="showPools()" class="px-6 py-3 rounded-xl">Liquidity</button>
         <button id="navLend" onclick="showLend()" class="px-6 py-3 rounded-xl">Lend & Borrow</button>
         <button id="navStake" onclick="showStake()" class="px-6 py-3 rounded-xl">Stake</button>
+        <button id="navAdmin" onclick="showAdmin()" class="px-6 py-3 rounded-xl" style="display:none;">🔒 Admin</button>
     </nav>
     <div class="flex gap-2 sm:gap-3 items-center flex-shrink-0">
         <div class="hidden sm:block glass px-4 py-3 rounded-xl text-sm whitespace-nowrap">🟢 ARC TESTNET</div>
@@ -807,6 +808,7 @@ nav button.glass:hover {
     <button onclick="showPools(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Liquidity</button>
     <button onclick="showLend(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Lend &amp; Borrow</button>
 <button onclick="showStake(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Stake</button>
+<button id="navAdminMobile" onclick="showAdmin(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition" style="display:none;">🔒 Admin</button>
 </div>
 </header>
 
@@ -1980,6 +1982,32 @@ nav button.glass:hover {
     </div>
 </div>
 
+<!-- ============ ADMIN PANEL ============
+     Note: hiding this section in the UI is only half the story — the real
+     protection has to live on-chain. See the JS below (isAdminWallet /
+     showAdmin) and the accompanying explanation in chat. -->
+<div id="adminView" class="gridbg">
+    <div class="orb1"></div><div class="orb2"></div>
+
+    <div class="pf-header pf-header-anim">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <button onclick="showHome()" class="glass w-10 h-10 rounded-xl flex items-center justify-center text-lg hover:border-white/30 transition">←</button>
+                <div>
+                    <h2 class="text-2xl font-black">🔒 Admin</h2>
+                    <p class="text-gray-400 text-xs">Restricted — visible only to the configured admin wallet</p>
+                </div>
+            </div>
+            <button onclick="loadAdminOverview()" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">⟳ Refresh</button>
+        </div>
+    </div>
+
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12 pf-content" id="adminContent">
+        <!-- Populated by loadAdminOverview() only after isAdminWallet() passes -->
+        <p class="text-gray-500 text-sm text-center py-10">Verifying admin wallet…</p>
+    </div>
+</div>
+
 <!-- ============ EIJI AI AGENT ============ -->
 <div id="eijiView" class="gridbg">
     <div class="eiji-header">
@@ -2265,6 +2293,37 @@ nav button.glass:hover {
     let currentAccount = null;
     let currentBalance = '0';
 
+    /* ── Admin gating ──
+       IMPORTANT: this only controls whether the Admin nav item/panel is
+       *shown* in this browser tab. It is a UI convenience, not real access
+       control — anyone can open devtools and call showAdmin() directly, or
+       just edit this constant in a saved copy of the page. It does NOT
+       stop another wallet from reaching admin-only functionality.
+       Real protection has to come from the smart contract itself: any
+       on-chain admin action this panel triggers must be guarded by an
+       onlyOwner-style modifier on the contract side, so the transaction
+       reverts for every wallet except the real owner regardless of what
+       the frontend does or doesn't show. Treat this constant as "hide the
+       button from everyone else", not "only I can do this".
+    */
+    const ADMIN_WALLET = '0x86435cad0B9a46A67fD0756BdA7cFa992417ef1f';
+
+    function isAdminWallet(addr) {
+        return !!addr && addr.toLowerCase() === ADMIN_WALLET.toLowerCase();
+    }
+
+    function updateAdminVisibility() {
+        const show = isConnected && isAdminWallet(currentAccount);
+        const btn  = document.getElementById('navAdmin');
+        const btnM = document.getElementById('navAdminMobile');
+        if (btn)  btn.style.display  = show ? '' : 'none';
+        if (btnM) btnM.style.display = show ? '' : 'none';
+        // If the account changed away from the admin wallet while the panel
+        // was open (e.g. user switched accounts in MetaMask), boot them out.
+        const view = document.getElementById('adminView');
+        if (!show && view && view.classList.contains('open')) showHome();
+    }
+
     /* ── Helpers ── */
     function shortAddr(a) { return a.slice(0,6) + '...' + a.slice(-4); }
 
@@ -2284,7 +2343,7 @@ nav button.glass:hover {
 
     /* ── View switching ── */
     function hideAllOverlays() {
-        ['portfolioView','swapView','bridgeView','poolsView','eijiView','lendView','stakeView'].forEach(id => {
+        ['portfolioView','swapView','bridgeView','poolsView','eijiView','lendView','stakeView','adminView'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.classList.remove('open');
         });
@@ -2292,7 +2351,7 @@ nav button.glass:hover {
     }
 
     function setNavActive(id) {
-        ['navHome','navPortfolio','navSwap','navPools','navEiji','navLend','navStake'].forEach(n => {
+        ['navHome','navPortfolio','navSwap','navPools','navEiji','navLend','navStake','navAdmin'].forEach(n => {
             const el = document.getElementById(n);
             if (!el) return;
             el.classList.remove('glass','nav-active');
@@ -2427,6 +2486,24 @@ nav button.glass:hover {
         'function totalStakedOf(address token) view returns (uint256)',
         'function rewardPoolBalanceOf(address token) view returns (uint256)',
         'function BPS_DENOMINATOR() view returns (uint256)',
+        // ── Admin (onlyOwner on-chain — see loadAdminOverview()/adminSendTx() below) ──
+        'function owner() view returns (address)',
+        'function paused() view returns (bool)',
+        'function treasury() view returns (address)',
+        'function earlyExitPenaltyBps() view returns (uint256)',
+        'function reservedRewardsOf(address token) view returns (uint256)',
+        'function MAX_APR_BPS() view returns (uint256)',
+        'function MAX_PENALTY_BPS() view returns (uint256)',
+        'function addToken(address token)',
+        'function setTokenSupported(address token, bool supported)',
+        'function addTier(address token, uint256 lockDuration, uint256 aprBps)',
+        'function setTier(address token, uint256 tierId, uint256 aprBps, bool active)',
+        'function setTreasury(address _treasury)',
+        'function setEarlyExitPenaltyBps(uint256 _penaltyBps)',
+        'function pause()',
+        'function unpause()',
+        'function fundRewards(address token, uint256 amount)',
+        'function withdrawUnreservedRewards(address token, uint256 amount)',
     ];
 
     /* ══════════════════════════════════════════════════
@@ -2507,6 +2584,329 @@ nav button.glass:hover {
             stakeTokenMetaCache[key] = meta;
             return meta;
         }
+    }
+
+    /* ── Admin panel ──
+       showAdmin() re-checks isAdminWallet() itself (not just relying on the
+       nav button being hidden) so that calling it directly from the console
+       with a non-admin wallet connected still gets refused. Again: this
+       blocks *this UI* from opening for other people, it is not what makes
+       any underlying admin action safe — that has to be enforced by the
+       contract's own onlyOwner check. */
+    async function showAdmin() {
+        if (!isConnected) {
+            showToast('warning','Wallet Not Connected','Connect the admin wallet first.');
+            return;
+        }
+        if (!isAdminWallet(currentAccount)) {
+            showToast('error','Access Denied','This wallet is not authorized to view the admin panel.');
+            return;
+        }
+        hideAllOverlays();
+        document.getElementById('adminView').classList.add('open');
+        document.body.style.overflow = 'hidden';
+        setNavActive('navAdmin');
+        await loadAdminOverview();
+    }
+
+    /* ── Admin: send a real onlyOwner transaction ──
+       This is where the actual protection lives: `staking[fnName](...)` below
+       is sent from the CONNECTED WALLET's signer. If that wallet isn't the
+       contract's real owner(), the transaction reverts on-chain with
+       "OwnableUnauthorizedAccount" — regardless of what ADMIN_WALLET says in
+       this file. The isAdminWallet() check here is just to avoid wasting the
+       user's gas on a doomed tx / show a clearer error before they even sign. */
+    async function adminSendTx(fnName, args, { successTitle, successMsg, confirmMsg } = {}) {
+        if (!isAdminWallet(currentAccount)) {
+            showToast('error','Access Denied','This wallet is not authorized to send admin transactions.');
+            return false;
+        }
+        if (confirmMsg && !window.confirm(confirmMsg)) return false;
+
+        let toast = showToast('pending', successTitle || fnName, 'Waiting for wallet confirmation…');
+        try {
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const signer = provider.getSigner();
+            const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, signer);
+            const onRpcRetry = (n, max) => updateToast(toast, 'pending', successTitle || fnName, `RPC hiccup — retrying (${n}/${max})…`);
+
+            const tx = await withRpcRetry(() => staking[fnName](...args), { onRetry: onRpcRetry });
+            updateToast(toast, 'pending', successTitle || fnName, 'Confirming on-chain…');
+            await withRpcRetry(() => tx.wait(), { onRetry: onRpcRetry });
+
+            updateToast(toast, 'success', successTitle || 'Done', successMsg || 'Transaction confirmed.', 6000);
+            await loadAdminOverview();
+            return true;
+        } catch (err) {
+            console.error(`adminSendTx(${fnName}) error:`, err);
+            const msg = (err && err.reason) || (err && err.message) || String(err);
+            updateToast(toast, 'error', 'Transaction Failed', msg, 8000);
+            return false;
+        }
+    }
+
+    // Small helpers for the admin form inputs
+    function adminTokenAddrInput(id)  { return (document.getElementById(id).value || '').trim(); }
+    function adminPercentToBps(id)    { return Math.round(parseFloat(document.getElementById(id).value || '0') * 100); }
+    function adminDaysToSeconds(id)   { return Math.round(parseFloat(document.getElementById(id).value || '0') * 86400); }
+
+    async function adminAddToken() {
+        const token = adminTokenAddrInput('adminTokenAddr');
+        if (!ethers.utils.isAddress(token)) { showToast('error','Invalid Address','Enter a valid token contract address.'); return; }
+        await adminSendTx('addToken', [token], { successTitle: 'Token Whitelisted', successMsg: token + ' can now be configured for staking.' });
+    }
+
+    async function adminSetTokenSupported(supported) {
+        const token = adminTokenAddrInput('adminSupportTokenAddr');
+        if (!ethers.utils.isAddress(token)) { showToast('error','Invalid Address','Enter a valid token contract address.'); return; }
+        await adminSendTx('setTokenSupported', [token, supported],
+            { successTitle: supported ? 'Token Enabled' : 'Token Disabled',
+              successMsg: `${token} ${supported ? 'now accepts' : 'no longer accepts'} new stakes/funding.` });
+    }
+
+    async function adminAddTier() {
+        const token = adminTokenAddrInput('adminTierTokenAddr');
+        const days  = adminDaysToSeconds('adminTierDays');
+        const bps   = adminPercentToBps('adminTierApr');
+        if (!ethers.utils.isAddress(token)) { showToast('error','Invalid Address','Enter a valid token contract address.'); return; }
+        if (days <= 0) { showToast('error','Invalid Duration','Lock duration must be greater than 0.'); return; }
+        if (bps <= 0)  { showToast('error','Invalid APR','APR must be greater than 0%.'); return; }
+        await adminSendTx('addTier', [token, days, bps], { successTitle: 'Tier Added', successMsg: `New lock tier added for ${token}.` });
+    }
+
+    async function adminSetTier(active) {
+        const token  = adminTokenAddrInput('adminEditTierTokenAddr');
+        const tierId = parseInt(document.getElementById('adminEditTierId').value || '-1', 10);
+        const bps    = adminPercentToBps('adminEditTierApr');
+        if (!ethers.utils.isAddress(token)) { showToast('error','Invalid Address','Enter a valid token contract address.'); return; }
+        if (isNaN(tierId) || tierId < 0) { showToast('error','Invalid Tier ID','Enter the tier index to edit.'); return; }
+        if (bps <= 0) { showToast('error','Invalid APR','APR must be greater than 0%.'); return; }
+        await adminSendTx('setTier', [token, tierId, bps, active], { successTitle: 'Tier Updated', successMsg: `Tier #${tierId} for ${token} updated.` });
+    }
+
+    async function adminFundRewards() {
+        const token = adminTokenAddrInput('adminFundTokenAddr');
+        const meta  = stakeTokenMetaCache[token.toLowerCase()];
+        const decimals = meta ? meta.decimals : 18;
+        const amtStr = document.getElementById('adminFundAmount').value;
+        if (!ethers.utils.isAddress(token)) { showToast('error','Invalid Address','Enter a valid token contract address.'); return; }
+        if (!amtStr || parseFloat(amtStr) <= 0) { showToast('error','Invalid Amount','Enter an amount to fund.'); return; }
+        try {
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const signer = provider.getSigner();
+            const amtWei = ethers.utils.parseUnits(parseFloat(amtStr).toFixed(decimals), decimals);
+            const tokenContract = new ethers.Contract(token, ERC20_ABI, signer);
+            const allowance = await tokenContract.allowance(currentAccount, CONTRACT_ADDRS.ArcenticStaking);
+            if (allowance.lt(amtWei)) {
+                const approveTx = await tokenContract.approve(CONTRACT_ADDRS.ArcenticStaking, ethers.constants.MaxUint256);
+                await approveTx.wait();
+            }
+            await adminSendTx('fundRewards', [token, amtWei], { successTitle: 'Reward Pool Funded', successMsg: `Funded ${amtStr} tokens into the reward pool.` });
+        } catch (err) {
+            console.error('adminFundRewards error:', err);
+            showToast('error','Funding Failed', (err && err.reason) || (err && err.message) || String(err), 8000);
+        }
+    }
+
+    async function adminWithdrawUnreserved() {
+        const token = adminTokenAddrInput('adminWithdrawTokenAddr');
+        const meta  = stakeTokenMetaCache[token.toLowerCase()];
+        const decimals = meta ? meta.decimals : 18;
+        const amtStr = document.getElementById('adminWithdrawAmount').value;
+        if (!ethers.utils.isAddress(token)) { showToast('error','Invalid Address','Enter a valid token contract address.'); return; }
+        if (!amtStr || parseFloat(amtStr) <= 0) { showToast('error','Invalid Amount','Enter an amount to withdraw.'); return; }
+        const amtWei = ethers.utils.parseUnits(parseFloat(amtStr).toFixed(decimals), decimals);
+        await adminSendTx('withdrawUnreservedRewards', [token, amtWei],
+            { successTitle: 'Withdrawn', successMsg: `Withdrew ${amtStr} unreserved reward tokens.`,
+              confirmMsg: 'Withdraw unreserved reward tokens to your wallet? This never touches staker principal or already-reserved rewards.' });
+    }
+
+    async function adminSetTreasury() {
+        const addr = adminTokenAddrInput('adminTreasuryAddr');
+        if (!ethers.utils.isAddress(addr)) { showToast('error','Invalid Address','Enter a valid wallet address.'); return; }
+        await adminSendTx('setTreasury', [addr], { successTitle: 'Treasury Updated', successMsg: `Early-exit penalties now go to ${addr}.` });
+    }
+
+    async function adminSetPenalty() {
+        const bps = adminPercentToBps('adminPenaltyPct');
+        if (bps < 0 || bps > 3000) { showToast('error','Out of Range','Penalty must be between 0% and 30%.'); return; }
+        await adminSendTx('setEarlyExitPenaltyBps', [bps], { successTitle: 'Penalty Updated', successMsg: `Early-exit penalty set to ${(bps/100).toFixed(2)}%.` });
+    }
+
+    async function adminTogglePause(pause) {
+        await adminSendTx(pause ? 'pause' : 'unpause', [],
+            { successTitle: pause ? 'Staking Paused' : 'Staking Unpaused',
+              successMsg: pause ? 'New stakes are now blocked.' : 'New stakes are open again.',
+              confirmMsg: pause ? 'Pause all new staking? Existing stakes remain claimable/unstakeable.' : null });
+    }
+
+    async function loadAdminOverview() {
+        // Defense in depth: bail if somehow called while not the admin wallet.
+        if (!isAdminWallet(currentAccount)) { showHome(); return; }
+
+        const el = document.getElementById('adminContent');
+        el.innerHTML = '<p class="text-gray-500 text-sm text-center py-10">Loading admin overview…</p>';
+
+        let tvl = null, tokenRows = '', onChainOwner = null, isPaused = null, treasuryAddr = null, penaltyBps = null;
+        try {
+            const provider = readOnlyProvider();
+            const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, provider);
+            [onChainOwner, isPaused, treasuryAddr, penaltyBps] = await Promise.all([
+                staking.owner(), staking.paused(), staking.treasury(), staking.earlyExitPenaltyBps()
+            ]);
+        } catch (err) { console.error('admin on-chain status error:', err); }
+
+        try { tvl = await fetchOnChainTVL(); } catch (err) { console.error('admin TVL error:', err); }
+
+        try {
+            tokenRows = TOKENS.map(t => `
+                <div class="token-row">
+                    <span>${t.sym}${t.name ? ' — ' + t.name : ''}</span>
+                    <span class="text-gray-500 text-xs font-mono">${t.addr}</span>
+                </div>`).join('');
+        } catch (err) { console.error('admin token list error:', err); }
+
+        const contractRows = Object.entries(CONTRACT_ADDRS).map(([name, addr]) => `
+            <div class="token-row">
+                <span>${name}</span>
+                <span class="text-gray-500 text-xs font-mono">${addr}</span>
+            </div>`).join('');
+
+        const ownerMatches = onChainOwner && isAdminWallet(onChainOwner);
+        const ownerWarning = onChainOwner && !ownerMatches
+            ? `<div class="mt-3 text-xs px-3 py-2 rounded-lg" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#fca5a5;">
+                 ⚠ On-chain owner() is <span class="font-mono">${onChainOwner}</span> — this does NOT match the ADMIN_WALLET configured in this page.
+                 Admin transactions will revert unless sent from the real owner wallet.
+               </div>` : '';
+
+        el.innerHTML = `
+            <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
+                <div class="flex items-center gap-3 mb-1">
+                    <span style="width:10px;height:10px;border-radius:50%;background:${ownerMatches ? '#22c55e' : (onChainOwner ? '#ef4444' : '#eab308')};display:inline-block;"></span>
+                    <h3 class="text-lg font-black">${ownerMatches ? 'Admin wallet verified on-chain' : 'On-chain owner check'}</h3>
+                </div>
+                <p class="text-gray-500 text-xs font-mono">Connected: ${currentAccount}</p>
+                <p class="text-gray-500 text-xs font-mono">Contract owner(): ${onChainOwner || '—'}</p>
+                ${ownerWarning}
+            </div>
+
+            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="stat-chip">
+                    <div class="text-gray-400 text-xs mb-1">Protocol TVL</div>
+                    <div class="text-xl font-black">${tvl !== null ? '$' + tvl.toLocaleString(undefined,{maximumFractionDigits:2}) : '—'}</div>
+                </div>
+                <div class="stat-chip">
+                    <div class="text-gray-400 text-xs mb-1">Staking status</div>
+                    <div class="text-xl font-black">${isPaused === null ? '—' : (isPaused ? '⏸ Paused' : '▶ Live')}</div>
+                </div>
+                <div class="stat-chip">
+                    <div class="text-gray-400 text-xs mb-1">Early-exit penalty</div>
+                    <div class="text-xl font-black">${penaltyBps === null ? '—' : (penaltyBps.toNumber()/100).toFixed(2) + '%'}</div>
+                </div>
+                <div class="stat-chip">
+                    <div class="text-gray-400 text-xs mb-1">Treasury</div>
+                    <div class="text-xs font-mono break-all">${treasuryAddr || '—'}</div>
+                </div>
+            </div>
+
+            <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
+                <h3 class="text-lg font-black mb-2">Token Config (known tokens)</h3>
+                <div>${tokenRows || '<p class="text-gray-500 text-sm">No tokens configured.</p>'}</div>
+            </div>
+
+            <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
+                <h3 class="text-lg font-black mb-2">Contract Addresses</h3>
+                <div>${contractRows}</div>
+            </div>
+
+            <!-- ── Admin Actions — every button below calls a real onlyOwner
+                   function on ArcenticStakingMultiToken via the connected
+                   wallet's signer. The transaction reverts on-chain if the
+                   signer isn't the actual owner(), no matter what this UI shows. ── -->
+            <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
+                <h3 class="text-lg font-black mb-4">Tokens</h3>
+                <div class="grid sm:grid-cols-2 gap-6">
+                    <div>
+                        <p class="text-xs text-gray-400 mb-2">Whitelist a new token</p>
+                        <input id="adminTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                        <button onclick="adminAddToken()" class="token-select-btn tok-active w-full">Add Token</button>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-2">Enable / disable a token</p>
+                        <input id="adminSupportTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                        <div class="flex gap-2">
+                            <button onclick="adminSetTokenSupported(true)" class="token-select-btn flex-1">Enable</button>
+                            <button onclick="adminSetTokenSupported(false)" class="token-select-btn flex-1">Disable</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
+                <h3 class="text-lg font-black mb-4">Lock Tiers</h3>
+                <div class="grid sm:grid-cols-2 gap-6">
+                    <div>
+                        <p class="text-xs text-gray-400 mb-2">Add a new tier</p>
+                        <input id="adminTierTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                        <div class="flex gap-2 mb-2">
+                            <input id="adminTierDays" type="number" placeholder="Lock days" class="w-1/2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <input id="adminTierApr" type="number" placeholder="APR %" class="w-1/2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                        </div>
+                        <button onclick="adminAddTier()" class="token-select-btn tok-active w-full">Add Tier</button>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-2">Edit an existing tier</p>
+                        <input id="adminEditTierTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                        <div class="flex gap-2 mb-2">
+                            <input id="adminEditTierId" type="number" placeholder="Tier ID" class="w-1/2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <input id="adminEditTierApr" type="number" placeholder="New APR %" class="w-1/2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="adminSetTier(true)" class="token-select-btn flex-1">Save (Active)</button>
+                            <button onclick="adminSetTier(false)" class="token-select-btn flex-1">Save (Inactive)</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
+                <h3 class="text-lg font-black mb-4">Reward Pool</h3>
+                <div class="grid sm:grid-cols-2 gap-6">
+                    <div>
+                        <p class="text-xs text-gray-400 mb-2">Fund reward pool</p>
+                        <input id="adminFundTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                        <input id="adminFundAmount" type="number" placeholder="Amount" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                        <button onclick="adminFundRewards()" class="token-select-btn tok-active w-full">Fund</button>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-2">Withdraw unreserved rewards</p>
+                        <input id="adminWithdrawTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                        <input id="adminWithdrawAmount" type="number" placeholder="Amount" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                        <button onclick="adminWithdrawUnreserved()" class="token-select-btn w-full">Withdraw</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass rounded-3xl p-5 sm:p-8">
+                <h3 class="text-lg font-black mb-4">Protocol Settings</h3>
+                <div class="grid sm:grid-cols-2 gap-6">
+                    <div>
+                        <p class="text-xs text-gray-400 mb-2">Treasury address</p>
+                        <input id="adminTreasuryAddr" type="text" placeholder="0x… new treasury" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                        <button onclick="adminSetTreasury()" class="token-select-btn w-full">Update Treasury</button>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-2">Early-exit penalty (0–30%)</p>
+                        <input id="adminPenaltyPct" type="number" placeholder="Penalty %" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                        <button onclick="adminSetPenalty()" class="token-select-btn w-full">Update Penalty</button>
+                    </div>
+                </div>
+                <div class="flex gap-2 mt-6">
+                    <button onclick="adminTogglePause(true)" class="token-select-btn flex-1">⏸ Pause Staking</button>
+                    <button onclick="adminTogglePause(false)" class="token-select-btn flex-1">▶ Unpause Staking</button>
+                </div>
+            </div>
+        `;
     }
 
     async function showStake() {
@@ -2618,19 +3018,29 @@ nav button.glass:hover {
             if (!provider) throw new Error('No RPC provider available');
             const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, provider);
             const count = (await staking.tiersLength(selectedStakeToken)).toNumber();
-            const tiers = [];
-            for (let i = 0; i < count; i++) {
-                const t = await staking.tierAt(selectedStakeToken, i);
-                tiers.push({ id: i, lockDuration: t.lockDuration.toNumber(), aprBps: t.aprBps.toNumber(), active: t.active });
-            }
+            const tiers = await Promise.all(
+                Array.from({ length: count }, async (_, i) => {
+                    const t = await staking.tierAt(selectedStakeToken, i);
+                    return { id: i, lockDuration: t.lockDuration.toNumber(), aprBps: t.aprBps.toNumber(), active: t.active };
+                })
+            );
             stakeTiers = tiers;
             const firstActive = tiers.find(t => t.active);
             selectedTierId = firstActive ? firstActive.id : null;
             renderTierGrid();
         } catch (err) {
             console.error('loadStakeTiersForSelected error:', err);
+            const rateLimited = err && (err.code === -32005 ||
+                (err.error && err.error.code === -32005) ||
+                /rate limit/i.test(err.message || ''));
+            const label = rateLimited
+                ? "RPC is rate-limited right now — please retry in a moment."
+                : `Couldn't load tiers: ${err.message || err}`;
             document.getElementById('stakeTierGrid').innerHTML =
-                `<p class="text-red-400 text-sm text-center col-span-3">Couldn't load tiers: ${err.message || err}</p>`;
+                `<div class="text-center col-span-3">
+                    <p class="text-red-400 text-sm mb-2">${label}</p>
+                    <button onclick="loadStakeTiersForSelected()" class="text-xs px-3 py-1.5 rounded-lg" style="background:rgba(92,120,255,.15);border:1px solid rgba(92,120,255,.3);color:#fff;">Retry</button>
+                </div>`;
         }
     }
 
@@ -4060,6 +4470,7 @@ nav button.glass:hover {
         renderPortfolioData(account, bal);
         updateSwapBalances();
         updateBridgeBalances();
+        updateAdminVisibility();
     }
 
     function setDisconnectedUI() {
@@ -4071,6 +4482,7 @@ nav button.glass:hover {
         clearPortfolioData();
         updateSwapBalances();
         updateBridgeBalances();
+        updateAdminVisibility();
     }
 
     document.addEventListener('walletConnected', () => {
@@ -4605,13 +5017,44 @@ nav button.glass:hover {
     // tetap kosong ("—") daripada menampilkan tren yang dikarang.
     let tvlHistory = [];
 
+    // Cached across calls so we don't spin up a fresh set of JSON-RPC
+    // connections (and fresh network-detection requests) every single time
+    // some UI section wants to do a read.
+    let _readOnlyProvider = null;
+
     function readOnlyProvider() {
-        // A view/read call doesn't require the user to have connected their wallet —
-        // any injected provider can serve it.
-        if (typeof window.ethereum !== 'undefined') {
-            try { return new ethers.providers.Web3Provider(window.ethereum); } catch { return null; }
+        // View/read calls (tiers, TVL, balances, prices, …) used to ride on
+        // window.ethereum — i.e. the wallet extension's own RPC connection.
+        // That connection is shared with every other dApp/tab the user has
+        // open, so under load it returns HTTP 429 "Request is being rate
+        // limited" (ethers error code -32005). Ethers can't interpret a 429
+        // as a normal revert, so it surfaces as a confusing
+        // "missing revert data in call exception" instead of the real cause.
+        //
+        // Fix: read calls use ARC_CHAIN's own public RPC endpoints via a
+        // FallbackProvider instead. If one endpoint is slow/rate-limited,
+        // ethers automatically retries against the other endpoint — and as
+        // a bonus, reads now work even before the user connects a wallet.
+        if (_readOnlyProvider) return _readOnlyProvider;
+        try {
+            const urls = (ARC_CHAIN && ARC_CHAIN.rpcUrls) || [];
+            const jsonRpcProviders = urls.map(url => new ethers.providers.JsonRpcProvider(url));
+            if (jsonRpcProviders.length > 1) {
+                // quorum 1: any single healthy endpoint answering is enough,
+                // we don't need multiple endpoints to agree for read-only UI data
+                _readOnlyProvider = new ethers.providers.FallbackProvider(jsonRpcProviders, 1);
+            } else if (jsonRpcProviders.length === 1) {
+                _readOnlyProvider = jsonRpcProviders[0];
+            } else if (typeof window.ethereum !== 'undefined') {
+                // No dedicated RPC configured — fall back to the wallet's own
+                // provider like before, rather than failing outright.
+                _readOnlyProvider = new ethers.providers.Web3Provider(window.ethereum);
+            }
+        } catch (err) {
+            console.error('readOnlyProvider setup failed:', err);
+            _readOnlyProvider = null;
         }
-        return null;
+        return _readOnlyProvider;
     }
 
     /* Sum (reserves × rate) across all configured tokens in ArcenticMultiPool */

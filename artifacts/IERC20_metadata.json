@@ -9,26 +9,7 @@
 				"inputs": [
 					{
 						"internalType": "address",
-						"name": "account",
-						"type": "address"
-					}
-				],
-				"name": "balanceOf",
-				"outputs": [
-					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [
-					{
-						"internalType": "address",
-						"name": "to",
+						"name": "spender",
 						"type": "address"
 					},
 					{
@@ -37,36 +18,7 @@
 						"type": "uint256"
 					}
 				],
-				"name": "transfer",
-				"outputs": [
-					{
-						"internalType": "bool",
-						"name": "",
-						"type": "bool"
-					}
-				],
-				"stateMutability": "nonpayable",
-				"type": "function"
-			},
-			{
-				"inputs": [
-					{
-						"internalType": "address",
-						"name": "from",
-						"type": "address"
-					},
-					{
-						"internalType": "address",
-						"name": "to",
-						"type": "address"
-					},
-					{
-						"internalType": "uint256",
-						"name": "amount",
-						"type": "uint256"
-					}
-				],
-				"name": "transferFrom",
+				"name": "approve",
 				"outputs": [
 					{
 						"internalType": "bool",
@@ -91,7 +43,7 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"ArcenticLendingBorrowing.sol": "IERC20"
+			"IERC20.sol": "IERC20"
 		},
 		"evmVersion": "osaka",
 		"libraries": {},
@@ -105,12 +57,12 @@
 		"remappings": []
 	},
 	"sources": {
-		"ArcenticLendingBorrowing.sol": {
-			"keccak256": "0x6e1121d915332c678b9cad6787dd45eb644392474ed943ad9086638c56cb48f7",
+		"IERC20.sol": {
+			"keccak256": "0x207b2e222524a665c131dd0796e207ec9b122077400cfb594eaba76b1a95656d",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://6017cfd3239aa21540c263b5d6b56815c0fca35319602efd99e2b8bd6a9ea5f9",
-				"dweb:/ipfs/QmcdwTmE46SVq2hL3UbkvMHN59YVq83McLffpxx6HV6UvK"
+				"bzz-raw://c694d6ca73ea74bb0c523238446597d09231886fdc5938a7f51264c5a10e60cb",
+				"dweb:/ipfs/QmfAsqMTRQgtnHhQzZ3iMRqfupF97FaChmpKmmoi1J3EKW"
 			]
 		}
 	},

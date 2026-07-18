@@ -57,14 +57,6 @@
   "@openzeppelin/contracts@5.6.1/access/Ownable.sol": {
     "../utils/Context.sol": ".deps/npm/@openzeppelin/contracts@5.6.1/utils/Context.sol"
   },
-  "IERC20.sol": {
-    "__sources__": {
-      "IERC20.sol": {
-        "content": "// SPDX-License-Identifier: MIT\r\npragma solidity ^0.8.0;\r\n\r\ninterface IERC20 {\r\n    function approve(address spender, uint256 amount) external returns (bool);\r\n}",
-        "file": "IERC20.sol"
-      }
-    }
-  },
   "ArcenticMultiPool.sol": {
     "__sources__": {
       "ArcenticMultiPool.sol": {
@@ -136,5 +128,13 @@
   },
   "@openzeppelin/contracts@5.0.2/utils/Pausable.sol": {
     "../utils/Context.sol": ".deps/npm/@openzeppelin/contracts@5.0.2/utils/Context.sol"
+  },
+  "IERC20.sol": {
+    "__sources__": {
+      "IERC20.sol": {
+        "content": "// SPDX-License-Identifier: MIT\r\npragma solidity ^0.8.0;\r\n\r\ninterface IERC20 {\r\n    function approve(address spender, uint256 amount) external returns (bool);\r\n}",
+        "file": "IERC20.sol"
+      }
+    }
   }
 }
