@@ -899,7 +899,7 @@ nav button.glass:hover {
             <div class="flex flex-wrap gap-3">
                 <div class="trust-badge">⛓️ ARC Testnet Verified</div>
                 <div class="trust-badge">📖 Open Source Contracts</div>
-                <div class="trust-badge">👥 8.3K+ Active Users</div>
+                <div class="trust-badge" id="trustActiveUsers">👥 Active Users — Coming soon</div>
             </div>
         </div>
         <div class="glass rounded-[30px] p-6 glow">
@@ -2727,6 +2727,65 @@ nav button.glass:hover {
         await adminSendTx('setTier', [token, tierId, bps, active], { successTitle: 'Tier Updated', successMsg: `Tier #${tierId} for ${token} updated.` });
     }
 
+    /* ── Quick setup: whitelist + enable a known token in two real txs ──
+       Just a shortcut around addToken()/setTokenSupported() above so the
+       admin doesn't have to paste the same address into two inputs. If
+       addToken() reverts because the token is already whitelisted, that
+       shows up as a normal failed-tx toast and setTokenSupported() still
+       runs — no state is faked either way. */
+    async function adminQuickWhitelistEnable() {
+        const sel = document.getElementById('adminQuickToken');
+        const token = sel.value;
+        const sym = sel.options[sel.selectedIndex].text;
+        if (!ethers.utils.isAddress(token)) { showToast('error','Invalid Token','Pick a token first.'); return; }
+        if (!window.confirm(`Send 2 transactions to whitelist and enable ${sym} for staking?`)) return;
+
+        await adminSendTx('addToken', [token], { successTitle: `${sym} Whitelisted`, successMsg: `${sym} added to supported tokens (or already was — check the toast).` });
+        await adminSendTx('setTokenSupported', [token, true], { successTitle: `${sym} Enabled`, successMsg: `${sym} now accepts new stakes/funding.` });
+    }
+
+    /* ── Copy tiers: read source token's real on-chain tiers, replicate onto
+       target token via addTier(). Never invents tier numbers — reads
+       tiersLength()/tierAt() from the contract first, shows the admin what
+       it found, and only sends transactions after they confirm. ── */
+    async function adminCopyTiers() {
+        const srcSel  = document.getElementById('adminCopyTiersSrc');
+        const destSel = document.getElementById('adminCopyTiersDest');
+        const srcToken  = srcSel.value;
+        const destToken = destSel.value;
+        const srcSym  = srcSel.options[srcSel.selectedIndex].text;
+        const destSym = destSel.options[destSel.selectedIndex].text;
+
+        if (srcToken.toLowerCase() === destToken.toLowerCase()) {
+            showToast('error','Same Token','Pick two different tokens — source and target are the same.');
+            return;
+        }
+
+        let tiers = [];
+        try {
+            const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, readOnlyProvider());
+            const len = (await staking.tiersLength(srcToken)).toNumber();
+            if (len === 0) { showToast('error','No Tiers Found', `${srcSym} has no tiers on-chain yet — add some in "Add a new tier" first.`); return; }
+            for (let i = 0; i < len; i++) {
+                const t = await staking.tierAt(srcToken, i);
+                tiers.push({ lockDuration: t.lockDuration.toNumber(), aprBps: t.aprBps.toNumber(), active: t.active });
+            }
+        } catch (err) {
+            console.error('adminCopyTiers read error:', err);
+            showToast('error','Read Failed', (err && err.reason) || (err && err.message) || String(err), 8000);
+            return;
+        }
+
+        const summary = tiers.map(t => `${fmtDuration(t.lockDuration)} @ ${fmtApr(t.aprBps)}${t.active ? '' : ' (inactive)'}`).join(', ');
+        if (!window.confirm(`Found ${tiers.length} tier(s) on ${srcSym}: ${summary}.\n\nAdd matching tiers to ${destSym}? You'll sign ${tiers.length} transaction(s) — inactive tiers on the source are copied as active by default; adjust them after via "Edit an existing tier" if needed.`)) return;
+
+        for (const t of tiers) {
+            await adminSendTx('addTier', [destToken, t.lockDuration, t.aprBps],
+                { successTitle: `Tier Added (${destSym})`, successMsg: `${fmtDuration(t.lockDuration)} @ ${fmtApr(t.aprBps)} tier added for ${destSym}, matching ${srcSym}.` });
+        }
+        showToast('success', 'Tiers Copied', `${destSym} now has the same ${tiers.length} tier(s) as ${srcSym}.`, 6000);
+    }
+
     async function adminFundRewards() {
         const token = adminTokenAddrInput('adminFundTokenAddr');
         const meta  = stakeTokenMetaCache[token.toLowerCase()];
@@ -2902,13 +2961,46 @@ nav button.glass:hover {
             console.error('admin lending status error:', lendResult.reason);
         }
 
+        // Live on-chain status per known token (tokenSupported / tiersLength) so
+        // the admin can see at a glance what still needs setup, instead of a
+        // plain address list — this reads real contract state, nothing implied.
         try {
+            const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, readOnlyProvider());
+            const tokenStatuses = await Promise.all(TOKENS.map(async (t) => {
+                try {
+                    const [supported, tierCount] = await Promise.all([
+                        staking.tokenSupported(t.addr),
+                        staking.tiersLength(t.addr)
+                    ]);
+                    return { ...t, supported, tierCount: tierCount.toNumber() };
+                } catch (err) {
+                    return { ...t, supported: null, tierCount: null };
+                }
+            }));
+            tokenRows = tokenStatuses.map(t => {
+                const statusBadge = t.supported === null
+                    ? '<span class="text-gray-500 text-xs">status unavailable</span>'
+                    : t.supported
+                        ? '<span class="text-xs" style="color:#4ade80;">● whitelisted &amp; enabled</span>'
+                        : '<span class="text-xs" style="color:#f59e0b;">○ not enabled yet</span>';
+                const tierBadge = t.tierCount === null ? '' : `<span class="text-gray-500 text-xs">${t.tierCount} tier${t.tierCount === 1 ? '' : 's'}</span>`;
+                return `
+                <div class="token-row">
+                    <span>${t.sym}${t.name ? ' — ' + t.name : ''}</span>
+                    <span class="flex items-center gap-3 flex-wrap justify-end">
+                        ${statusBadge}${tierBadge}
+                        <span class="text-gray-500 text-xs font-mono">${t.addr}</span>
+                    </span>
+                </div>`;
+            }).join('');
+        } catch (err) {
+            console.error('admin token list error:', err);
             tokenRows = TOKENS.map(t => `
                 <div class="token-row">
                     <span>${t.sym}${t.name ? ' — ' + t.name : ''}</span>
                     <span class="text-gray-500 text-xs font-mono">${t.addr}</span>
                 </div>`).join('');
-        } catch (err) { console.error('admin token list error:', err); }
+        }
 
         const contractRows = Object.entries(CONTRACT_ADDRS).map(([name, addr]) => `
             <div class="token-row">
@@ -2992,6 +3084,15 @@ nav button.glass:hover {
                             </div>
                         </div>
                     </div>
+                    <div class="mt-6 pt-6" style="border-top:1px solid rgba(255,255,255,.08);">
+                        <p class="text-xs text-gray-400 mb-2">Quick setup from a known token — sends addToken() then setTokenSupported(token, true) as two real transactions, so you don't have to copy/paste addresses.</p>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <select id="adminQuickToken" class="w-full sm:flex-1 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                                ${TOKENS.map(t => `<option value="${t.addr}">${t.sym}${t.name ? ' — ' + t.name : ''}</option>`).join('')}
+                            </select>
+                            <button onclick="adminQuickWhitelistEnable()" class="token-select-btn tok-active sm:w-56">Whitelist + Enable</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -3022,9 +3123,27 @@ nav button.glass:hover {
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div id="adminTab-rewards" class="admin-tab-panel">
+                <div class="glass rounded-3xl p-5 sm:p-8 mt-6">
+                    <h3 class="text-lg font-black mb-1">Copy tiers from another token</h3>
+                    <p class="text-xs text-gray-400 mb-4">Reads the source token's tiers directly from the contract (tiersLength / tierAt) and replicates each one onto the target token via real addTier() calls — e.g. give USDC/EURC/USDT the same lock tiers CENTIC currently has, whatever those actually are on-chain right now.</p>
+                    <div class="grid sm:grid-cols-2 gap-6">
+                        <div>
+                            <p class="text-xs text-gray-400 mb-2">Source token (read tiers from)</p>
+                            <select id="adminCopyTiersSrc" class="w-full px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                                ${TOKENS.map(t => `<option value="${t.addr}">${t.sym}${t.name ? ' — ' + t.name : ''}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 mb-2">Target token (add tiers to)</p>
+                            <select id="adminCopyTiersDest" class="w-full px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                                ${TOKENS.map(t => `<option value="${t.addr}">${t.sym}${t.name ? ' — ' + t.name : ''}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    <button onclick="adminCopyTiers()" class="token-select-btn tok-active w-full mt-4">Preview &amp; Copy Tiers</button>
+                </div>
+            </div>
                 <div class="glass rounded-3xl p-5 sm:p-8">
                     <h3 class="text-lg font-black mb-4">Reward Pool</h3>
                     <div class="grid sm:grid-cols-2 gap-6">
@@ -5374,12 +5493,16 @@ nav button.glass:hover {
         const stakersEl    = document.getElementById('heroStakers');
         const aprEl        = document.getElementById('heroAPR');
         const aprChangeEl  = document.getElementById('heroAPRChange');
+        const activeUsersEl = document.getElementById('trustActiveUsers');
 
         if (volEl) volEl.innerText = '—';
         if (volChangeEl) volChangeEl.innerText = 'Coming soon';
         if (stakersEl) stakersEl.innerText = '—';
         if (aprEl) aprEl.innerText = '—';
         if (aprChangeEl) aprChangeEl.innerText = 'Coming soon';
+        // Sama seperti Volume/Stakers/APR: belum ada indexer untuk jumlah
+        // wallet/user aktif, jadi jangan pajang angka karangan (mis. "8.3K+").
+        if (activeUsersEl) activeUsersEl.innerText = '👥 Active Users — Coming soon';
     }
 
     // kick off immediately, then keep polling every 4s for a "live" feel
