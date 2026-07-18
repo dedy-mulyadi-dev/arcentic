@@ -113,6 +113,49 @@ svg{width:100%;height:100%}
     transition: width .6s ease;
 }
 
+/* ── Admin overlay ── */
+#adminView {
+    position: fixed; inset: 0; z-index: 200;
+    background: #040816;
+    transform: scale(0.92);
+    opacity: 0;
+    filter: blur(8px);
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow-y: auto;
+    will-change: transform, opacity, filter;
+    -webkit-overflow-scrolling: touch;
+    pointer-events: none;
+}
+#adminView.open {
+    transform: scale(1);
+    opacity: 1;
+    filter: blur(0px);
+    pointer-events: auto;
+}
+
+.admin-tabs-nav { scrollbar-width: none; -ms-overflow-style: none; }
+.admin-tabs-nav::-webkit-scrollbar { display: none; }
+.admin-tab-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 16px; border-radius: 12px;
+    background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+    color: rgba(255,255,255,.6); font-weight: 700; font-size: 13px;
+    white-space: nowrap; cursor: pointer; transition: .2s; flex-shrink: 0;
+}
+.admin-tab-btn:hover { background: rgba(255,255,255,.08); color: #fff; }
+.admin-tab-btn.admin-tab-active {
+    background: linear-gradient(135deg,#3478ff,#8b5cf6);
+    border-color: transparent; color: #fff;
+}
+.admin-tab-btn.admin-tab-danger.admin-tab-active {
+    background: linear-gradient(135deg,#ef4444,#f59e0b);
+}
+.admin-tab-panel { display: none; }
+.admin-tab-panel.admin-tab-panel-active {
+    display: block;
+    animation: fadeInUp .35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 /* ── Swap overlay ── */
 #swapView {
     position: fixed; inset: 0; z-index: 200;
@@ -2721,6 +2764,50 @@ nav button.glass:hover {
               confirmMsg: 'Withdraw unreserved reward tokens to your wallet? This never touches staker principal or already-reserved rewards.' });
     }
 
+    /* ── LendingBorrowing: fundPool() ──
+       NOTE: unlike adminSendTx() above (which targets ArcenticStaking's real
+       onlyOwner functions), fundPool() on LendingBorrowing.sol has NO access
+       control in the contract at all — every wallet, not just the owner, can
+       call it. Keeping this button behind isAdminWallet() only hides it from
+       the nav for non-admin visitors of this page; it doesn't and can't make
+       the call owner-only on-chain. If that needs to be locked down, an
+       onlyOwner modifier has to be added to fundPool() in the contract and
+       redeployed. */
+    async function adminFundLendingPool() {
+        if (!isConnected) { showToast('error','Wallet Not Connected','Connect your wallet first.'); return; }
+        const amtStr = document.getElementById('adminLendFundAmount').value;
+        if (!amtStr || parseFloat(amtStr) <= 0) { showToast('error','Invalid Amount','Enter an amount to fund.'); return; }
+
+        let toast = showToast('pending','Funding Pool','Waiting for wallet confirmation…');
+        try {
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const signer = provider.getSigner();
+            const amtWei = ethers.utils.parseUnits(parseFloat(amtStr).toFixed(USDC_DECIMALS), USDC_DECIMALS);
+
+            const usdcContract = new ethers.Contract(CONTRACT_ADDRS.USDC, ERC20_ABI, signer);
+            const allowance = await usdcContract.allowance(currentAccount, CONTRACT_ADDRS.LendingBorrowing);
+            if (allowance.lt(amtWei)) {
+                updateToast(toast, 'pending', 'Funding Pool', 'Approving USDC…');
+                const approveTx = await usdcContract.approve(CONTRACT_ADDRS.LendingBorrowing, ethers.constants.MaxUint256);
+                await approveTx.wait();
+            }
+
+            updateToast(toast, 'pending', 'Funding Pool', 'Waiting for wallet confirmation…');
+            const lend = new ethers.Contract(CONTRACT_ADDRS.LendingBorrowing, LEND_ABI, signer);
+            const onRpcRetry = (n, max) => updateToast(toast, 'pending', 'Funding Pool', `RPC hiccup — retrying (${n}/${max})…`);
+            const tx = await withRpcRetry(() => lend.fundPool(amtWei), { onRetry: onRpcRetry });
+            updateToast(toast, 'pending', 'Funding Pool', 'Confirming on-chain…');
+            await withRpcRetry(() => tx.wait(), { onRetry: onRpcRetry });
+
+            updateToast(toast, 'success', 'Pool Funded', `Funded ${amtStr} USDC into the lending pool.`, 6000);
+            document.getElementById('adminLendFundAmount').value = '';
+            await loadAdminOverview();
+        } catch (err) {
+            console.error('adminFundLendingPool error:', err);
+            updateToast(toast, 'error', 'Funding Failed', (err && err.reason) || (err && err.message) || String(err), 8000);
+        }
+    }
+
     async function adminSetTreasury() {
         const addr = adminTokenAddrInput('adminTreasuryAddr');
         if (!ethers.utils.isAddress(addr)) { showToast('error','Invalid Address','Enter a valid wallet address.'); return; }
@@ -2740,6 +2827,21 @@ nav button.glass:hover {
               confirmMsg: pause ? 'Pause all new staking? Existing stakes remain claimable/unstakeable.' : null });
     }
 
+    let adminActiveTab = 'status';
+
+    function adminShowTab(tab) {
+        adminActiveTab = tab;
+        document.querySelectorAll('.admin-tab-panel').forEach(p => p.classList.remove('admin-tab-panel-active'));
+        const panel = document.getElementById('adminTab-' + tab);
+        if (panel) panel.classList.add('admin-tab-panel-active');
+        document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('admin-tab-active'));
+        const btn = document.getElementById('adminTabBtn-' + tab);
+        if (btn) {
+            btn.classList.add('admin-tab-active');
+            btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+    }
+
     async function loadAdminOverview() {
         // Defense in depth: bail if somehow called while not the admin wallet.
         if (!isAdminWallet(currentAccount)) { showHome(); return; }
@@ -2748,15 +2850,57 @@ nav button.glass:hover {
         el.innerHTML = '<p class="text-gray-500 text-sm text-center py-10">Loading admin overview…</p>';
 
         let tvl = null, tokenRows = '', onChainOwner = null, isPaused = null, treasuryAddr = null, penaltyBps = null;
-        try {
-            const provider = readOnlyProvider();
-            const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, provider);
-            [onChainOwner, isPaused, treasuryAddr, penaltyBps] = await Promise.all([
-                staking.owner(), staking.paused(), staking.treasury(), staking.earlyExitPenaltyBps()
-            ]);
-        } catch (err) { console.error('admin on-chain status error:', err); }
+        let lendOwner = null, lendCollFactor = null, lendPrice = null, lendPoolUsdc = null;
 
-        try { tvl = await fetchOnChainTVL(); } catch (err) { console.error('admin TVL error:', err); }
+        // Status on-chain, TVL, dan status LendingBorrowing saling independen,
+        // jalankan bersamaan (Promise.allSettled) alih-alih berurutan supaya
+        // panel admin tidak menunggu berkali-kali lipat waktu round-trip RPC.
+        const [statusResult, tvlResult, lendResult] = await Promise.allSettled([
+            (async () => {
+                const provider = readOnlyProvider();
+                const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, provider);
+                return Promise.all([
+                    staking.owner(), staking.paused(), staking.treasury(), staking.earlyExitPenaltyBps()
+                ]);
+            })(),
+            fetchOnChainTVL(),
+            (async () => {
+                const provider = readOnlyProvider();
+                const lend = new ethers.Contract(CONTRACT_ADDRS.LendingBorrowing, LEND_ABI, provider);
+                const usdc = new ethers.Contract(CONTRACT_ADDRS.USDC, ERC20_ABI, provider);
+                const [owner, factor, price, poolBal] = await Promise.all([
+                    lend.owner(), lend.collateralFactor(), lend.cirBTCPriceUSDC(),
+                    usdc.balanceOf(CONTRACT_ADDRS.LendingBorrowing)
+                ]);
+                return {
+                    owner,
+                    factor: factor.toNumber(),
+                    price: parseFloat(ethers.utils.formatUnits(price, USDC_DECIMALS)),
+                    poolBal: parseFloat(ethers.utils.formatUnits(poolBal, USDC_DECIMALS)),
+                };
+            })()
+        ]);
+
+        if (statusResult.status === 'fulfilled') {
+            [onChainOwner, isPaused, treasuryAddr, penaltyBps] = statusResult.value;
+        } else {
+            console.error('admin on-chain status error:', statusResult.reason);
+        }
+
+        if (tvlResult.status === 'fulfilled') {
+            tvl = tvlResult.value;
+        } else {
+            console.error('admin TVL error:', tvlResult.reason);
+        }
+
+        if (lendResult.status === 'fulfilled') {
+            lendOwner = lendResult.value.owner;
+            lendCollFactor = lendResult.value.factor;
+            lendPrice = lendResult.value.price;
+            lendPoolUsdc = lendResult.value.poolBal;
+        } else {
+            console.error('admin lending status error:', lendResult.reason);
+        }
 
         try {
             tokenRows = TOKENS.map(t => `
@@ -2780,136 +2924,198 @@ nav button.glass:hover {
                </div>` : '';
 
         el.innerHTML = `
-            <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
-                <div class="flex items-center gap-3 mb-1">
-                    <span style="width:10px;height:10px;border-radius:50%;background:${ownerMatches ? '#22c55e' : (onChainOwner ? '#ef4444' : '#eab308')};display:inline-block;"></span>
-                    <h3 class="text-lg font-black">${ownerMatches ? 'Admin wallet verified on-chain' : 'On-chain owner check'}</h3>
-                </div>
-                <p class="text-gray-500 text-xs font-mono">Connected: ${currentAccount}</p>
-                <p class="text-gray-500 text-xs font-mono">Contract owner(): ${onChainOwner || '—'}</p>
-                ${ownerWarning}
+            <div class="flex gap-2 overflow-x-auto pb-1 mb-6 admin-tabs-nav" id="adminTabsNav">
+                <button id="adminTabBtn-status" onclick="adminShowTab('status')" class="admin-tab-btn">📊 Status</button>
+                <button id="adminTabBtn-tokens" onclick="adminShowTab('tokens')" class="admin-tab-btn">🪙 Tokens</button>
+                <button id="adminTabBtn-tiers" onclick="adminShowTab('tiers')" class="admin-tab-btn">🔒 Lock Tiers</button>
+                <button id="adminTabBtn-rewards" onclick="adminShowTab('rewards')" class="admin-tab-btn">💰 Reward Pool</button>
+                <button id="adminTabBtn-lending" onclick="adminShowTab('lending')" class="admin-tab-btn">🏦 Lending</button>
+                <button id="adminTabBtn-settings" onclick="adminShowTab('settings')" class="admin-tab-btn">⚙️ Settings</button>
+                <button id="adminTabBtn-danger" onclick="adminShowTab('danger')" class="admin-tab-btn admin-tab-danger">⚠️ Danger Zone</button>
             </div>
 
-            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div class="stat-chip">
-                    <div class="text-gray-400 text-xs mb-1">Protocol TVL</div>
-                    <div class="text-xl font-black">${tvl !== null ? '$' + tvl.toLocaleString(undefined,{maximumFractionDigits:2}) : '—'}</div>
-                </div>
-                <div class="stat-chip">
-                    <div class="text-gray-400 text-xs mb-1">Staking status</div>
-                    <div class="text-xl font-black">${isPaused === null ? '—' : (isPaused ? '⏸ Paused' : '▶ Live')}</div>
-                </div>
-                <div class="stat-chip">
-                    <div class="text-gray-400 text-xs mb-1">Early-exit penalty</div>
-                    <div class="text-xl font-black">${penaltyBps === null ? '—' : (penaltyBps.toNumber()/100).toFixed(2) + '%'}</div>
-                </div>
-                <div class="stat-chip">
-                    <div class="text-gray-400 text-xs mb-1">Treasury</div>
-                    <div class="text-xs font-mono break-all">${treasuryAddr || '—'}</div>
-                </div>
-            </div>
-
-            <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
-                <h3 class="text-lg font-black mb-2">Token Config (known tokens)</h3>
-                <div>${tokenRows || '<p class="text-gray-500 text-sm">No tokens configured.</p>'}</div>
-            </div>
-
-            <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
-                <h3 class="text-lg font-black mb-2">Contract Addresses</h3>
-                <div>${contractRows}</div>
-            </div>
-
-            <!-- ── Admin Actions — every button below calls a real onlyOwner
-                   function on ArcenticStakingMultiToken via the connected
-                   wallet's signer. The transaction reverts on-chain if the
-                   signer isn't the actual owner(), no matter what this UI shows. ── -->
-            <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
-                <h3 class="text-lg font-black mb-4">Tokens</h3>
-                <div class="grid sm:grid-cols-2 gap-6">
-                    <div>
-                        <p class="text-xs text-gray-400 mb-2">Whitelist a new token</p>
-                        <input id="adminTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
-                        <button onclick="adminAddToken()" class="token-select-btn tok-active w-full">Add Token</button>
+            <div id="adminTab-status" class="admin-tab-panel">
+                <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
+                    <div class="flex items-center gap-3 mb-1">
+                        <span style="width:10px;height:10px;border-radius:50%;background:${ownerMatches ? '#22c55e' : (onChainOwner ? '#ef4444' : '#eab308')};display:inline-block;"></span>
+                        <h3 class="text-lg font-black">${ownerMatches ? 'Admin wallet verified on-chain' : 'On-chain owner check'}</h3>
                     </div>
-                    <div>
-                        <p class="text-xs text-gray-400 mb-2">Enable / disable a token</p>
-                        <input id="adminSupportTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
-                        <div class="flex gap-2">
-                            <button onclick="adminSetTokenSupported(true)" class="token-select-btn flex-1">Enable</button>
-                            <button onclick="adminSetTokenSupported(false)" class="token-select-btn flex-1">Disable</button>
+                    <p class="text-gray-500 text-xs font-mono">Connected: ${currentAccount}</p>
+                    <p class="text-gray-500 text-xs font-mono">Contract owner(): ${onChainOwner || '—'}</p>
+                    ${ownerWarning}
+                </div>
+
+                <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="stat-chip">
+                        <div class="text-gray-400 text-xs mb-1">Protocol TVL</div>
+                        <div class="text-xl font-black">${tvl !== null ? '$' + tvl.toLocaleString(undefined,{maximumFractionDigits:2}) : '—'}</div>
+                    </div>
+                    <div class="stat-chip">
+                        <div class="text-gray-400 text-xs mb-1">Staking status</div>
+                        <div class="text-xl font-black">${isPaused === null ? '—' : (isPaused ? '⏸ Paused' : '▶ Live')}</div>
+                    </div>
+                    <div class="stat-chip">
+                        <div class="text-gray-400 text-xs mb-1">Early-exit penalty</div>
+                        <div class="text-xl font-black">${penaltyBps === null ? '—' : (penaltyBps.toNumber()/100).toFixed(2) + '%'}</div>
+                    </div>
+                    <div class="stat-chip">
+                        <div class="text-gray-400 text-xs mb-1">Treasury</div>
+                        <div class="text-xs font-mono break-all">${treasuryAddr || '—'}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="adminTab-tokens" class="admin-tab-panel">
+                <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
+                    <h3 class="text-lg font-black mb-2">Token Config (known tokens)</h3>
+                    <div>${tokenRows || '<p class="text-gray-500 text-sm">No tokens configured.</p>'}</div>
+                </div>
+
+                <!-- ── Admin Actions — every button below calls a real onlyOwner
+                       function on ArcenticStakingMultiToken via the connected
+                       wallet's signer. The transaction reverts on-chain if the
+                       signer isn't the actual owner(), no matter what this UI shows. ── -->
+                <div class="glass rounded-3xl p-5 sm:p-8">
+                    <h3 class="text-lg font-black mb-4">Tokens</h3>
+                    <div class="grid sm:grid-cols-2 gap-6">
+                        <div>
+                            <p class="text-xs text-gray-400 mb-2">Whitelist a new token</p>
+                            <input id="adminTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <button onclick="adminAddToken()" class="token-select-btn tok-active w-full">Add Token</button>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 mb-2">Enable / disable a token</p>
+                            <input id="adminSupportTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <div class="flex gap-2">
+                                <button onclick="adminSetTokenSupported(true)" class="token-select-btn flex-1">Enable</button>
+                                <button onclick="adminSetTokenSupported(false)" class="token-select-btn flex-1">Disable</button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
-                <h3 class="text-lg font-black mb-4">Lock Tiers</h3>
-                <div class="grid sm:grid-cols-2 gap-6">
-                    <div>
-                        <p class="text-xs text-gray-400 mb-2">Add a new tier</p>
-                        <input id="adminTierTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
-                        <div class="flex gap-2 mb-2">
-                            <input id="adminTierDays" type="number" placeholder="Lock days" class="w-1/2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
-                            <input id="adminTierApr" type="number" placeholder="APR %" class="w-1/2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+            <div id="adminTab-tiers" class="admin-tab-panel">
+                <div class="glass rounded-3xl p-5 sm:p-8">
+                    <h3 class="text-lg font-black mb-4">Lock Tiers</h3>
+                    <div class="grid sm:grid-cols-2 gap-6">
+                        <div>
+                            <p class="text-xs text-gray-400 mb-2">Add a new tier</p>
+                            <input id="adminTierTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <div class="flex gap-2 mb-2">
+                                <input id="adminTierDays" type="number" placeholder="Lock days" class="w-1/2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                                <input id="adminTierApr" type="number" placeholder="APR %" class="w-1/2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            </div>
+                            <button onclick="adminAddTier()" class="token-select-btn tok-active w-full">Add Tier</button>
                         </div>
-                        <button onclick="adminAddTier()" class="token-select-btn tok-active w-full">Add Tier</button>
-                    </div>
-                    <div>
-                        <p class="text-xs text-gray-400 mb-2">Edit an existing tier</p>
-                        <input id="adminEditTierTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
-                        <div class="flex gap-2 mb-2">
-                            <input id="adminEditTierId" type="number" placeholder="Tier ID" class="w-1/2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
-                            <input id="adminEditTierApr" type="number" placeholder="New APR %" class="w-1/2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="adminSetTier(true)" class="token-select-btn flex-1">Save (Active)</button>
-                            <button onclick="adminSetTier(false)" class="token-select-btn flex-1">Save (Inactive)</button>
+                        <div>
+                            <p class="text-xs text-gray-400 mb-2">Edit an existing tier</p>
+                            <input id="adminEditTierTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <div class="flex gap-2 mb-2">
+                                <input id="adminEditTierId" type="number" placeholder="Tier ID" class="w-1/2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                                <input id="adminEditTierApr" type="number" placeholder="New APR %" class="w-1/2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="adminSetTier(true)" class="token-select-btn flex-1">Save (Active)</button>
+                                <button onclick="adminSetTier(false)" class="token-select-btn flex-1">Save (Inactive)</button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
-                <h3 class="text-lg font-black mb-4">Reward Pool</h3>
-                <div class="grid sm:grid-cols-2 gap-6">
-                    <div>
-                        <p class="text-xs text-gray-400 mb-2">Fund reward pool</p>
-                        <input id="adminFundTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
-                        <input id="adminFundAmount" type="number" placeholder="Amount" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
-                        <button onclick="adminFundRewards()" class="token-select-btn tok-active w-full">Fund</button>
-                    </div>
-                    <div>
-                        <p class="text-xs text-gray-400 mb-2">Withdraw unreserved rewards</p>
-                        <input id="adminWithdrawTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
-                        <input id="adminWithdrawAmount" type="number" placeholder="Amount" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
-                        <button onclick="adminWithdrawUnreserved()" class="token-select-btn w-full">Withdraw</button>
+            <div id="adminTab-rewards" class="admin-tab-panel">
+                <div class="glass rounded-3xl p-5 sm:p-8">
+                    <h3 class="text-lg font-black mb-4">Reward Pool</h3>
+                    <div class="grid sm:grid-cols-2 gap-6">
+                        <div>
+                            <p class="text-xs text-gray-400 mb-2">Fund reward pool</p>
+                            <input id="adminFundTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <input id="adminFundAmount" type="number" placeholder="Amount" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <button onclick="adminFundRewards()" class="token-select-btn tok-active w-full">Fund</button>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 mb-2">Withdraw unreserved rewards</p>
+                            <input id="adminWithdrawTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <input id="adminWithdrawAmount" type="number" placeholder="Amount" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <button onclick="adminWithdrawUnreserved()" class="token-select-btn w-full">Withdraw</button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="glass rounded-3xl p-5 sm:p-8">
-                <h3 class="text-lg font-black mb-4">Protocol Settings</h3>
-                <div class="grid sm:grid-cols-2 gap-6">
-                    <div>
-                        <p class="text-xs text-gray-400 mb-2">Treasury address</p>
-                        <input id="adminTreasuryAddr" type="text" placeholder="0x… new treasury" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
-                        <button onclick="adminSetTreasury()" class="token-select-btn w-full">Update Treasury</button>
+            <div id="adminTab-lending" class="admin-tab-panel">
+                <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
+                    <h3 class="text-lg font-black mb-1">LendingBorrowing status</h3>
+                    <p class="text-gray-500 text-xs font-mono">Contract owner(): ${lendOwner || '—'}</p>
+                    <div class="grid sm:grid-cols-3 gap-4 mt-4">
+                        <div class="stat-chip">
+                            <div class="text-gray-400 text-xs mb-1">Collateral factor</div>
+                            <div class="text-xl font-black">${lendCollFactor === null ? '—' : lendCollFactor + '%'}</div>
+                        </div>
+                        <div class="stat-chip">
+                            <div class="text-gray-400 text-xs mb-1">cirBTC price (USDC)</div>
+                            <div class="text-xl font-black">${lendPrice === null ? '—' : '$' + lendPrice.toLocaleString()}</div>
+                        </div>
+                        <div class="stat-chip">
+                            <div class="text-gray-400 text-xs mb-1">Pool USDC liquidity</div>
+                            <div class="text-xl font-black">${lendPoolUsdc === null ? '—' : lendPoolUsdc.toLocaleString(undefined,{maximumFractionDigits:2})}</div>
+                        </div>
                     </div>
-                    <div>
-                        <p class="text-xs text-gray-400 mb-2">Early-exit penalty (0–30%)</p>
-                        <input id="adminPenaltyPct" type="number" placeholder="Penalty %" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
-                        <button onclick="adminSetPenalty()" class="token-select-btn w-full">Update Penalty</button>
+                    <div class="mt-3 text-xs px-3 py-2 rounded-lg" style="background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);color:#fde68a;">
+                        ⚠ Heads up: <code>collateralFactor</code> and <code>cirBTCPriceUSDC</code> are fixed at deploy time —
+                        the deployed contract has no setter function for either, so they can't be changed from this panel (or at all) right now.
+                        <code>fundPool()</code> also has no <code>onlyOwner</code> guard in the contract — any wallet can call it, not just the owner.
                     </div>
                 </div>
-                <div class="flex gap-2 mt-6">
-                    <button onclick="adminTogglePause(true)" class="token-select-btn flex-1">⏸ Pause Staking</button>
-                    <button onclick="adminTogglePause(false)" class="token-select-btn flex-1">▶ Unpause Staking</button>
+
+                <div class="glass rounded-3xl p-5 sm:p-8">
+                    <h3 class="text-lg font-black mb-4">Fund lending pool</h3>
+                    <p class="text-xs text-gray-400 mb-2">Top up USDC liquidity so users have something to borrow against their cirBTC collateral.</p>
+                    <input id="adminLendFundAmount" type="number" placeholder="Amount (USDC)" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                    <button onclick="adminFundLendingPool()" class="token-select-btn tok-active w-full">Fund Pool</button>
+                </div>
+            </div>
+
+            <div id="adminTab-settings" class="admin-tab-panel">
+                <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
+                    <h3 class="text-lg font-black mb-4">Protocol Settings</h3>
+                    <div class="grid sm:grid-cols-2 gap-6">
+                        <div>
+                            <p class="text-xs text-gray-400 mb-2">Treasury address</p>
+                            <input id="adminTreasuryAddr" type="text" placeholder="0x… new treasury" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <button onclick="adminSetTreasury()" class="token-select-btn w-full">Update Treasury</button>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 mb-2">Early-exit penalty (0–30%)</p>
+                            <input id="adminPenaltyPct" type="number" placeholder="Penalty %" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <button onclick="adminSetPenalty()" class="token-select-btn w-full">Update Penalty</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass rounded-3xl p-5 sm:p-8">
+                    <h3 class="text-lg font-black mb-2">Contract Addresses</h3>
+                    <div>${contractRows}</div>
+                </div>
+            </div>
+
+            <div id="adminTab-danger" class="admin-tab-panel">
+                <div class="glass rounded-3xl p-5 sm:p-8" style="border-color:rgba(239,68,68,.3);">
+                    <h3 class="text-lg font-black mb-2" style="color:#fca5a5;">⚠ Danger Zone</h3>
+                    <p class="text-gray-400 text-xs mb-4">Pausing blocks new stakes protocol-wide. Existing stakes remain claimable/unstakeable — this does not touch staker principal.</p>
+                    <div class="flex gap-2">
+                        <button onclick="adminTogglePause(true)" class="token-select-btn flex-1">⏸ Pause Staking</button>
+                        <button onclick="adminTogglePause(false)" class="token-select-btn flex-1">▶ Unpause Staking</button>
+                    </div>
                 </div>
             </div>
         `;
+        adminShowTab(adminActiveTab);
     }
 
     async function showStake() {
+
         hideAllOverlays();
         document.getElementById('stakeView').classList.add('open');
         document.body.style.overflow = 'hidden';
@@ -3345,7 +3551,7 @@ nav button.glass:hover {
     async function getDecimals(tok) {
         if (resolvedDecimals[tok.addr] !== undefined) return resolvedDecimals[tok.addr];
         try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const provider = readOnlyProvider() || new ethers.providers.Web3Provider(window.ethereum);
             const erc20 = new ethers.Contract(tok.addr, ERC20_ABI, provider);
             const dec = await erc20.decimals();
             resolvedDecimals[tok.addr] = dec;
@@ -5063,14 +5269,15 @@ nav button.glass:hover {
         if (!provider) return null;
         try {
             const pool = new ethers.Contract(CONTRACT_ADDRS.ArcenticMultiPool, POOL_ABI, provider);
-            let totalUsd = 0;
-            for (const tok of TOKENS) {
-                const dec = await getDecimals(tok);
-                const raw = await pool.reserves(tok.addr);
+            // Fetch every token's decimals + reserves in parallel instead of
+            // one-by-one in a sequential loop — with N tokens that turned a
+            // single admin-panel load into N sequential RPC round-trips.
+            const amountsUsd = await Promise.all(TOKENS.map(async (tok) => {
+                const [dec, raw] = await Promise.all([getDecimals(tok), pool.reserves(tok.addr)]);
                 const amt = parseFloat(ethers.utils.formatUnits(raw, dec));
-                totalUsd += amt * tok.rate;
-            }
-            return totalUsd; // in plain USD
+                return amt * tok.rate;
+            }));
+            return amountsUsd.reduce((sum, v) => sum + v, 0); // in plain USD
         } catch {
             return null; // contract not deployed at this address / RPC unreachable / etc.
         }
@@ -5271,6 +5478,9 @@ nav button.glass:hover {
         'function collateralBalances(address user) view returns (uint256)',
         'function loans(address user) view returns (uint256 amount, uint256 collateral, bool isActive)',
         'function collateralFactor() view returns (uint256)',
+        'function cirBTCPriceUSDC() view returns (uint256)',
+        'function owner() view returns (address)',
+        'function fundPool(uint256 amount)',
     ];
 
     const CIRBTC_ABI = [
