@@ -156,6 +156,47 @@ svg{width:100%;height:100%}
     animation: fadeInUp .35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* ── Spot Trading overlay ── */
+#spotTradeView {
+    position: fixed; inset: 0; z-index: 200;
+    background: #040816;
+    transform: scale(0.92);
+    opacity: 0;
+    filter: blur(8px);
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow-y: auto;
+    will-change: transform, opacity, filter;
+    -webkit-overflow-scrolling: touch;
+    pointer-events: none;
+}
+#spotTradeView.open {
+    transform: scale(1);
+    opacity: 1;
+    filter: blur(0px);
+    pointer-events: auto;
+}
+.spot-pair-btn {
+    background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 12px; padding: 8px 14px; font-weight: 700; font-size: .85rem;
+    cursor: pointer; white-space: nowrap; color: #fff;
+}
+.ob-row { display:flex; justify-content:space-between; font-size:.78rem; padding:3px 8px; position:relative; font-variant-numeric: tabular-nums; }
+.ob-row .ob-bar { position:absolute; top:0; bottom:0; right:0; z-index:0; opacity:.16; }
+.ob-row.ask .ob-bar { background:#ef4444; }
+.ob-row.bid .ob-bar { background:#22c55e; }
+.ob-row span { position:relative; z-index:1; }
+.ob-ask-price { color:#f87171; }
+.ob-bid-price { color:#4ade80; }
+.spot-tab-btn {
+    flex:1; text-align:center; padding:10px; border-radius:12px; font-weight:700; font-size:.85rem;
+    cursor:pointer; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); color:rgba(255,255,255,.55);
+}
+.spot-tab-btn.spot-tab-active-buy { background:linear-gradient(135deg,#22c55e,#16a34a); border-color:transparent; color:#fff; }
+.spot-tab-btn.spot-tab-active-sell { background:linear-gradient(135deg,#ef4444,#dc2626); border-color:transparent; color:#fff; }
+.spot-order-tab { padding:8px 4px; font-size:.8rem; font-weight:700; color:rgba(255,255,255,.4); cursor:pointer; border-bottom:2px solid transparent; }
+.spot-order-tab.spot-order-tab-active { color:#fff; border-color:#8b5cf6; }
+.limit-order-row { display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:10px 14px; font-size:.8rem; }
+
 /* ── Trading Hub overlay ── */
 #tradingHubView {
     position: fixed; inset: 0; z-index: 200;
@@ -866,9 +907,6 @@ nav button.glass:hover {
         <button id="navHome"      onclick="showHome()"      class="glass px-6 py-3 rounded-xl nav-active">Home</button>
         <button id="navPortfolio" onclick="showPortfolio()" class="px-6 py-3 rounded-xl">Portfolio</button>
         <button id="navTrading" onclick="showTradingHub()" class="px-6 py-3 rounded-xl">Trading</button>
-        <button id="navSwap" onclick="showSwap()" class="px-6 py-3 rounded-xl">Swap</button>
-        <button id="navBridge" onclick="showBridge()" class="px-6 py-3 rounded-xl">Bridge</button>
-        <button id="navPools" onclick="showPools()" class="px-6 py-3 rounded-xl">Liquidity</button>
         <button id="navLend" onclick="showLend()" class="px-6 py-3 rounded-xl">Lend & Borrow</button>
         <button id="navStake" onclick="showStake()" class="px-6 py-3 rounded-xl">Stake</button>
         <button id="navAdmin" onclick="showAdmin()" class="px-6 py-3 rounded-xl" style="display:none;">🔒 Admin</button>
@@ -884,9 +922,6 @@ nav button.glass:hover {
     <button onclick="showHome(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Home</button>
     <button onclick="showPortfolio(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Portfolio</button>
     <button onclick="showTradingHub(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Trading</button>
-    <button onclick="showSwap(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Swap</button>
-    <button onclick="showBridge(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Bridge</button>
-    <button onclick="showPools(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Liquidity</button>
     <button onclick="showLend(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Lend &amp; Borrow</button>
 <button onclick="showStake(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Stake</button>
 <button id="navAdminMobile" onclick="showAdmin(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition" style="display:none;">🔒 Admin</button>
@@ -1011,11 +1046,16 @@ nav button.glass:hover {
         <h3 class="text-3xl sm:text-4xl font-black mb-3">Trading Center</h3>
         <p class="text-gray-400 max-w-2xl mb-8">Swap token, kelola liquidity pool, bridge aset lintas chain, dan pantau portfolio-mu — semuanya terhubung langsung ke smart contract ARC Testnet.</p>
 
-        <div class="grid md:grid-cols-4 gap-6">
+        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div class="trade-card" onclick="showSwap()">
                 <div class="text-3xl mb-3">⚡</div>
                 <h3 class="text-xl font-bold mb-2">Swap</h3>
                 <p class="text-gray-400 text-sm">Tukar token secara instan dengan slippage minimal.</p>
+            </div>
+            <div class="trade-card" onclick="showSpotTrade()">
+                <div class="text-3xl mb-3">📈</div>
+                <h3 class="text-xl font-bold mb-2">Spot Trading</h3>
+                <p class="text-gray-400 text-sm">Chart candlestick, order book, market &amp; limit order.</p>
             </div>
             <div class="trade-card" onclick="showPools()">
                 <div class="text-3xl mb-3">💧</div>
@@ -1027,10 +1067,110 @@ nav button.glass:hover {
                 <h3 class="text-xl font-bold mb-2">Bridge</h3>
                 <p class="text-gray-400 text-sm">Pindahkan USDC lintas jaringan lewat CCTP.</p>
             </div>
-            <div class="trade-card" onclick="showPortfolio()">
-                <div class="text-3xl mb-3">📊</div>
-                <h3 class="text-xl font-bold mb-2">Portfolio</h3>
-                <p class="text-gray-400 text-sm">Pantau saldo dan aset wallet-mu secara real-time.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════ SPOT TRADING VIEW ═══════════════════════════ -->
+<div id="spotTradeView" class="gridbg">
+    <div class="orb1"></div>
+    <div class="orb2"></div>
+
+    <div class="pf-header pf-header-anim">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between flex-wrap gap-3">
+            <div class="flex items-center gap-4 min-w-0">
+                <button onclick="showTradingHub()" class="glass w-10 h-10 rounded-xl flex items-center justify-center text-lg hover:border-white/30 transition flex-shrink-0">←</button>
+                <div class="min-w-0">
+                    <h2 class="text-xl sm:text-2xl font-black leading-tight">Spot Trading</h2>
+                    <p class="text-gray-400 text-xs">ARC Testnet · Harga live dari pool AMM</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <select id="spotPairSelect" onchange="setSpotPair(this.value)" class="spot-pair-btn outline-none cursor-pointer"></select>
+                <div class="glass px-3 py-2 rounded-xl text-xs whitespace-nowrap">🟢 LIVE</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pf-content">
+        <!-- Price ticker -->
+        <div class="flex items-end gap-4 flex-wrap mb-5">
+            <div>
+                <div id="spotPairLabel" class="text-gray-400 text-xs mb-1">CENTIC / USDC</div>
+                <div id="spotLastPrice" class="text-3xl sm:text-4xl font-black">—</div>
+            </div>
+            <div id="spotPriceChange" class="glass px-3 py-1.5 rounded-lg text-sm font-bold mb-1">—</div>
+        </div>
+
+        <div class="grid lg:grid-cols-[1fr_300px_320px] gap-5">
+            <!-- Candlestick chart -->
+            <div class="glass rounded-2xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs text-gray-400">Candlestick · 1m (sampel live dari pool, mulai saat tab dibuka)</span>
+                    <span id="spotCandleCount" class="text-xs text-gray-500">0 candle</span>
+                </div>
+                <canvas id="spotCandleCanvas" style="width:100%;height:340px;display:block;"></canvas>
+            </div>
+
+            <!-- Order book (AMM depth) -->
+            <div class="glass rounded-2xl p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs text-gray-400 font-bold">Order Book</span>
+                    <span class="text-[10px] text-gray-500">dari kurva AMM</span>
+                </div>
+                <div class="flex justify-between text-[10px] text-gray-500 px-2 mb-1">
+                    <span>Harga</span><span>Jumlah</span>
+                </div>
+                <div id="spotAsks"></div>
+                <div id="spotMidPrice" class="text-center py-2 font-bold text-sm border-y my-1" style="border-color:rgba(255,255,255,.08)">—</div>
+                <div id="spotBids"></div>
+            </div>
+
+            <!-- Buy / Sell panel -->
+            <div class="glass rounded-2xl p-4">
+                <div class="flex gap-2 mb-4" id="spotSideTabs">
+                    <div class="spot-tab-btn spot-tab-active-buy" onclick="setSpotSide('buy')" id="spotTabBuy">Buy</div>
+                    <div class="spot-tab-btn" onclick="setSpotSide('sell')" id="spotTabSell">Sell</div>
+                </div>
+                <div class="flex gap-4 mb-4 text-sm" id="spotOrderTypeTabs">
+                    <div class="spot-order-tab spot-order-tab-active" onclick="setSpotOrderType('market')" id="spotTypeMarket">Market</div>
+                    <div class="spot-order-tab" onclick="setSpotOrderType('limit')" id="spotTypeLimit">Limit</div>
+                </div>
+
+                <div id="spotLimitPriceWrap" class="hidden mb-3">
+                    <label class="text-xs text-gray-400 mb-1 block">Harga limit</label>
+                    <input id="spotLimitPrice" type="number" placeholder="0.00" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-cyan-400/50" style="color:#fff;">
+                </div>
+
+                <label class="text-xs text-gray-400 mb-1 block" id="spotAmountLabel">Jumlah (CENTIC)</label>
+                <input id="spotAmount" type="number" placeholder="0.00" oninput="updateSpotEstimate()" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-cyan-400/50 mb-3" style="color:#fff;">
+
+                <div class="flex gap-2 mb-3">
+                    <button onclick="setSpotAmountPct(0.25)" class="glass rounded-lg py-1.5 text-xs flex-1">25%</button>
+                    <button onclick="setSpotAmountPct(0.5)" class="glass rounded-lg py-1.5 text-xs flex-1">50%</button>
+                    <button onclick="setSpotAmountPct(0.75)" class="glass rounded-lg py-1.5 text-xs flex-1">75%</button>
+                    <button onclick="setSpotAmountPct(1)" class="glass rounded-lg py-1.5 text-xs flex-1">Max</button>
+                </div>
+
+                <div class="glass rounded-xl px-3 py-2.5 mb-4 text-xs flex justify-between text-gray-400">
+                    <span id="spotEstimateLabel">Estimasi diterima</span>
+                    <span id="spotEstimateValue">—</span>
+                </div>
+
+                <button id="spotSubmitBtn" onclick="submitSpotOrder()" class="w-full py-3.5 rounded-2xl font-bold text-base" style="background:linear-gradient(135deg,#22c55e,#16a34a);">Buy CENTIC</button>
+                <p id="spotStatus" class="text-center text-xs text-gray-500 mt-3 hidden"></p>
+
+                <div class="mt-4 rounded-xl px-3 py-2.5 text-[11px] text-gray-400" style="background:rgba(92,120,255,.08);border:1px solid rgba(92,120,255,.15);">
+                    ⚠️ <b class="text-gray-300">Limit order</b> dijalankan otomatis oleh browser-mu saat harga tercapai — <b>hanya berjalan selama tab ini terbuka</b> dan wallet tetap connect. Ini bukan order book on-chain sungguhan, murni fitur klien.
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending limit orders -->
+        <div class="mt-6">
+            <h3 class="text-sm font-bold text-gray-300 mb-3">Limit Order Aktif</h3>
+            <div id="spotLimitOrdersList" class="flex flex-col gap-2">
+                <p class="text-gray-500 text-xs">Belum ada limit order.</p>
             </div>
         </div>
     </div>
@@ -2472,15 +2612,16 @@ nav button.glass:hover {
 
     /* ── View switching ── */
     function hideAllOverlays() {
-        ['portfolioView','swapView','bridgeView','poolsView','eijiView','lendView','stakeView','adminView','tradingHubView'].forEach(id => {
+        ['portfolioView','swapView','bridgeView','poolsView','eijiView','lendView','stakeView','adminView','tradingHubView','spotTradeView'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.classList.remove('open');
         });
         document.body.style.overflow = '';
+        stopSpotTradePolling();
     }
 
     function setNavActive(id) {
-        ['navHome','navPortfolio','navSwap','navPools','navEiji','navLend','navStake','navAdmin','navTrading'].forEach(n => {
+        ['navHome','navPortfolio','navEiji','navLend','navStake','navAdmin','navTrading'].forEach(n => {
             const el = document.getElementById(n);
             if (!el) return;
             el.classList.remove('glass','nav-active');
@@ -2513,7 +2654,7 @@ nav button.glass:hover {
         hideAllOverlays();
         document.getElementById('swapView').classList.add('open');
         document.body.style.overflow = 'hidden';
-        setNavActive('navSwap');
+        setNavActive('navTrading');
         updateSwapBalances();
     }
 
@@ -2521,7 +2662,7 @@ nav button.glass:hover {
         hideAllOverlays();
         document.getElementById('bridgeView').classList.add('open');
         document.body.style.overflow = 'hidden';
-        setNavActive('navBridge');
+        setNavActive('navTrading');
         setBridgeSourceToken(bridgeSourceToken, true);
         setBridgeDestToken(bridgeDestToken, true);
         updateBridgeBalances();
@@ -3878,6 +4019,401 @@ nav button.glass:hover {
 
     function calcSwapOut() { getQuote(); }
 
+    /* ══════════════════════════════════════════════════
+       SPOT TRADING — candlestick chart + AMM order book
+       Harga & depth dihitung LANGSUNG dari reserves pool
+       (ArcenticMultiPool) yang sama dengan Swap — jujur,
+       tidak ada data yang dikarang. Candle disimpan lokal
+       (localStorage) dari sampel harga live selama app
+       dibuka; order eksekusi memakai jalur approve+swap
+       yang sama seperti fitur Swap.
+    ══════════════════════════════════════════════════ */
+    const SPOT_PAIRS = [
+        { base: 3, quote: 0 }, // CENTIC / USDC
+        { base: 3, quote: 1 }, // CENTIC / EURC
+        { base: 1, quote: 0 }, // EURC / USDC
+        { base: 2, quote: 0 }, // USDT / USDC
+    ];
+    let spotPairIdx = 0;
+    let spotSide = 'buy';
+    let spotOrderType = 'market';
+    let spotPollTimer = null;
+    let spotLimitTimer = null;
+    let spotLastMidPrice = null;
+
+    function spotPair() {
+        const p = SPOT_PAIRS[spotPairIdx];
+        return { base: TOKENS[p.base], quote: TOKENS[p.quote] };
+    }
+
+    function spotCandleKey() {
+        const p = spotPair();
+        return 'arcentic_candles_' + p.base.sym + '_' + p.quote.sym;
+    }
+
+    function loadSpotCandles() {
+        try { return JSON.parse(localStorage.getItem(spotCandleKey())) || []; }
+        catch { return []; }
+    }
+    function saveSpotCandles(candles) {
+        try { localStorage.setItem(spotCandleKey(), JSON.stringify(candles.slice(-120))); } catch {}
+    }
+
+    function populateSpotPairSelect() {
+        const sel = document.getElementById('spotPairSelect');
+        if (!sel) return;
+        sel.innerHTML = SPOT_PAIRS.map((p, i) => {
+            const b = TOKENS[p.base], q = TOKENS[p.quote];
+            return `<option value="${i}">${b.sym} / ${q.sym}</option>`;
+        }).join('');
+        sel.value = spotPairIdx;
+    }
+
+    function setSpotPair(idxStr) {
+        spotPairIdx = parseInt(idxStr, 10) || 0;
+        const p = spotPair();
+        document.getElementById('spotPairLabel').innerText = `${p.base.sym} / ${p.quote.sym}`;
+        document.getElementById('spotAmountLabel').innerText = `Jumlah (${spotSide === 'buy' ? p.quote.sym : p.base.sym})`;
+        updateSpotSubmitLabel();
+        renderSpotChart();
+        pollSpotMarket();
+    }
+
+    function setSpotSide(side) {
+        spotSide = side;
+        document.getElementById('spotTabBuy').className = 'spot-tab-btn' + (side === 'buy' ? ' spot-tab-active-buy' : '');
+        document.getElementById('spotTabSell').className = 'spot-tab-btn' + (side === 'sell' ? ' spot-tab-active-sell' : '');
+        const p = spotPair();
+        document.getElementById('spotAmountLabel').innerText = `Jumlah (${side === 'buy' ? p.quote.sym : p.base.sym})`;
+        document.getElementById('spotEstimateLabel').innerText = side === 'buy' ? `Estimasi ${p.base.sym} diterima` : `Estimasi ${p.quote.sym} diterima`;
+        updateSpotSubmitLabel();
+        updateSpotEstimate();
+    }
+
+    function setSpotOrderType(type) {
+        spotOrderType = type;
+        document.getElementById('spotTypeMarket').classList.toggle('spot-order-tab-active', type === 'market');
+        document.getElementById('spotTypeLimit').classList.toggle('spot-order-tab-active', type === 'limit');
+        document.getElementById('spotLimitPriceWrap').classList.toggle('hidden', type !== 'limit');
+        updateSpotSubmitLabel();
+    }
+
+    function updateSpotSubmitLabel() {
+        const p = spotPair();
+        const btn = document.getElementById('spotSubmitBtn');
+        if (!btn) return;
+        const action = spotOrderType === 'limit' ? 'Place Limit' : (spotSide === 'buy' ? 'Buy' : 'Sell');
+        btn.innerText = `${action} ${p.base.sym}`;
+        btn.style.background = spotSide === 'buy'
+            ? 'linear-gradient(135deg,#22c55e,#16a34a)'
+            : 'linear-gradient(135deg,#ef4444,#dc2626)';
+    }
+
+    async function setSpotAmountPct(pct) {
+        if (!isConnected) { showToast('warning','Wallet Not Connected','Connect wallet dulu untuk memakai Max/%.'); return; }
+        const p = spotPair();
+        const tok = spotSide === 'buy' ? p.quote : p.base;
+        const bal = await fetchTokenBalance(tok, currentAccount);
+        const val = parseFloat(bal) * pct;
+        document.getElementById('spotAmount').value = val > 0 ? val.toFixed(6) : '';
+        updateSpotEstimate();
+    }
+
+    /* Live mid price from pool reserves (base priced in quote) */
+    async function fetchSpotMidPrice() {
+        const p = spotPair();
+        try {
+            const provider = readOnlyProvider() || (window.ethereum && new ethers.providers.Web3Provider(window.ethereum));
+            if (!provider) return null;
+            const pool = new ethers.Contract(CONTRACT_ADDRS.ArcenticMultiPool, POOL_ABI, provider);
+            const decBase  = await getDecimals(p.base);
+            const decQuote = await getDecimals(p.quote);
+            const [resBaseRaw, resQuoteRaw] = await Promise.all([
+                pool.reserves(p.base.addr),
+                pool.reserves(p.quote.addr),
+            ]);
+            const resBase  = parseFloat(ethers.utils.formatUnits(resBaseRaw, decBase));
+            const resQuote = parseFloat(ethers.utils.formatUnits(resQuoteRaw, decQuote));
+            if (resBase <= 0 || resQuote <= 0) return null;
+            return { price: resQuote / resBase, resBase, resQuote };
+        } catch { return null; }
+    }
+
+    function spotFmtPrice(n) {
+        if (n === null || n === undefined || isNaN(n)) return '—';
+        return n < 1 ? n.toFixed(6) : n.toFixed(4);
+    }
+
+    async function pollSpotMarket() {
+        const data = await fetchSpotMidPrice();
+        const p = spotPair();
+        if (!data) {
+            document.getElementById('spotLastPrice').innerText = '—';
+            document.getElementById('spotMidPrice').innerText = 'Pool belum ada likuiditas';
+            document.getElementById('spotAsks').innerHTML = '';
+            document.getElementById('spotBids').innerHTML = '';
+            return;
+        }
+        const prevMid = spotLastMidPrice;
+        spotLastMidPrice = data.price;
+
+        document.getElementById('spotLastPrice').innerText = spotFmtPrice(data.price) + ' ' + p.quote.sym;
+        document.getElementById('spotMidPrice').innerText = spotFmtPrice(data.price) + ' ' + p.quote.sym;
+
+        const changeEl = document.getElementById('spotPriceChange');
+        if (prevMid) {
+            const pct = ((data.price - prevMid) / prevMid) * 100;
+            changeEl.innerText = (pct >= 0 ? '▲ ' : '▼ ') + Math.abs(pct).toFixed(3) + '%';
+            changeEl.style.color = pct >= 0 ? '#4ade80' : '#f87171';
+        } else {
+            changeEl.innerText = 'Sesi live dimulai';
+            changeEl.style.color = '#9ca3af';
+        }
+
+        renderSpotOrderBook(data.resBase, data.resQuote);
+        recordSpotCandle(data.price);
+        updateSpotEstimate();
+        checkSpotLimitOrders(data.price);
+    }
+
+    /* Synthetic AMM depth — bukan order book on-chain, murni turunan
+       konstanta x*y=k pada beberapa ukuran trade untuk menggambarkan
+       price impact, ditampilkan gaya order book. */
+    function computeAmmDepth(resBase, resQuote) {
+        const sizes = [0.005, 0.01, 0.025, 0.05, 0.1]; // % dari reserve base
+        const asks = []; // jual base -> dapat quote (harga naik dari sisi taker)
+        const bids = []; // beli base pakai quote (harga turun dari sisi taker)
+        sizes.forEach(pct => {
+            const amtBase = resBase * pct;
+            // sell base: k=resBase*resQuote tetap; out = resQuote - k/(resBase+amtBase)
+            const quoteOut = resQuote - (resBase * resQuote) / (resBase + amtBase);
+            const askPrice = quoteOut / amtBase;
+            asks.push({ price: askPrice, amount: amtBase });
+
+            // buy base with quote worth same notional at current mid, approx via amtQuote
+            const amtQuote = resQuote * pct;
+            const baseOut = resBase - (resBase * resQuote) / (resQuote + amtQuote);
+            const bidPrice = amtQuote / baseOut;
+            bids.push({ price: bidPrice, amount: baseOut });
+        });
+        return { asks, bids };
+    }
+
+    function renderSpotOrderBook(resBase, resQuote) {
+        const { asks, bids } = computeAmmDepth(resBase, resQuote);
+        const maxAmt = Math.max(...asks.map(a=>a.amount), ...bids.map(b=>b.amount), 0.000001);
+        const asksHtml = asks.slice().reverse().map(a => `
+            <div class="ob-row ask"><div class="ob-bar" style="width:${(a.amount/maxAmt*100).toFixed(1)}%"></div>
+                <span class="ob-ask-price">${spotFmtPrice(a.price)}</span><span>${a.amount.toFixed(3)}</span></div>`).join('');
+        const bidsHtml = bids.map(b => `
+            <div class="ob-row bid"><div class="ob-bar" style="width:${(b.amount/maxAmt*100).toFixed(1)}%"></div>
+                <span class="ob-bid-price">${spotFmtPrice(b.price)}</span><span>${b.amount.toFixed(3)}</span></div>`).join('');
+        document.getElementById('spotAsks').innerHTML = asksHtml;
+        document.getElementById('spotBids').innerHTML = bidsHtml;
+    }
+
+    /* Candle recording — 1 candle = 1 menit, dibangun dari sampel harga
+       live selagi tab terbuka (bukan histori penuh dari indexer). */
+    function recordSpotCandle(price) {
+        const candles = loadSpotCandles();
+        const bucket = Math.floor(Date.now() / 60000) * 60000;
+        let last = candles[candles.length - 1];
+        if (!last || last.t !== bucket) {
+            candles.push({ t: bucket, o: price, h: price, l: price, c: price });
+        } else {
+            last.h = Math.max(last.h, price);
+            last.l = Math.min(last.l, price);
+            last.c = price;
+        }
+        saveSpotCandles(candles);
+        renderSpotChart();
+    }
+
+    function renderSpotChart() {
+        const canvas = document.getElementById('spotCandleCanvas');
+        if (!canvas) return;
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        const w = Math.max(rect.width, 300), h = 340;
+        canvas.width = w * dpr; canvas.height = h * dpr;
+        canvas.style.height = h + 'px';
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+        ctx.clearRect(0,0,w,h);
+
+        const candles = loadSpotCandles();
+        document.getElementById('spotCandleCount').innerText = candles.length + ' candle';
+        if (candles.length === 0) {
+            ctx.fillStyle = 'rgba(255,255,255,.35)';
+            ctx.font = '13px Inter, sans-serif';
+            ctx.fillText('Menunggu sampel harga pertama…', 16, h/2);
+            return;
+        }
+
+        const pad = { l: 8, r: 55, t: 14, b: 14 };
+        const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+        const highs = candles.map(c=>c.h), lows = candles.map(c=>c.l);
+        let maxP = Math.max(...highs), minP = Math.min(...lows);
+        if (maxP === minP) { maxP *= 1.001; minP *= 0.999; }
+        const range = maxP - minP;
+        const yFor = p => pad.t + plotH - ((p - minP) / range) * plotH;
+
+        // gridlines + price labels
+        ctx.strokeStyle = 'rgba(255,255,255,.06)';
+        ctx.fillStyle = 'rgba(255,255,255,.35)';
+        ctx.font = '10px Inter, sans-serif';
+        for (let i=0;i<=4;i++) {
+            const yy = pad.t + (plotH/4)*i;
+            ctx.beginPath(); ctx.moveTo(pad.l, yy); ctx.lineTo(w-pad.r, yy); ctx.stroke();
+            const pv = maxP - (range/4)*i;
+            ctx.fillText(spotFmtPrice(pv), w-pad.r+6, yy+3);
+        }
+
+        const n = candles.length;
+        const slot = plotW / Math.max(n, 30);
+        const bodyW = Math.max(Math.min(slot*0.6, 14), 2);
+
+        candles.forEach((c, i) => {
+            const x = pad.l + plotW - (n - 1 - i) * slot - slot/2;
+            const up = c.c >= c.o;
+            ctx.strokeStyle = ctx.fillStyle = up ? '#22c55e' : '#ef4444';
+            ctx.beginPath();
+            ctx.moveTo(x, yFor(c.h)); ctx.lineTo(x, yFor(c.l)); ctx.stroke();
+            const yO = yFor(c.o), yC = yFor(c.c);
+            const top = Math.min(yO,yC), bh = Math.max(Math.abs(yC-yO), 1.5);
+            ctx.fillRect(x - bodyW/2, top, bodyW, bh);
+        });
+    }
+
+    async function updateSpotEstimate() {
+        const amt = parseFloat(document.getElementById('spotAmount').value) || 0;
+        const p = spotPair();
+        const estEl = document.getElementById('spotEstimateValue');
+        if (!amt || !spotLastMidPrice) { estEl.innerText = '—'; return; }
+        if (spotOrderType === 'limit') {
+            const lp = parseFloat(document.getElementById('spotLimitPrice').value) || spotLastMidPrice;
+            const est = spotSide === 'buy' ? amt / lp : amt * lp;
+            estEl.innerText = est.toFixed(6) + ' ' + (spotSide === 'buy' ? p.base.sym : p.quote.sym);
+            return;
+        }
+        const est = spotSide === 'buy' ? amt / spotLastMidPrice : amt * spotLastMidPrice;
+        estEl.innerText = est.toFixed(6) + ' ' + (spotSide === 'buy' ? p.base.sym : p.quote.sym);
+    }
+
+    /* Submit — market langsung eksekusi lewat jalur Swap yang sudah ada;
+       limit disimpan & dicek berkala selama tab terbuka. */
+    async function submitSpotOrder() {
+        if (!isConnected) { showToast('warning','Wallet Not Connected','Connect wallet dulu sebelum trading.'); return; }
+        const amt = parseFloat(document.getElementById('spotAmount').value);
+        if (!amt || amt <= 0) { showToast('warning','Jumlah Tidak Valid','Masukkan jumlah yang valid.'); return; }
+        const p = spotPair();
+
+        if (spotOrderType === 'limit') {
+            const lp = parseFloat(document.getElementById('spotLimitPrice').value);
+            if (!lp || lp <= 0) { showToast('warning','Harga Limit Tidak Valid','Masukkan harga limit yang valid.'); return; }
+            addSpotLimitOrder({ pairIdx: spotPairIdx, side: spotSide, amount: amt, limitPrice: lp, createdAt: Date.now() });
+            showToast('info','Limit Order Dipasang', `${spotSide.toUpperCase()} ${p.base.sym} saat harga ${spotSide === 'buy' ? '≤' : '≥'} ${lp} ${p.quote.sym}. Tab harus tetap terbuka.`);
+            document.getElementById('spotAmount').value = '';
+            return;
+        }
+
+        // Market order → set field2 swap view lalu jalankan executeSwap() yang sudah teruji
+        if (spotSide === 'buy') { swapFrom = SPOT_PAIRS[spotPairIdx].quote; swapTo = SPOT_PAIRS[spotPairIdx].base; }
+        else                    { swapFrom = SPOT_PAIRS[spotPairIdx].base;  swapTo = SPOT_PAIRS[spotPairIdx].quote; }
+        document.getElementById('swapFromAmt').value = amt;
+        await getQuote();
+        await executeSwap();
+        document.getElementById('spotAmount').value = '';
+        updateSpotEstimate();
+    }
+
+    /* ── Limit orders (client-side, disclosed as such) ── */
+    function loadSpotLimitOrders() {
+        try { return JSON.parse(localStorage.getItem('arcentic_limit_orders')) || []; }
+        catch { return []; }
+    }
+    function saveSpotLimitOrders(orders) {
+        try { localStorage.setItem('arcentic_limit_orders', JSON.stringify(orders)); } catch {}
+    }
+    function addSpotLimitOrder(order) {
+        const orders = loadSpotLimitOrders();
+        order.id = 'lo_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+        orders.push(order);
+        saveSpotLimitOrders(orders);
+        renderSpotLimitOrders();
+    }
+    function cancelSpotLimitOrder(id) {
+        saveSpotLimitOrders(loadSpotLimitOrders().filter(o => o.id !== id));
+        renderSpotLimitOrders();
+    }
+    function renderSpotLimitOrders() {
+        const el = document.getElementById('spotLimitOrdersList');
+        if (!el) return;
+        const orders = loadSpotLimitOrders();
+        if (orders.length === 0) { el.innerHTML = '<p class="text-gray-500 text-xs">Belum ada limit order.</p>'; return; }
+        el.innerHTML = orders.map(o => {
+            const pair = SPOT_PAIRS[o.pairIdx];
+            const base = TOKENS[pair.base], quote = TOKENS[pair.quote];
+            return `<div class="limit-order-row">
+                <div><span class="font-bold ${o.side==='buy'?'text-green-400':'text-red-400'}">${o.side.toUpperCase()}</span>
+                    ${o.amount} ${o.side==='buy'?quote.sym:base.sym} @ ${o.limitPrice} ${quote.sym}/${base.sym}</div>
+                <button onclick="cancelSpotLimitOrder('${o.id}')" class="glass px-3 py-1 rounded-lg text-xs hover:border-white/30">Batalkan</button>
+            </div>`;
+        }).join('');
+    }
+
+    let spotLimitExecuting = false;
+    async function checkSpotLimitOrders(currentPrice) {
+        if (spotLimitExecuting) return;
+        const orders = loadSpotLimitOrders();
+        if (orders.length === 0) return;
+        for (const o of orders) {
+            if (o.pairIdx !== spotPairIdx) continue; // hanya cek pair yang lagi ditampilkan
+            const hit = o.side === 'buy' ? currentPrice <= o.limitPrice : currentPrice >= o.limitPrice;
+            if (!hit) continue;
+            if (!isConnected) continue;
+            spotLimitExecuting = true;
+            try {
+                const pair = SPOT_PAIRS[o.pairIdx];
+                if (o.side === 'buy') { swapFrom = pair.quote; swapTo = pair.base; }
+                else                  { swapFrom = pair.base;  swapTo = pair.quote; }
+                document.getElementById('swapFromAmt').value = o.amount;
+                await getQuote();
+                showToast('info','Limit Order Terpicu', `Harga tercapai (${spotFmtPrice(currentPrice)}) — mengeksekusi ${o.side} ${o.amount}…`);
+                await executeSwap();
+                cancelSpotLimitOrder(o.id);
+            } catch (e) {
+                console.error('Limit order execution failed:', e);
+            }
+            spotLimitExecuting = false;
+            break; // satu order per siklus supaya tidak numpuk approve/tx
+        }
+    }
+
+    function showSpotTrade() {
+        hideAllOverlays();
+        document.getElementById('spotTradeView').classList.add('open');
+        document.body.style.overflow = 'hidden';
+        setNavActive('navTrading');
+        populateSpotPairSelect();
+        setSpotSide(spotSide);
+        setSpotOrderType(spotOrderType);
+        renderSpotChart();
+        renderSpotLimitOrders();
+        pollSpotMarket();
+        if (spotPollTimer) clearInterval(spotPollTimer);
+        spotPollTimer = setInterval(pollSpotMarket, 8000);
+    }
+
+    function stopSpotTradePolling() {
+        if (spotPollTimer) { clearInterval(spotPollTimer); spotPollTimer = null; }
+    }
+    window.addEventListener('resize', () => {
+        const view = document.getElementById('spotTradeView');
+        if (view && view.classList.contains('open')) renderSpotChart();
+    });
+
+
     function renderSwapTokens() {
         const f = TOKENS[swapFrom], t = TOKENS[swapTo];
         document.getElementById('swapFromIcon').innerHTML = f.icon;
@@ -5039,7 +5575,7 @@ nav button.glass:hover {
         hideAllOverlays();
         document.getElementById('poolsView').classList.add('open');
         document.body.style.overflow = 'hidden';
-        setNavActive('navPools');
+        setNavActive('navTrading');
         // auto-load reserves if wallet connected
         if (isConnected) {
             loadReserves('usdc-centic','USDC','CENTIC');
