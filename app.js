@@ -4900,3 +4900,69 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
         document.getElementById('eijiSuggestions').style.display = 'flex';
         eijiWelcome();
     }
+
+    /* ══════════════════════════════════════════════════
+       HASH ROUTING
+       Views are in-memory overlays, so a page refresh used to always
+       drop the user back on the home page (felt like a crash, e.g. after
+       opening Spot Trading and reloading). Reflect the open view in
+       location.hash and restore it on load so refresh/shared links keep
+       the user where they were.
+    ══════════════════════════════════════════════════ */
+    (function setupHashRouting() {
+        // hash → original view function (captured before wrapping below)
+        const routes = {
+            '#portfolio': showPortfolio,
+            '#trading':   showTradingHub,
+            '#swap':      showSwap,
+            '#bridge':    showBridge,
+            '#spot':      showSpotTrade,
+            '#pools':     showPools,
+            '#lend':      showLend,
+            '#stake':     showStake,
+            '#admin':     showAdmin,
+            '#eiji':      showEiji,
+            '#home':      showHome,
+            '':           showHome,
+        };
+        const hashFor = {
+            showPortfolio: '#portfolio', showTradingHub: '#trading',
+            showSwap: '#swap', showBridge: '#bridge', showSpotTrade: '#spot',
+            showPools: '#pools', showLend: '#lend', showStake: '#stake',
+            showAdmin: '#admin', showEiji: '#eiji', showHome: '#home',
+        };
+
+        let applying = false; // true while the router is opening a view (avoid loops)
+
+        // Wrap each global view function so a normal nav click also records the
+        // route in the URL. replaceState keeps history clean (no back-button spam)
+        // and does NOT fire hashchange, so there's no re-entrancy.
+        Object.keys(hashFor).forEach(name => {
+            const original = window[name];
+            if (typeof original !== 'function') return;
+            window[name] = function (...args) {
+                const result = original.apply(this, args);
+                if (!applying && location.hash !== hashFor[name]) {
+                    try { history.replaceState(null, '', hashFor[name]); }
+                    catch { location.hash = hashFor[name]; }
+                }
+                return result;
+            };
+        });
+
+        function applyRoute() {
+            const fn = routes[location.hash] || showHome;
+            applying = true;
+            try { fn(); } finally { applying = false; }
+        }
+
+        // Manual URL edits / back-forward on the hash.
+        window.addEventListener('hashchange', applyRoute);
+
+        // Restore the view on initial load (script is deferred, DOM is ready).
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', applyRoute);
+        } else {
+            applyRoute();
+        }
+    })();
