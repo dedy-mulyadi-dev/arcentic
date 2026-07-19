@@ -579,9 +579,13 @@ nav button.glass:hover {
 #eijiView.open { transform: translateY(0) scale(1); opacity: 1; pointer-events: all; }
 @media (max-width: 480px) {
     #eijiView {
-        left: 12px; right: 12px; bottom: 88px;
-        width: auto;
-        height: min(72vh, calc(100vh - 150px));
+        top: 0; left: 0; right: 0; bottom: 0;
+        width: 100%;
+        max-width: 100%;
+        height: 100vh;
+        height: 100dvh;
+        border-radius: 0;
+        border-left: none; border-right: none; border-top: none;
     }
 }
 .eiji-header {
@@ -632,18 +636,20 @@ nav button.glass:hover {
     width: 7px; height: 7px;
     background: #a78bfa;
     border-radius: 50%;
-    animation: eijiDot .9s infinite;
     margin: 0 2px;
+    animation: eijiDot 1.4s ease-in-out infinite both;
+    will-change: transform, opacity;
 }
-.eiji-bubble.typing span:nth-child(2) { animation-delay: .15s; }
-.eiji-bubble.typing span:nth-child(3) { animation-delay: .3s; }
+.eiji-bubble.typing span:nth-child(2) { animation-delay: .2s; }
+.eiji-bubble.typing span:nth-child(3) { animation-delay: .4s; }
 @keyframes eijiDot {
-    0%,60%,100% { transform: translateY(0); }
-    30% { transform: translateY(-6px); }
+    0%, 80%, 100% { transform: scale(.6); opacity: .35; }
+    40% { transform: scale(1); opacity: 1; }
 }
 .eiji-input-bar {
     flex-shrink: 0;
     padding: 12px 16px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
     background: rgba(4,8,22,.97);
     border-top: 1px solid rgba(92,120,255,.12);
     display: flex;
@@ -956,8 +962,17 @@ nav button.glass:hover {
 <style>
 #eijiFloatBtn:hover { background:rgba(12,18,48,.95); border-color:rgba(92,120,255,.55); transform:translateY(-2px); }
 @media (max-width:480px) {
-    #eijiFloatBtn span:last-child { display:none; }
-    #eijiFloatBtn { padding:8px; right:18px; bottom:18px; }
+    /* Kompak jadi tombol bundar (icon-only) di HP supaya tidak kepotong di tepi layar
+       dan selalu terlihat di atas system bar (safe-area). !important untuk menimpa
+       inline-style pada tombol. */
+    #eijiFloatBtn span:nth-child(2),
+    #eijiFloatBtn span:nth-child(3) { display:none !important; }
+    #eijiFloatBtn {
+        padding:9px !important;
+        gap:0 !important;
+        right:16px !important;
+        bottom: calc(16px + env(safe-area-inset-bottom)) !important;
+    }
 }
 </style>
 
@@ -980,6 +995,7 @@ nav button.glass:hover {
         <button id="navAdmin" onclick="showAdmin()" class="px-6 py-3 rounded-xl" style="display:none;">🔒 Admin</button>
     </nav>
     <div class="flex gap-2 sm:gap-3 items-center flex-shrink-0">
+        <button id="langToggleBtn" data-no-i18n onclick="window.__toggleLang && window.__toggleLang()" class="glass px-2.5 sm:px-3 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap flex-shrink-0" title="Language / Bahasa">🌐 <span id="langToggleLabel">ID</span></button>
         <div class="hidden sm:block glass px-4 py-3 rounded-xl text-sm whitespace-nowrap">🟢 ARC TESTNET</div>
         <button id="connectBtn" onclick="handleWallet()" class="gradient px-3 sm:px-7 py-2 sm:py-3 rounded-xl font-bold glow text-xs sm:text-base whitespace-nowrap">Connect Wallet</button>
         <button id="navToggleBtn" onclick="toggleMobileNav()" class="lg:hidden glass w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0" aria-label="Menu">☰</button>
@@ -2447,5 +2463,364 @@ nav button.glass:hover {
 </div>
 
 <script src="app.js" defer></script>
+
+<!-- ═══════════════════════ i18n: Pilihan Bahasa (ID / EN) ═══════════════════════ -->
+<script>
+(function () {
+    // Pasangan terjemahan [EN, ID]. Kalau sebuah teks tidak ada di sini,
+    // teks itu dibiarkan apa adanya (aman untuk angka, harga, alamat, dsb).
+    var PAIRS = [
+        // Header / navigasi
+        [`Home`, `Beranda`],
+        [`Portfolio`, `Portofolio`],
+        [`Lend & Borrow`, `Pinjam & Meminjam`],
+        [`Connect Wallet`, `Hubungkan Dompet`],
+        [`ARC Testnet DeFi Protocol`, `Protokol DeFi ARC Testnet`],
+        [`Disconnect`, `Putuskan`],
+        [`Connected to ARC Testnet`, `Terhubung ke ARC Testnet`],
+        [`Connecting…`, `Menghubungkan…`],
+        // Hero
+        [`🟢 Live on ARC Testnet`, `🟢 Live di ARC Testnet`],
+        [`The Next`, `Generasi`],
+        [`Generation`, `Terbaru`],
+        [`DeFi Experience`, `Pengalaman DeFi`],
+        [`Trade, stake, manage pools and track your ARC testnet assets with ARCENTIC. Modern infrastructure for decentralized finance.`, `Trading, staking, kelola pool, dan pantau aset ARC testnet-mu dengan ARCENTIC. Infrastruktur modern untuk keuangan terdesentralisasi.`],
+        [`Start Trading →`, `Mulai Trading →`],
+        [`Open Portfolio`, `Buka Portofolio`],
+        [`⛓️ ARC Testnet Verified`, `⛓️ Terverifikasi ARC Testnet`],
+        [`📖 Open Source Contracts`, `📖 Kontrak Open Source`],
+        [`👥 Active Users — Coming soon`, `👥 Pengguna Aktif — Segera hadir`],
+        [`Total Value Locked`, `Total Nilai Terkunci`],
+        [`Reading on-chain data…`, `Membaca data on-chain…`],
+        [`Coming soon`, `Segera hadir`],
+        [`Configured`, `Terkonfigurasi`],
+        [`Swap Tokens`, `Tukar Token`],
+        [`Fast and secure token swaps with minimal slippage.`, `Tukar token cepat & aman dengan slippage minimal.`],
+        [`Liquidity`, `Likuiditas`],
+        [`Earn fees and rewards by providing liquidity to pools.`, `Dapatkan fee & reward dengan menyediakan likuiditas ke pool.`],
+        [`Bridge Assets`, `Bridge Aset`],
+        [`Move assets seamlessly across supported networks.`, `Pindahkan aset dengan mulus antar jaringan yang didukung.`],
+        // Trading hub
+        [`ARCENTIC · All trading tools in one place`, `ARCENTIC · Semua alat trading dalam satu tempat`],
+        [`Trading Center`, `Pusat Trading`],
+        [`Swap tokens, manage liquidity pools, bridge assets across chains, and track your portfolio — all connected directly to ARC Testnet smart contracts.`, `Swap token, kelola liquidity pool, bridge aset lintas chain, dan pantau portfolio-mu — semuanya terhubung langsung ke smart contract ARC Testnet.`],
+        [`Swap tokens instantly with minimal slippage.`, `Tukar token secara instan dengan slippage minimal.`],
+        [`Candlestick chart, order book, market & limit orders.`, `Chart candlestick, order book, market & limit order.`],
+        [`Provide liquidity to pools and earn fees.`, `Sediakan likuiditas ke pool dan dapatkan fee.`],
+        [`Move USDC across networks via CCTP.`, `Pindahkan USDC lintas jaringan lewat CCTP.`],
+        // Spot trading
+        [`ARC Testnet · Live price from AMM pool`, `ARC Testnet · Harga live dari pool AMM`],
+        [`Candlestick · 1m (live sample from pool, starts when tab opens)`, `Candlestick · 1m (sampel live dari pool, mulai saat tab dibuka)`],
+        [`from AMM curve`, `dari kurva AMM`],
+        [`Price`, `Harga`],
+        [`Amount`, `Jumlah`],
+        [`Buy`, `Beli`],
+        [`Sell`, `Jual`],
+        [`Limit price`, `Harga limit`],
+        [`Amount (CENTIC)`, `Jumlah (CENTIC)`],
+        [`Estimated received`, `Estimasi diterima`],
+        [`Buy CENTIC`, `Beli CENTIC`],
+        [`Sell CENTIC`, `Jual CENTIC`],
+        [`Amount (USDC)`, `Jumlah (USDC)`],
+        [`⚠️ Limit orders run in your browser & only while the tab is open. Not an on-chain order.`, `⚠️ Limit order berjalan di browser & hanya saat tab terbuka. Bukan order on-chain.`],
+        [`Active Limit Orders`, `Limit Order Aktif`],
+        [`No limit orders yet.`, `Belum ada limit order.`],
+        // Swap
+        [`ARC Testnet · Instant swaps`, `ARC Testnet · Swap instan`],
+        [`You pay`, `Kamu bayar`],
+        [`You receive`, `Kamu terima`],
+        [`Select token`, `Pilih token`],
+        [`Rate`, `Kurs`],
+        [`Need testnet tokens?`, `Butuh token testnet?`],
+        [`Visit`, `Kunjungi`],
+        // Portfolio
+        [`ARC Testnet · Live balance`, `ARC Testnet · Saldo live`],
+        [`Refresh`, `Segarkan`],
+        [`Wallet not connected`, `Dompet belum terhubung`],
+        [`Connect your wallet to ARC Testnet to view your live balance and assets.`, `Hubungkan dompetmu ke ARC Testnet untuk melihat saldo dan aset live-mu.`],
+        [`Connected wallet`, `Dompet terhubung`],
+        [`View on Explorer ↗`, `Lihat di Explorer ↗`],
+        [`Total Balance`, `Total Saldo`],
+        [`ARC Testnet · Native balance`, `ARC Testnet · Saldo native`],
+        [`Network`, `Jaringan`],
+        [`Assets`, `Aset`],
+        [`ARC Testnet tokens`, `Token ARC Testnet`],
+        [`Live balance`, `Saldo live`],
+        // Bridge
+        [`CCTP · Cross-chain transfers`, `CCTP · Transfer lintas chain`],
+        [`From`, `Dari`],
+        [`To`, `Ke`],
+        [`swap → USDC on Uniswap, then bridge`, `swap → USDC di Uniswap, lalu bridge`],
+        [`auto-swap USDC → ETH after mint`, `auto-swap USDC → ETH setelah mint`],
+        [`Bridge Fee`, `Biaya Bridge`],
+        [`Estimated Time`, `Estimasi Waktu`],
+        [`~8-20 seconds`, `~8-20 detik`],
+        [`You will receive`, `Kamu akan terima`],
+        [`Secure`, `Aman`],
+        [`Burn & mint protocol`, `Protokol burn & mint`],
+        [`Fast`, `Cepat`],
+        [`8-20 second transfers`, `Transfer 8-20 detik`],
+        // Pools
+        [`Liquidity Pools`, `Pool Likuiditas`],
+        [`ARC Testnet · Earn fees by providing liquidity`, `ARC Testnet · Dapatkan fee dengan menyediakan likuiditas`],
+        [`+ Add Token`, `+ Tambah Token`],
+        [`+ Add Token to Pool`, `+ Tambah Token ke Pool`],
+        [`24h Volume`, `Volume 24 jam`],
+        [`Active Pools`, `Pool Aktif`],
+        [`🟢 Active`, `🟢 Aktif`],
+        [`24h Fees`, `Fee 24 jam`],
+        [`Pool Reserve`, `Cadangan Pool`],
+        [`💧 Add Liquidity`, `💧 Tambah Likuiditas`],
+        [`⟳ Refresh`, `⟳ Segarkan`],
+        [`+ Add Liquidity`, `+ Tambah Likuiditas`],
+        [`− Withdraw`, `− Tarik`],
+        [`Add Liquidity · USDC / CENTIC`, `Tambah Likuiditas · USDC / CENTIC`],
+        [`ℹ You will receive LP tokens representing your share of this pool. Fees accrue automatically.`, `ℹ Kamu akan menerima token LP yang mewakili bagianmu di pool ini. Fee bertambah otomatis.`],
+        [`Supply Liquidity`, `Setor Likuiditas`],
+        [`Withdraw Liquidity · USDC / CENTIC`, `Tarik Likuiditas · USDC / CENTIC`],
+        [`USDC to withdraw`, `USDC yang ditarik`],
+        [`CENTIC to withdraw`, `CENTIC yang ditarik`],
+        [`⚠ Withdrawing burns your LP share. Tokens are returned to your wallet proportionally.`, `⚠ Menarik akan membakar bagian LP-mu. Token dikembalikan ke dompetmu secara proporsional.`],
+        [`Withdraw Liquidity`, `Tarik Likuiditas`],
+        [`Add Liquidity · USDC / EURC`, `Tambah Likuiditas · USDC / EURC`],
+        [`ℹ Stable pair — low slippage. LP tokens accrue 0.05% fee on every swap.`, `ℹ Pasangan stabil — slippage rendah. Token LP mendapat fee 0.05% setiap swap.`],
+        [`Withdraw Liquidity · USDC / EURC`, `Tarik Likuiditas · USDC / EURC`],
+        [`EURC to withdraw`, `EURC yang ditarik`],
+        [`Add Liquidity · EURC / CENTIC`, `Tambah Likuiditas · EURC / CENTIC`],
+        [`Withdraw Liquidity · EURC / CENTIC`, `Tarik Likuiditas · EURC / CENTIC`],
+        [`Add Token to Pool`, `Tambah Token ke Pool`],
+        [`Provide single-sided liquidity to an existing pool on ARC Testnet.`, `Sediakan likuiditas satu sisi ke pool yang sudah ada di ARC Testnet.`],
+        [`Amount to supply`, `Jumlah yang disetor`],
+        [`Single-sided liquidity add. You will call`, `Penambahan likuiditas satu sisi. Kamu akan memanggil`],
+        [`on the pool contract.`, `pada kontrak pool.`],
+        [`Cancel`, `Batal`],
+        [`Supply`, `Setor`],
+        // Lend
+        [`ARC Testnet · cirBTC collateral · USDC loan`, `ARC Testnet · Jaminan cirBTC · Pinjaman USDC`],
+        [`Your Collateral`, `Jaminanmu`],
+        [`Borrowed`, `Dipinjam`],
+        [`Max Borrow`, `Pinjaman Maks`],
+        [`Health Factor`, `Faktor Kesehatan`],
+        [`Near borrow limit <1.0`, `Mendekati batas pinjam <1.0`],
+        [`Comfortable margin >1.5`, `Margin aman >1.5`],
+        [`Your cirBTC Balance`, `Saldo cirBTC-mu`],
+        [`Available to Borrow`, `Tersedia untuk Dipinjam`],
+        [`💰 Deposit`, `💰 Setor`],
+        [`📅 Borrow`, `📅 Pinjam`],
+        [`✅ Repay`, `✅ Bayar`],
+        [`↑ Withdraw`, `↑ Tarik`],
+        [`Deposit cirBTC as Collateral`, `Setor cirBTC sebagai Jaminan`],
+        [`cirBTC Amount`, `Jumlah cirBTC`],
+        [`Max borrow after`, `Pinjaman maks setelah`],
+        [`Collateral factor`, `Faktor jaminan`],
+        [`USDC Amount`, `Jumlah USDC`],
+        [`Available:`, `Tersedia:`],
+        [`Interest rate`, `Suku bunga`],
+        [`0% (no interest)`, `0% (tanpa bunga)`],
+        [`Est. health factor`, `Est. faktor kesehatan`],
+        [`Repay USDC Loan`, `Bayar Pinjaman USDC`],
+        [`Outstanding:`, `Tunggakan:`],
+        [`Withdraw cirBTC Collateral`, `Tarik Jaminan cirBTC`],
+        [`⚠️ Can only withdraw if you have no outstanding loan`, `⚠️ Hanya bisa menarik jika tidak ada pinjaman berjalan`],
+        [`Deposited:`, `Disetor:`],
+        [`Borrow USDC`, `Pinjam USDC`],
+        [`Deposit cirBTC`, `Setor cirBTC`],
+        [`Repay USDC`, `Bayar USDC`],
+        [`Withdraw cirBTC`, `Tarik cirBTC`],
+        // Stake
+        [`ARC Testnet · Pick any whitelisted token, lock it, earn rewards in that same token`, `ARC Testnet · Pilih token yang di-whitelist, kunci, dapatkan reward dalam token yang sama`],
+        [`Total Staked`, `Total Di-stake`],
+        [`Your Staked`, `Stake-mu`],
+        [`Claimable`, `Bisa Diklaim`],
+        [`New Stake`, `Stake Baru`],
+        [`Pick a token, then a lock tier. Longer locks earn a higher fixed APR, paid in the same token you stake.`, `Pilih token, lalu tier penguncian. Kunci lebih lama = APR tetap lebih tinggi, dibayar dalam token yang sama.`],
+        [`Loading tokens…`, `Memuat token…`],
+        [`Loading tiers…`, `Memuat tier…`],
+        [`Lock ends`, `Kunci berakhir`],
+        [`Est. reward at maturity`, `Est. reward saat jatuh tempo`],
+        [`My Stakes`, `Stake Saya`],
+        [`Connect your wallet to see your stakes.`, `Hubungkan dompetmu untuk melihat stake-mu.`],
+        // Admin
+        [`Restricted — visible only to the configured admin wallet`, `Terbatas — hanya terlihat oleh dompet admin yang dikonfigurasi`],
+        [`Verifying admin wallet…`, `Memverifikasi dompet admin…`],
+        // Eiji panel
+        [`New`, `Baru`],
+        [`💰 BTC price now`, `💰 Harga BTC sekarang`],
+        [`📊 Today's crypto trends`, `📊 Tren kripto hari ini`],
+        [`🌐 What is DeFi?`, `🌐 Apa itu DeFi?`],
+        [`⚡ What is ARC Testnet?`, `⚡ Apa itu ARC Testnet?`],
+        [`📷 Enhance Photo / Scan Document`, `📷 Perbaiki Foto / Scan Dokumen`],
+        [`Enhance Photo`, `Perbaiki Foto`],
+        [`Scan Document`, `Scan Dokumen`],
+        [`⬇ Download`, `⬇ Unduh`],
+        [`🖨 Print`, `🖨 Cetak`],
+        [`Change Photo`, `Ganti Foto`],
+        [`🔄 File Converter`, `🔄 Konversi File`],
+        [`📁 Choose File (image / audio / video)`, `📁 Pilih File (gambar / audio / video)`],
+        [`Convert to format:`, `Ubah ke format:`],
+        [`Convert Now`, `Konversi Sekarang`],
+        [`⬇ Download Result`, `⬇ Download Hasil`],
+        // Pesan dinamis (app.js) — toast / status
+        [`Connect your wallet first.`, `Hubungkan dompetmu dulu.`],
+        [`Install a wallet like MetaMask first.`, `Pasang dompet seperti MetaMask dulu.`],
+        [`No tokens found.`, `Token tidak ditemukan.`],
+        [`Not deployed yet`, `Belum di-deploy`],
+        [`Processing…`, `Memproses…`],
+        [`estimating…`, `menghitung…`],
+        [`Live on-chain data`, `Data on-chain live`],
+        [`Live session started`, `Sesi live dimulai`],
+        [`Pool has no liquidity yet`, `Pool belum ada likuiditas`],
+        [`⟳ Refresh`, `⟳ Segarkan`],
+        [`⟳ Refreshing…`, `⟳ Menyegarkan…`],
+        [`File must be an image (JPG/PNG).`, `File harus berupa gambar (JPG/PNG).`],
+        [`This format isn't supported yet. Choose an image, audio, or video file.`, `Format ini belum didukung. Pilih file gambar, audio, atau video.`],
+        [`Failed to read file.`, `Gagal membaca file.`],
+        [`Failed to open image. Try another file.`, `Gagal membuka gambar. Coba file lain.`],
+        [`Popup blocked by browser. Allow popups then try Print again.`, `Popup diblokir browser. Izinkan popup lalu coba Print lagi.`],
+        [`⏳ Converting... (large files may take a few seconds)`, `⏳ Mengonversi... (file besar bisa butuh beberapa detik)`]
+    ];
+
+    function norm(s) {
+        return String(s).replace(/\uFE0F/g, '').replace(/\s+/g, ' ').trim();
+    }
+
+    var MAP = Object.create(null);
+    PAIRS.forEach(function (p) {
+        var pair = { en: p[0], id: p[1] };
+        var ke = norm(p[0]), ki = norm(p[1]);
+        if (ke && !(ke in MAP)) MAP[ke] = pair;
+        if (ki && !(ki in MAP)) MAP[ki] = pair;
+    });
+
+    var LANG = 'id';
+    try {
+        var saved = localStorage.getItem('arcentic_lang');
+        if (saved === 'en' || saved === 'id') LANG = saved;
+    } catch (e) {}
+    window.__arcLang = LANG;
+
+    function skip(el) {
+        while (el) {
+            if (el.nodeType === 1) {
+                var tag = el.tagName;
+                if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT') return true;
+                if (el.id === 'eijiMessages' || el.id === 'langToggleBtn') return true;
+                if (el.hasAttribute && el.hasAttribute('data-no-i18n')) return true;
+            }
+            el = el.parentElement;
+        }
+        return false;
+    }
+
+    function translateNode(node) {
+        var pair = node.__i18nPair;
+        if (pair === undefined) {
+            if (skip(node.parentElement)) { node.__i18nPair = null; return; }
+            var raw = node.nodeValue;
+            var key = norm(raw);
+            if (!key) { node.__i18nPair = null; return; }
+            pair = MAP[key] || null;
+            node.__i18nPair = pair;
+            if (pair) {
+                node.__i18nLead = (raw.match(/^\s*/) || [''])[0];
+                node.__i18nTrail = (raw.match(/\s*$/) || [''])[0];
+            }
+        }
+        if (pair) {
+            var val = pair[LANG] != null ? pair[LANG] : pair.en;
+            var nv = node.__i18nLead + val + node.__i18nTrail;
+            if (node.nodeValue !== nv) node.nodeValue = nv;
+        }
+    }
+
+    function walk(root) {
+        if (!root) return;
+        if (root.nodeType === 3) { translateNode(root); return; }
+        if (root.nodeType !== 1) return;
+        var tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+        var list = [], n;
+        while ((n = tw.nextNode())) list.push(n);
+        list.forEach(translateNode);
+    }
+
+    var ATTRS = ['placeholder', 'title'];
+    function translateAttrs(root) {
+        if (!root || root.nodeType !== 1) return;
+        var els = [];
+        if (root.matches && root.matches('[placeholder],[title]')) els.push(root);
+        if (root.querySelectorAll) {
+            root.querySelectorAll('[placeholder],[title]').forEach(function (e) { els.push(e); });
+        }
+        els.forEach(function (el) {
+            if (skip(el)) return;
+            ATTRS.forEach(function (attr) {
+                if (!el.hasAttribute(attr)) return;
+                var store = '__i18nAttr_' + attr;
+                if (el[store] === undefined) {
+                    var raw = el.getAttribute(attr);
+                    el[store] = MAP[norm(raw)] || null;
+                }
+                var pair = el[store];
+                if (pair) el.setAttribute(attr, pair[LANG] != null ? pair[LANG] : pair.en);
+            });
+        });
+    }
+
+    var obs = null;
+    function connect() {
+        if (!obs) {
+            obs = new MutationObserver(function (muts) {
+                var roots = [];
+                for (var i = 0; i < muts.length; i++) {
+                    var added = muts[i].addedNodes;
+                    for (var j = 0; j < added.length; j++) roots.push(added[j]);
+                }
+                if (!roots.length) return;
+                obs.disconnect();
+                roots.forEach(function (r) { walk(r); translateAttrs(r); });
+                obs.observe(document.body, { childList: true, subtree: true });
+            });
+        }
+        obs.observe(document.body, { childList: true, subtree: true });
+    }
+
+    function applyAll() {
+        if (obs) obs.disconnect();
+        walk(document.body);
+        translateAttrs(document.body);
+        if (obs) obs.observe(document.body, { childList: true, subtree: true });
+    }
+
+    function updateToggle() {
+        var lbl = document.getElementById('langToggleLabel');
+        if (lbl) lbl.textContent = LANG.toUpperCase();
+        document.documentElement.setAttribute('lang', LANG === 'en' ? 'en' : 'id');
+    }
+
+    function setLang(lang) {
+        if (lang !== 'en' && lang !== 'id') return;
+        LANG = lang;
+        window.__arcLang = lang;
+        try { localStorage.setItem('arcentic_lang', lang); } catch (e) {}
+        applyAll();
+        updateToggle();
+    }
+
+    window.__setLang = setLang;
+    window.__toggleLang = function () { setLang(LANG === 'en' ? 'id' : 'en'); };
+
+    function boot() {
+        applyAll();
+        updateToggle();
+        connect();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+    } else {
+        boot();
+    }
+})();
+</script>
 </body>
 </html>

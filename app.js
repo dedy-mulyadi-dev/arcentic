@@ -4911,10 +4911,16 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
     }
 
     function eijiWelcome() {
-        const msgs = [
+        const lang = (typeof window !== 'undefined' && window.__arcLang === 'en') ? 'en' : 'id';
+        const msgsEn = [
             'Hey! I\'m Eiji \u2727\nAsk me anything — token prices, how to swap, or Web3 stuff!',
             'Yo! Eiji here \u270b\nGot questions about crypto, DeFi, or ARCENTIC? Fire away!'
         ];
+        const msgsId = [
+            'Hai! Aku Eiji \u2727\nTanya apa saja — harga token, cara swap, atau hal seputar Web3!',
+            'Halo! Eiji di sini \u270b\nAda pertanyaan soal kripto, DeFi, atau ARCENTIC? Langsung tanya!'
+        ];
+        const msgs = lang === 'en' ? msgsEn : msgsId;
         appendEijiBubble('agent', msgs[Math.floor(Math.random() * msgs.length)]);
     }
 
