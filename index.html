@@ -60,19 +60,17 @@ svg{width:100%;height:100%}
 #portfolioView {
     position: fixed; inset: 0; z-index: 200;
     background: #040816;
-    transform: scale(0.92);
+    transform: scale(0.985);
     opacity: 0;
-    filter: blur(8px);
-    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
     overflow-y: auto;
-    will-change: transform, opacity, filter;
+    will-change: transform, opacity;
     -webkit-overflow-scrolling: touch;
     pointer-events: none;
 }
 #portfolioView.open {
     transform: scale(1);
     opacity: 1;
-    filter: blur(0px);
     pointer-events: auto;
 }
 
@@ -83,7 +81,7 @@ svg{width:100%;height:100%}
 }
 
 .pf-header-anim {
-    animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+    animation: slideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1) 0s both;
 }
 
 @keyframes slideDown {
@@ -92,7 +90,7 @@ svg{width:100%;height:100%}
 }
 
 .pf-content {
-    animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+    animation: fadeInUp 0.24s cubic-bezier(0.16, 1, 0.3, 1) 0.03s both;
 }
 
 @keyframes fadeInUp {
@@ -130,19 +128,17 @@ svg{width:100%;height:100%}
 #adminView {
     position: fixed; inset: 0; z-index: 200;
     background: #040816;
-    transform: scale(0.92);
+    transform: scale(0.985);
     opacity: 0;
-    filter: blur(8px);
-    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
     overflow-y: auto;
-    will-change: transform, opacity, filter;
+    will-change: transform, opacity;
     -webkit-overflow-scrolling: touch;
     pointer-events: none;
 }
 #adminView.open {
     transform: scale(1);
     opacity: 1;
-    filter: blur(0px);
     pointer-events: auto;
 }
 
@@ -173,19 +169,17 @@ svg{width:100%;height:100%}
 #spotTradeView {
     position: fixed; inset: 0; z-index: 200;
     background: #040816;
-    transform: scale(0.92);
+    transform: scale(0.985);
     opacity: 0;
-    filter: blur(8px);
-    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
     overflow-y: auto;
-    will-change: transform, opacity, filter;
+    will-change: transform, opacity;
     -webkit-overflow-scrolling: touch;
     pointer-events: none;
 }
 #spotTradeView.open {
     transform: scale(1);
     opacity: 1;
-    filter: blur(0px);
     pointer-events: auto;
 }
 .spot-pair-btn {
@@ -224,19 +218,17 @@ svg{width:100%;height:100%}
 #tradingHubView {
     position: fixed; inset: 0; z-index: 200;
     background: #040816;
-    transform: scale(0.92);
+    transform: scale(0.985);
     opacity: 0;
-    filter: blur(8px);
-    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
     overflow-y: auto;
-    will-change: transform, opacity, filter;
+    will-change: transform, opacity;
     -webkit-overflow-scrolling: touch;
     pointer-events: none;
 }
 #tradingHubView.open {
     transform: scale(1);
     opacity: 1;
-    filter: blur(0px);
     pointer-events: auto;
 }
 .trade-card {
@@ -253,28 +245,26 @@ svg{width:100%;height:100%}
 #swapView {
     position: fixed; inset: 0; z-index: 200;
     background: #040816;
-    transform: scale(0.92);
+    transform: scale(0.985);
     opacity: 0;
-    filter: blur(8px);
-    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
     overflow-y: auto;
-    will-change: transform, opacity, filter;
+    will-change: transform, opacity;
     -webkit-overflow-scrolling: touch;
     pointer-events: none;
 }
 #swapView.open {
     transform: scale(1);
     opacity: 1;
-    filter: blur(0px);
     pointer-events: auto;
 }
 
 .swap-header {
-    animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+    animation: slideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1) 0s both;
 }
 
 .swap-content {
-    animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+    animation: fadeInUp 0.24s cubic-bezier(0.16, 1, 0.3, 1) 0.03s both;
 }
 
 .swap-input-wrap {
@@ -752,84 +742,78 @@ nav button.glass:hover {
 #poolsView {
     position: fixed; inset: 0; z-index: 200;
     background: #040816;
-    transform: scale(0.92);
+    transform: scale(0.985);
     opacity: 0;
-    filter: blur(8px);
-    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
     overflow-y: auto;
-    will-change: transform, opacity, filter;
+    will-change: transform, opacity;
     -webkit-overflow-scrolling: touch;
     pointer-events: none;
 }
 #poolsView.open {
     transform: scale(1);
     opacity: 1;
-    filter: blur(0px);
     pointer-events: auto;
 }
 
 .pools-header {
-    animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+    animation: slideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1) 0s both;
 }
 
 .pools-content {
-    animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+    animation: fadeInUp 0.24s cubic-bezier(0.16, 1, 0.3, 1) 0.03s both;
 }
 
 /* -- Lend & Borrow overlay (cinematic fade-scale-blur) -- */
 #lendView {
     position: fixed; inset: 0; z-index: 200;
     background: #040816;
-    transform: scale(0.92);
+    transform: scale(0.985);
     opacity: 0;
-    filter: blur(8px);
-    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
     overflow-y: auto;
-    will-change: transform, opacity, filter;
+    will-change: transform, opacity;
     -webkit-overflow-scrolling: touch;
     pointer-events: none;
 }
 #lendView.open {
     transform: scale(1);
     opacity: 1;
-    filter: blur(0px);
     pointer-events: auto;
 }
 
 .lend-header {
-    animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+    animation: slideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1) 0s both;
 }
 
 .lend-content {
-    animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+    animation: fadeInUp 0.24s cubic-bezier(0.16, 1, 0.3, 1) 0.03s both;
 }
 
 /* -- Stake overlay (cinematic fade-scale-blur) -- */
 #stakeView {
     position: fixed; inset: 0; z-index: 200;
     background: #040816;
-    transform: scale(0.92);
+    transform: scale(0.985);
     opacity: 0;
-    filter: blur(8px);
-    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
     overflow-y: auto;
-    will-change: transform, opacity, filter;
+    will-change: transform, opacity;
     -webkit-overflow-scrolling: touch;
     pointer-events: none;
 }
 #stakeView.open {
     transform: scale(1);
     opacity: 1;
-    filter: blur(0px);
     pointer-events: auto;
 }
 
 .stake-header {
-    animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+    animation: slideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1) 0s both;
 }
 
 .stake-content {
-    animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+    animation: fadeInUp 0.24s cubic-bezier(0.16, 1, 0.3, 1) 0.03s both;
 }
 
 .tier-card {
@@ -860,28 +844,26 @@ nav button.glass:hover {
 #bridgeView {
     position: fixed; inset: 0; z-index: 200;
     background: #040816;
-    transform: scale(0.92);
+    transform: scale(0.985);
     opacity: 0;
-    filter: blur(8px);
-    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
     overflow-y: auto;
-    will-change: transform, opacity, filter;
+    will-change: transform, opacity;
     -webkit-overflow-scrolling: touch;
     pointer-events: none;
 }
 #bridgeView.open {
     transform: scale(1);
     opacity: 1;
-    filter: blur(0px);
     pointer-events: auto;
 }
 
 .bridge-header {
-    animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+    animation: slideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1) 0s both;
 }
 
 .bridge-content {
-    animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+    animation: fadeInUp 0.24s cubic-bezier(0.16, 1, 0.3, 1) 0.03s both;
 }
 
 
