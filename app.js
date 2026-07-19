@@ -4701,44 +4701,97 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
        JSON, mismatched braces from a leaked-but-broken call) we must NOT fall back
        to showing the raw text — that reintroduces exactly the leak this function
        exists to prevent. */
+    // Models leak tool calls in MANY shapes. Cover the common ones:
+    //   (function=get_crypto_price>{...})      function:get_crypto_price {...}
+    //   <function/get_crypto_price>{...}</function>   <function=name>{...}
+    //   {"name":"get_crypto_price","arguments":{...}}  (and "parameters")
+    //   get_crypto_price(coin_id="bitcoin")     [get_crypto_price(...)]
+    //   <|python_tag|>get_crypto_price.call(...)
     function eijiLooksLikeLeakedToolCall(text) {
-        return !!text && /function\s*[=:]\s*[a-zA-Z_]+\s*[({]/i.test(text);
+        if (!text) return false;
+        const names = Object.keys(EIJI_TOOL_MAP).join('|');
+        return /<?\s*function\s*[=:\/]\s*[a-zA-Z_]/i.test(text)
+            || /<\/?function\b/i.test(text)
+            || new RegExp('"name"\\s*:\\s*"(?:' + names + ')"', 'i').test(text)
+            || new RegExp('(?:^|[\\s\\[<(])(?:' + names + ')\\s*\\(', 'i').test(text)
+            || /<\|python_tag\|>/i.test(text);
     }
 
-    function eijiExtractFakeToolCall(text) {
-        if (!text) return null;
-        const m = text.match(/function\s*[=:]\s*([a-zA-Z_]+)/i);
-        if (!m) return null;
-        // Tool names in EIJI_TOOL_MAP are lowercase, but a leaking model can emit
-        // any casing ("Get_Weather", "GET_WEATHER", ...). Resolve case-insensitively
-        // instead of indexing EIJI_TOOL_MAP with the raw captured casing, which
-        // silently missed every non-lowercase leak before this fix.
-        const toolKey = Object.keys(EIJI_TOOL_MAP).find(k => k.toLowerCase() === m[1].toLowerCase());
-        if (!toolKey) return null;
-        const braceStart = text.indexOf('{', m.index);
-        if (braceStart === -1) return null;
-        // String-aware brace matcher: a plain char-count of `{`/`}` breaks as soon
-        // as the JSON string VALUES themselves contain literal brace characters
-        // (e.g. a web_search query about "curly braces" or JSON syntax), because
-        // those braces get counted as if they were structural. Track whether we're
-        // inside a quoted string (and skip escaped characters) so only structural
-        // braces affect depth.
-        let depth = 0, i = braceStart, inString = false;
-        for (; i < text.length; i++) {
+    // String-aware balanced-brace slice starting at `start` (index of the opening
+    // `{`). A plain char-count of `{`/`}` breaks when JSON string VALUES contain
+    // literal braces, so we track whether we're inside a quoted string.
+    function eijiSliceBalancedBraces(text, start) {
+        if (start < 0 || text[start] !== '{') return null;
+        let depth = 0, inString = false;
+        for (let i = start; i < text.length; i++) {
             const ch = text[i];
             if (inString) {
-                if (ch === '\\') { i++; continue; } // skip escaped char, e.g. \"
+                if (ch === '\\') { i++; continue; }
                 if (ch === '"') inString = false;
                 continue;
             }
             if (ch === '"') inString = true;
             else if (ch === '{') depth++;
-            else if (ch === '}') { depth--; if (depth === 0) { i++; break; } }
+            else if (ch === '}') { depth--; if (depth === 0) return text.slice(start, i + 1); }
         }
-        try {
-            const args = JSON.parse(text.slice(braceStart, i));
-            return { name: toolKey, args };
-        } catch (e) { return null; }
+        return null;
+    }
+
+    function eijiResolveToolKey(raw) {
+        if (!raw) return null;
+        return Object.keys(EIJI_TOOL_MAP).find(k => k.toLowerCase() === raw.toLowerCase()) || null;
+    }
+
+    function eijiExtractFakeToolCall(text) {
+        if (!text) return null;
+
+        // A) function=name / function:name / function/name (with optional < > wrappers)
+        let m = text.match(/function\s*[=:\/]\s*([a-zA-Z_][a-zA-Z0-9_]*)/i);
+        if (m) {
+            const toolKey = eijiResolveToolKey(m[1]);
+            if (toolKey) {
+                const braceStart = text.indexOf('{', m.index);
+                const jsonStr = braceStart !== -1 ? eijiSliceBalancedBraces(text, braceStart) : null;
+                let args = {};
+                if (jsonStr) { try { args = JSON.parse(jsonStr); } catch (e) {} }
+                return { name: toolKey, args };
+            }
+        }
+
+        // B) OpenAI-ish JSON: {"name":"tool","arguments":{...}} or "parameters"
+        m = text.match(/"name"\s*:\s*"([a-zA-Z_][a-zA-Z0-9_]*)"/i);
+        if (m) {
+            const toolKey = eijiResolveToolKey(m[1]);
+            if (toolKey) {
+                let args = {};
+                const am = text.match(/"(?:arguments|parameters)"\s*:\s*\{/i);
+                if (am) {
+                    const braceStart = text.indexOf('{', am.index + am[0].length - 1);
+                    const jsonStr = eijiSliceBalancedBraces(text, braceStart);
+                    if (jsonStr) { try { args = JSON.parse(jsonStr); } catch (e) {} }
+                }
+                return { name: toolKey, args };
+            }
+        }
+
+        // C) Call syntax: get_crypto_price(coin_id="bitcoin", ...) — best-effort kv parse
+        for (const name of Object.keys(EIJI_TOOL_MAP)) {
+            const callRe = new RegExp(name + '\\s*\\(([^)]*)\\)', 'i');
+            const cm = text.match(callRe);
+            if (cm) {
+                const args = {};
+                const inner = cm[1] || '';
+                const kvRe = /([a-zA-Z_][a-zA-Z0-9_]*)\s*[=:]\s*("([^"]*)"|'([^']*)'|[^,]+)/g;
+                let kv;
+                while ((kv = kvRe.exec(inner))) {
+                    const val = kv[3] !== undefined ? kv[3] : (kv[4] !== undefined ? kv[4] : kv[2].trim());
+                    args[kv[1]] = val;
+                }
+                return { name, args };
+            }
+        }
+
+        return null;
     }
 
     /* fetch() has no built-in timeout — without this, a stalled /api/groq or
@@ -4789,21 +4842,22 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
     /* Groq sometimes returns a 400 "Failed to call a function" error when its
        strict tool-call validator rejects the model's attempt. Retry once without
        tools so the user still gets an answer instead of a hard error. */
-    async function eijiCallGroqSafe(messages) {
+    async function eijiCallGroqSafe(messages, useTools) {
+        if (useTools === undefined) useTools = true;
         try {
-            return await eijiCallGroq(messages, true);
+            return await eijiCallGroq(messages, useTools);
         } catch (err) {
-            if (err && /failed to call a function/i.test(err.message)) {
+            if (useTools && err && /failed to call a function/i.test(err.message)) {
                 try {
                     return await eijiCallGroq(messages, false);
                 } catch (err2) {
                     console.warn('Groq (no-tools) juga gagal, fallback ke OpenRouter:', err2.message);
-                    return await eijiCallOpenRouterSafe(messages);
+                    return await eijiCallOpenRouterSafe(messages, useTools);
                 }
             }
             // Groq down / rate-limited / 5xx / network error -> fallback ke OpenRouter
             console.warn('Groq gagal (' + err.message + '), fallback ke OpenRouter...');
-            return await eijiCallOpenRouterSafe(messages);
+            return await eijiCallOpenRouterSafe(messages, useTools);
         }
     }
 
@@ -4835,20 +4889,21 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
         return json;
     }
 
-    async function eijiCallOpenRouterSafe(messages) {
+    async function eijiCallOpenRouterSafe(messages, useTools) {
+        if (useTools === undefined) useTools = true;
         try {
-            return await eijiCallOpenRouter(messages, true);
+            return await eijiCallOpenRouter(messages, useTools);
         } catch (err) {
-            if (err && /failed to call a function/i.test(err.message)) {
+            if (useTools && err && /failed to call a function/i.test(err.message)) {
                 try {
                     return await eijiCallOpenRouter(messages, false);
                 } catch (err2) {
                     console.warn('OpenRouter (no-tools) juga gagal, fallback ke Gemini:', err2.message);
-                    return await eijiCallGeminiSafe(messages);
+                    return await eijiCallGeminiSafe(messages, useTools);
                 }
             }
             console.warn('OpenRouter gagal (' + err.message + '), fallback ke Gemini...');
-            return await eijiCallGeminiSafe(messages);
+            return await eijiCallGeminiSafe(messages, useTools);
         }
     }
 
@@ -4880,11 +4935,12 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
         return json;
     }
 
-    async function eijiCallGeminiSafe(messages) {
+    async function eijiCallGeminiSafe(messages, useTools) {
+        if (useTools === undefined) useTools = true;
         try {
-            return await eijiCallGemini(messages, true);
+            return await eijiCallGemini(messages, useTools);
         } catch (err) {
-            if (err && /failed to call a function/i.test(err.message)) {
+            if (useTools && err && /failed to call a function/i.test(err.message)) {
                 return await eijiCallGemini(messages, false);
             }
             throw err;
@@ -5045,11 +5101,13 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
             let fakeLoops = 0;
             while (msg && (!msg.tool_calls || !msg.tool_calls.length) && msg.content) {
                 const fake = eijiExtractFakeToolCall(msg.content);
-                if (!fake || fakeLoops >= 2) break;
+                if (!fake || fakeLoops >= 3) break;
                 const result = await EIJI_TOOL_MAP[fake.name](fake.args);
                 groqMessages.push({ role: 'assistant', content: msg.content });
-                groqMessages.push({ role: 'user', content: `[System note] Tool "${fake.name}" result: ${result}\nGunakan data ini untuk menjawab pertanyaan saya sebelumnya dengan kalimat natural. Jangan tampilkan JSON, kode, atau format "(function=...)" apapun ke saya.` });
-                data = await eijiCallGroqSafe(groqMessages);
+                groqMessages.push({ role: 'user', content: `[System note] Tool "${fake.name}" result: ${result}\nGunakan data ini untuk menjawab pertanyaan saya sebelumnya dengan kalimat natural. Jawab langsung dalam kalimat biasa. JANGAN memanggil tool lagi, JANGAN menampilkan JSON/kode/format "(function=...)", "<function...>", atau nama tool apa pun.` });
+                // Rephrase WITHOUT tools so a model that keeps leaking tool-call
+                // syntax is forced to produce plain prose from the result above.
+                data = await eijiCallGroqSafe(groqMessages, false);
                 msg = data.choices && data.choices[0] && data.choices[0].message;
                 fakeLoops++;
             }
