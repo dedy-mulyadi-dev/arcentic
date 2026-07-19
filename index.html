@@ -9,6 +9,8 @@
 <link rel="preconnect" href="https://cdnjs.cloudflare.com">
 <link rel="stylesheet" href="styles.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js" defer></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{font-family:Inter,sans-serif}
@@ -673,6 +675,44 @@ nav button.glass:hover {
     transition: opacity .2s;
 }
 .eiji-send-btn:disabled { opacity: .45; cursor: default; }
+.eiji-photo-btn {
+    width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+    background: rgba(92,120,255,.15); border: 1px solid rgba(92,120,255,.3);
+    cursor: pointer; color: #a5b4fc; font-size: 1.05rem;
+    display: flex; align-items: center; justify-content: center; transition: .2s;
+}
+.eiji-photo-btn:hover { background: rgba(92,120,255,.3); color: #fff; }
+.eiji-photo-modal {
+    position: fixed; inset: 0; background: rgba(2,4,12,.85); backdrop-filter: blur(4px);
+    z-index: 1000; display: none; align-items: center; justify-content: center; padding: 16px;
+}
+.eiji-photo-modal.open { display: flex; }
+.eiji-photo-box {
+    background: #0b0f1f; border: 1px solid rgba(92,120,255,.25); border-radius: 18px;
+    width: 100%; max-width: 560px; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden;
+}
+.eiji-photo-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; border-bottom: 1px solid rgba(92,120,255,.15); font-weight: 800; color: #fff;
+}
+.eiji-photo-x { background: rgba(255,255,255,.08); width: 30px; height: 30px; border-radius: 8px; border: none; color: #fff; cursor: pointer; }
+.eiji-photo-modes { display: flex; gap: 8px; padding: 12px 16px 0; }
+.eiji-photo-mode {
+    flex: 1; padding: 9px; border-radius: 10px; border: 1px solid rgba(92,120,255,.25);
+    background: rgba(255,255,255,.04); color: #a5b4fc; font-weight: 700; font-size: .85rem; cursor: pointer; transition: .2s;
+}
+.eiji-photo-mode.active { background: linear-gradient(135deg,#3478ff,#8b5cf6); color: #fff; border-color: transparent; }
+.eiji-photo-preview {
+    flex: 1; overflow: auto; padding: 16px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.25); min-height: 200px;
+}
+.eiji-photo-preview canvas { max-width: 100%; max-height: 58vh; border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.5); }
+.eiji-photo-actions { display: flex; gap: 8px; padding: 14px 16px; border-top: 1px solid rgba(92,120,255,.15); }
+.eiji-photo-act {
+    flex: 1; padding: 11px; border-radius: 12px; border: 1px solid rgba(92,120,255,.3);
+    background: rgba(255,255,255,.05); color: #fff; font-weight: 700; font-size: .85rem; cursor: pointer; transition: .2s;
+}
+.eiji-photo-act.primary { background: linear-gradient(135deg,#3478ff,#8b5cf6); border-color: transparent; }
+.eiji-photo-act:hover { opacity: .85; }
 .eiji-suggestions {
     display: flex; gap: 8px; flex-wrap: wrap;
     padding: 0 16px 12px;
@@ -2342,8 +2382,53 @@ nav button.glass:hover {
         <button class="eiji-chip" onclick="sendEijiChip(this)">&#9889; What is ARC Testnet?</button>
     </div>
     <div class="eiji-input-bar">
+        <input type="file" id="eijiPhotoInput" accept="image/*" style="display:none" onchange="eijiHandlePhoto(this)">
+        <button class="eiji-photo-btn" id="eijiPhotoBtn" title="Perbaiki foto / Scan dokumen" onclick="eijiOpenPhoto()">&#128247;</button>
+        <button class="eiji-photo-btn" id="eijiConvBtnOpen" title="Konversi file (gambar / MP4 ke MP3)" onclick="eijiOpenConv()">&#128260;</button>
         <textarea id="eijiInput" rows="1" placeholder="Ask Eiji anything..." onkeydown="eijiKeydown(event)" oninput="eijiAutoResize(this)"></textarea>
         <button class="eiji-send-btn" id="eijiSendBtn" onclick="sendEijiMessage()">&#10148;</button>
+    </div>
+</div>
+
+<!-- ============ EIJI PHOTO / SCAN TOOL ============ -->
+<div id="eijiPhotoModal" class="eiji-photo-modal">
+    <div class="eiji-photo-box">
+        <div class="eiji-photo-head">
+            <span>&#128247; Perbaiki Foto / Scan Dokumen</span>
+            <button onclick="eijiClosePhoto()" class="eiji-photo-x">&#10005;</button>
+        </div>
+        <div class="eiji-photo-modes">
+            <button class="eiji-photo-mode active" data-mode="enhance" onclick="eijiPhotoSetMode('enhance')">Perbaiki Foto</button>
+            <button class="eiji-photo-mode" data-mode="scan" onclick="eijiPhotoSetMode('scan')">Scan Dokumen</button>
+        </div>
+        <div class="eiji-photo-preview"><canvas id="eijiPhotoCanvas"></canvas></div>
+        <div class="eiji-photo-actions">
+            <button onclick="eijiPhotoDownload()" class="eiji-photo-act primary">&#11015; Download</button>
+            <button onclick="eijiPhotoPrint()" class="eiji-photo-act">&#128424; Print</button>
+            <button onclick="eijiOpenPhoto()" class="eiji-photo-act">Ganti Foto</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============ EIJI FILE CONVERTER ============ -->
+<div id="eijiConvModal" class="eiji-photo-modal">
+    <div class="eiji-photo-box">
+        <div class="eiji-photo-head">
+            <span>&#128260; Konversi File</span>
+            <button onclick="eijiConvClose()" class="eiji-photo-x">&#10005;</button>
+        </div>
+        <div style="padding:16px;display:flex;flex-direction:column;gap:12px;overflow:auto;">
+            <input type="file" id="eijiConvInput" accept="image/*,audio/*,video/*" style="display:none" onchange="eijiConvHandle(this)">
+            <button class="eiji-photo-act" onclick="document.getElementById('eijiConvInput').click()">&#128193; Pilih File (gambar / audio / video)</button>
+            <div id="eijiConvInfo" style="font-size:.85rem;color:#a5b4fc;word-break:break-all;"></div>
+            <div id="eijiConvTargetWrap" style="display:none;">
+                <div style="font-size:.8rem;color:rgba(255,255,255,.6);margin-bottom:6px;">Ubah ke format:</div>
+                <div id="eijiConvTargets" class="eiji-photo-modes" style="flex-wrap:wrap;"></div>
+            </div>
+            <button id="eijiConvRunBtn" class="eiji-photo-act primary" style="display:none;" onclick="eijiConvRun()">Konversi Sekarang</button>
+            <div id="eijiConvStatus" style="font-size:.85rem;color:#fff;min-height:18px;"></div>
+            <a id="eijiConvDownload" class="eiji-photo-act primary" style="display:none;text-decoration:none;text-align:center;" download>&#11015; Download Hasil</a>
+        </div>
     </div>
 </div>
 

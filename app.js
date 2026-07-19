@@ -4403,7 +4403,8 @@ Kepribadianmu:
 - Selalu jujur kalau tidak tahu sesuatu
 
 Kemampuanmu:
-- Kamu PUNYA AKSES ke data real-time lewat tools: get_crypto_price (harga kripto live dari CoinGecko), get_weather (cuaca live dari Open-Meteo), dan web_search (pencarian web live lewat Tavily)
+- Kamu PUNYA AKSES ke data real-time lewat tools: get_crypto_price (harga kripto live dari CoinGecko), get_weather (cuaca live dari Open-Meteo), web_search (pencarian web live lewat Tavily), dan get_trending_coins (koin trending + top gainer 24 jam live dari CoinGecko)
+- KOIN NAIK/PUMP/REKOMENDASI: kalau user tanya "koin apa yang lagi naik/hot/trending", "top gainer", atau minta rekomendasi/koin yang "berpotensi pump", panggil get_trending_coins lalu tampilkan datanya apa adanya. TAPI JANGAN PERNAH menjanjikan atau memastikan sebuah koin akan naik/pump. Selalu sertakan disclaimer bahwa ini DATA pasar, bukan jaminan dan bukan saran investasi (DYOR). Jujur bahwa tidak ada yang bisa memprediksi pump dengan pasti.
 - BATASAN TOOL (PENTING): get_crypto_price HANYA untuk cryptocurrency/token yang benar-benar ada (bitcoin, ethereum, dst). Kalau user menanyakan SIAPA/APA seseorang, tempat, istilah, atau hal apapun yang BUKAN nama coin kripto yang jelas — JANGAN coba get_crypto_price. Gunakan web_search untuk itu.
 - Kalau kamu ragu apakah sesuatu itu nama koin kripto atau bukan, gunakan web_search dulu untuk memastikan, jangan asumsikan itu koin
 - ATURAN WAJIB: kamu HARUS memanggil tool lewat mekanisme function-call yang sebenarnya (bukan menulis teks seperti kode/JSON di jawabanmu). JANGAN PERNAH menulis sesuatu seperti "(function=...)" atau menampilkan format JSON mentah ke user — itu salah. Panggil tool secara nyata, lalu jawab dengan kalimat natural berdasarkan hasilnya
@@ -4413,10 +4414,22 @@ Kemampuanmu:
 - Menjelaskan konsep DeFi, Web3, smart contract dengan bahasa mudah dipahami
 - Memberikan informasi tentang ARCENTIC, ARC Testnet, token: USDC, EURC, CENTIC
 - Punya pengetahuan umum tentang kripto, DeFi, blockchain sebagai konteks tambahan
+- PELAJARAN & SOAL: kamu bisa membantu SEMUA jenis pertanyaan pelajaran/akademik — matematika, fisika, kimia, biologi, sejarah, bahasa, soal ujian, sampai rumus yang sulit. Kerjakan LANGKAH DEMI LANGKAH sampai dapat jawaban akhir yang jelas. Kalau butuh fakta terbaru, pakai web_search dulu.
+- FORMAT MATEMATIKA: tulis rumus & perhitungan dalam teks biasa yang mudah dibaca (pakai simbol seperti ×, ÷, ^, √, π, ≤, ≥, dan pecahan bentuk a/b). JANGAN pakai LaTeX atau format kode ($...$, \\frac, dll) karena tidak ter-render dan malah membingungkan user.
+- MEMBUAT PPT/PRESENTASI: kalau user minta dibuatkan PPT/slide/presentasi, susun sendiri isinya (5-10 slide, tiap slide judul + 3-6 poin ringkas) lalu PANGGIL tool create_presentation. Setelah tool sukses, beri tahu user bahwa file .pptx sudah otomatis ter-download (cek folder Download) dan sebutkan singkat isi slide-nya.
+- ALAT FILE (tombol di panel chat ini, BUKAN tool AI): ada tombol kamera 📷 untuk "Perbaiki Foto / Scan Dokumen", dan tombol 🔄 untuk "Konversi File" (gambar JPG/PNG/WEBP, serta video/audio → MP3/WAV termasuk MP4→MP3). Kalau user tanya cara memperbaiki foto, scan dokumen, atau mengubah/convert file (mis. MP4 ke MP3), arahkan mereka klik tombol 📷 atau 🔄 di kolom ketik chat ini. Semua diproses gratis di perangkat mereka.
+- LOKASI/TEMPAT: kalau user menanyakan tempat/alamat/lokasi (pabrik, kantor, toko, resto, wisata, dll), setelah cari infonya lewat web_search, SELALU sertakan link Google Maps yang bisa langsung diklik dengan format PERSIS: https://www.google.com/maps/search/?api=1&query=NAMA_ATAU_ALAMAT_TEMPAT (ganti spasi dengan +, mis. https://www.google.com/maps/search/?api=1&query=Pabrik+Yakult+Sukabumi). Kalau ada beberapa lokasi, beri satu link Maps untuk tiap lokasi.
+- FORMAT LINK (PENTING): tulis URL LENGKAP apa adanya (diawali https://). JANGAN pakai format markdown [teks](url) dan JANGAN singkat/potong URL-nya — cukup tempel URL utuh, nanti otomatis jadi tautan yang bisa diklik.
 
 Yang TIDAK bisa kamu lakukan:
 - Mengeksekusi transaksi — itu dilakukan user sendiri di DEX
 - Memberikan saran investasi yang dijamin profit
+
+BATASAN KONTEN (WAJIB, TIDAK BISA DITAWAR):
+- JANGAN PERNAH memberikan, mencari, atau menautkan konten pornografi/seksual eksplisit, konten yang mengeksploitasi anak, kekerasan ekstrem/gore, atau materi ilegal (narkoba, senjata, peretasan/malware, penipuan, dsb).
+- Kalau user meminta hal-hal di atas (termasuk minta "link porno" atau situs dewasa), TOLAK dengan sopan dan singkat, jangan panggil tool apa pun untuk itu, dan jangan tampilkan URL apa pun. Arahkan kembali ke topik ARCENTIC/kripto/DeFi atau info umum yang aman.
+- Tetap ramah tapi tegas; tidak perlu menghakimi, cukup katakan kamu tidak bisa membantu untuk permintaan itu.
+- FILM/MOVIE: boleh memberi info film (judul, sinopsis, rating) dan HANYA link RESMI/legal — trailer di channel resmi, IMDb, atau platform legal (Netflix, Disney+, Prime Video, Vidio, bioskop). JANGAN PERNAH memberi link download/streaming bajakan atau situs subtitle ilegal (mis. situs sejenis LK21/IndoXXI). Kalau user minta film bajakan/subtitle ilegal, tolak sopan dan arahkan ke opsi legal.
 
 Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dari tool, sebutkan juga bahwa datanya live/real-time.`;
 
@@ -4466,6 +4479,44 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
                     required: ['query']
                 }
             }
+        },
+        {
+            type: 'function',
+            function: {
+                name: 'get_trending_coins',
+                description: 'Mengambil daftar cryptocurrency yang sedang TRENDING (paling banyak dicari) dan TOP GAINER 24 jam (kenaikan harga terbesar) real-time dari CoinGecko. Panggil saat user bertanya koin apa yang lagi naik/hot/trending, top gainer, atau minta rekomendasi/koin yang "berpotensi pump". Sampaikan hasilnya sebagai DATA pasar disertai disclaimer bahwa ini bukan jaminan/saran investasi.',
+                parameters: { type: 'object', properties: {} }
+            }
+        },
+        {
+            type: 'function',
+            function: {
+                name: 'create_presentation',
+                description: 'Membuat file presentasi PowerPoint (.pptx) yang otomatis ter-download ke perangkat user. Panggil saat user minta dibuatkan PPT/slide/presentasi tentang suatu topik. KAMU yang menyusun isi slide-nya (judul + poin-poin ringkas) lalu kirim ke tool ini. Buat 5-10 slide isi yang berbobot.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        title: { type: 'string', description: 'Judul presentasi (untuk slide sampul & nama file)' },
+                        slides: {
+                            type: 'array',
+                            description: 'Daftar slide isi.',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    title: { type: 'string', description: 'Judul slide' },
+                                    bullets: {
+                                        type: 'array',
+                                        items: { type: 'string' },
+                                        description: 'Poin-poin isi slide (3-6 poin singkat & padat)'
+                                    }
+                                },
+                                required: ['title', 'bullets']
+                            }
+                        }
+                    },
+                    required: ['title', 'slides']
+                }
+            }
         }
     ];
 
@@ -4512,6 +4563,91 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
         }
     }
 
+    async function tool_create_presentation(args) {
+        try {
+            const title = (args && args.title) ? String(args.title) : 'Presentasi';
+            let slides = args && args.slides;
+            if (typeof slides === 'string') { try { slides = JSON.parse(slides); } catch (e) {} }
+            if (!Array.isArray(slides) || !slides.length) {
+                return JSON.stringify({ error: 'Butuh minimal 1 slide (judul + poin) untuk membuat PPT.' });
+            }
+            if (typeof PptxGenJS === 'undefined') {
+                return JSON.stringify({ error: 'Library pembuat PPT belum termuat. Refresh halaman lalu coba lagi.' });
+            }
+
+            const pptx = new PptxGenJS();
+            pptx.layout = 'LAYOUT_WIDE';
+
+            const cover = pptx.addSlide();
+            cover.background = { color: '0B0F1F' };
+            cover.addText(title, { x: 0.5, y: 2.2, w: '90%', h: 1.6, fontSize: 40, bold: true, color: 'FFFFFF', align: 'center' });
+            cover.addText('Dibuat oleh Eiji AI \u2022 ARCENTIC', { x: 0.5, y: 4.0, w: '90%', h: 0.5, fontSize: 16, color: '7C93FF', align: 'center' });
+
+            slides.forEach(s => {
+                const slide = pptx.addSlide();
+                slide.background = { color: 'FFFFFF' };
+                slide.addText((s && s.title) ? String(s.title) : '', { x: 0.5, y: 0.3, w: '92%', h: 0.9, fontSize: 28, bold: true, color: '1A1A2E' });
+                let bullets = s && s.bullets;
+                if (typeof bullets === 'string') bullets = bullets.split('\n');
+                if (!Array.isArray(bullets)) bullets = [];
+                const items = bullets
+                    .filter(b => b !== null && b !== undefined && String(b).trim())
+                    .map(b => ({ text: String(b), options: { bullet: true, fontSize: 18, color: '333333', paraSpaceAfter: 8 } }));
+                if (items.length) slide.addText(items, { x: 0.7, y: 1.4, w: '88%', h: 5.2, valign: 'top' });
+            });
+
+            const safe = title.replace(/[^a-z0-9_\- ]/gi, '').trim().replace(/\s+/g, '_').slice(0, 40) || 'presentasi';
+            const fileName = safe + '.pptx';
+            await pptx.writeFile({ fileName });
+            return JSON.stringify({
+                success: true,
+                file: fileName,
+                slides_count: slides.length,
+                note: 'File PPTX sudah otomatis ter-download ke perangkat user. Beri tahu user untuk cek folder Download.'
+            });
+        } catch (e) {
+            return JSON.stringify({ error: 'Gagal membuat PPT: ' + e.message });
+        }
+    }
+
+    async function tool_get_trending_coins() {
+        try {
+            const out = {
+                source: 'CoinGecko (live)',
+                disclaimer: 'Ini DATA pasar real-time, BUKAN jaminan koin akan naik/pump dan BUKAN saran investasi. Harga kripto sangat fluktuatif — selalu DYOR (do your own research).'
+            };
+            try {
+                const tRes = await eijiFetchWithTimeout('https://api.coingecko.com/api/v3/search/trending', {}, 12000);
+                const tData = await tRes.json();
+                out.trending = (tData.coins || []).slice(0, 7).map(c => ({
+                    name: c.item && c.item.name,
+                    symbol: c.item && (c.item.symbol || '').toUpperCase(),
+                    market_cap_rank: c.item && c.item.market_cap_rank
+                }));
+            } catch (e) { out.trending = []; }
+            try {
+                const mRes = await eijiFetchWithTimeout('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&price_change_percentage=24h', {}, 12000);
+                const mData = await mRes.json();
+                out.top_gainers_24h = (Array.isArray(mData) ? mData : [])
+                    .filter(c => typeof c.price_change_percentage_24h === 'number')
+                    .sort((a, b) => b.price_change_percentage_24h - a.price_change_percentage_24h)
+                    .slice(0, 5)
+                    .map(c => ({
+                        name: c.name,
+                        symbol: (c.symbol || '').toUpperCase(),
+                        price_usd: c.current_price,
+                        change_24h_percent: Number(c.price_change_percentage_24h.toFixed(2))
+                    }));
+            } catch (e) { out.top_gainers_24h = []; }
+            if ((!out.trending || !out.trending.length) && (!out.top_gainers_24h || !out.top_gainers_24h.length)) {
+                return JSON.stringify({ error: 'Gagal mengambil data trending/top gainer saat ini. Coba lagi sebentar lagi.' });
+            }
+            return JSON.stringify(out);
+        } catch (e) {
+            return JSON.stringify({ error: 'Gagal mengambil data trending: ' + e.message });
+        }
+    }
+
     async function tool_web_search(query) {
         try {
             const res = await eijiFetchWithTimeout('/api/tavily', {
@@ -4549,7 +4685,9 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
     const EIJI_TOOL_MAP = {
         get_crypto_price: (args) => tool_get_crypto_price(args.coin_id),
         get_weather: (args) => tool_get_weather(args.location),
-        web_search: (args) => tool_web_search(args.query)
+        web_search: (args) => tool_web_search(args.query),
+        get_trending_coins: () => tool_get_trending_coins(),
+        create_presentation: (args) => tool_create_presentation(args)
     };
 
     /* Safety net: small models sometimes "leak" a fake function call as plain text
@@ -4780,6 +4918,24 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
         appendEijiBubble('agent', msgs[Math.floor(Math.random() * msgs.length)]);
     }
 
+    /* Ubah URL/tautan di jawaban Eiji jadi link yang bisa diklik — dengan AMAN.
+       Teks di-escape DULU (anti-XSS), baru URL http(s) & markdown [teks](url)
+       diubah jadi <a>. Karena sudah di-escape, tidak ada HTML lain yang lolos. */
+    function eijiLinkify(text) {
+        let s = escapeHtml(text);
+        const anchor = (url, label) =>
+            `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#7c93ff;text-decoration:underline;word-break:break-all;">${label}</a>`;
+        // markdown [label](url)
+        s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (m, label, url) => anchor(url, label));
+        // URL polos (lewati yang sudah jadi href="...")
+        s = s.replace(/(^|[^"=>])(https?:\/\/[^\s<]+)/g, (m, pre, url) => {
+            let trail = '';
+            while (/[.,;:!?)\]"']$/.test(url)) { trail = url.slice(-1) + trail; url = url.slice(0, -1); }
+            return pre + anchor(url, url) + trail;
+        });
+        return s;
+    }
+
     function appendEijiBubble(role, text) {
         const container = document.getElementById('eijiMessages');
         const div = document.createElement('div');
@@ -4790,8 +4946,9 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
             name.textContent = '\u2726 EIJI';
             div.appendChild(name);
             const body = document.createElement('div');
-            body.textContent = text;
+            body.innerHTML = eijiLinkify(text);
             body.style.whiteSpace = 'pre-wrap';
+            body.style.wordBreak = 'break-word';
             div.appendChild(body);
         } else {
             div.textContent = text;
@@ -4946,6 +5103,400 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
         document.getElementById('eijiMessages').innerHTML = '';
         document.getElementById('eijiSuggestions').style.display = 'flex';
         eijiWelcome();
+    }
+
+    /* ══════════════════════════════════════════════════
+       EIJI PHOTO / SCAN TOOL (client-side, gratis)
+       Perbaiki foto (cerah/kontras/pertajam/saturasi) atau mode Scan Dokumen
+       (grayscale + normalisasi cahaya via blur-background + kontras) lalu
+       bisa di-download / print. Semua diproses lokal di browser (tanpa server).
+       ══════════════════════════════════════════════════ */
+    let eijiPhotoImg = null;
+    let eijiPhotoMode = 'enhance';
+
+    function eijiClamp(v) { return v < 0 ? 0 : v > 255 ? 255 : v; }
+
+    function eijiMakeCanvas(w, h) {
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        return c;
+    }
+
+    function eijiOpenPhoto() {
+        const inp = document.getElementById('eijiPhotoInput');
+        if (inp) { inp.value = ''; inp.click(); }
+    }
+
+    function eijiHandlePhoto(input) {
+        const file = input && input.files && input.files[0];
+        if (!file) return;
+        if (!/^image\//.test(file.type)) { alert('File harus berupa gambar (JPG/PNG).'); return; }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                eijiPhotoImg = img;
+                eijiPhotoSetMode('enhance');
+                document.getElementById('eijiPhotoModal').classList.add('open');
+            };
+            img.onerror = () => alert('Gagal membuka gambar. Coba file lain.');
+            img.src = e.target.result;
+        };
+        reader.onerror = () => alert('Gagal membaca file.');
+        reader.readAsDataURL(file);
+    }
+
+    function eijiPhotoSetMode(mode) {
+        eijiPhotoMode = mode;
+        document.querySelectorAll('.eiji-photo-mode').forEach(b =>
+            b.classList.toggle('active', b.getAttribute('data-mode') === mode));
+        eijiRenderPhoto();
+    }
+
+    function eijiClosePhoto() {
+        const m = document.getElementById('eijiPhotoModal');
+        if (m) m.classList.remove('open');
+        eijiPhotoImg = null;
+    }
+
+    function eijiRenderPhoto() {
+        const img = eijiPhotoImg;
+        const out = document.getElementById('eijiPhotoCanvas');
+        if (!img || !out) return;
+        const maxDim = 2200;
+        let w = img.naturalWidth || img.width;
+        let h = img.naturalHeight || img.height;
+        const scale = Math.min(1, maxDim / Math.max(w, h));
+        w = Math.max(1, Math.round(w * scale));
+        h = Math.max(1, Math.round(h * scale));
+        out.width = w; out.height = h;
+        const ctx = out.getContext('2d');
+        ctx.filter = 'none';
+        ctx.drawImage(img, 0, 0, w, h);
+        try {
+            if (eijiPhotoMode === 'scan') eijiPhotoScan(out);
+            else eijiPhotoEnhance(out);
+        } catch (e) {
+            console.error('Photo process error:', e);
+        }
+    }
+
+    function eijiPhotoEnhance(canvas) {
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width, h = canvas.height;
+        // Salinan blur untuk unsharp mask
+        const blur = eijiMakeCanvas(w, h);
+        const bctx = blur.getContext('2d');
+        bctx.filter = 'blur(2px)';
+        bctx.drawImage(canvas, 0, 0);
+        const orig = ctx.getImageData(0, 0, w, h);
+        const bl = bctx.getImageData(0, 0, w, h);
+        const d = orig.data, b = bl.data;
+        // Levels: cari persentil terang/gelap dari histogram luminance
+        const hist = new Uint32Array(256);
+        for (let i = 0; i < d.length; i += 4) {
+            const l = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
+            hist[l < 0 ? 0 : l > 255 ? 255 : l]++;
+        }
+        const total = d.length / 4;
+        const loCut = total * 0.005, hiCut = total * 0.005;
+        let acc = 0, lo = 0, hi = 255;
+        for (let i = 0; i < 256; i++) { acc += hist[i]; if (acc >= loCut) { lo = i; break; } }
+        acc = 0;
+        for (let i = 255; i >= 0; i--) { acc += hist[i]; if (acc >= hiCut) { hi = i; break; } }
+        if (hi <= lo) { lo = 0; hi = 255; }
+        const range = (hi - lo) || 1;
+        const sharpen = 0.8, sat = 1.15;
+        for (let i = 0; i < d.length; i += 4) {
+            let r = d[i] + sharpen * (d[i] - b[i]);
+            let g = d[i + 1] + sharpen * (d[i + 1] - b[i + 1]);
+            let bb = d[i + 2] + sharpen * (d[i + 2] - b[i + 2]);
+            r = (r - lo) * 255 / range;
+            g = (g - lo) * 255 / range;
+            bb = (bb - lo) * 255 / range;
+            const gray = r * 0.299 + g * 0.587 + bb * 0.114;
+            d[i] = eijiClamp(gray + (r - gray) * sat);
+            d[i + 1] = eijiClamp(gray + (g - gray) * sat);
+            d[i + 2] = eijiClamp(gray + (bb - gray) * sat);
+        }
+        ctx.putImageData(orig, 0, 0);
+    }
+
+    function eijiPhotoScan(canvas) {
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width, h = canvas.height;
+        const img = ctx.getImageData(0, 0, w, h);
+        const d = img.data;
+        // grayscale
+        for (let i = 0; i < d.length; i += 4) {
+            const g = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
+            d[i] = d[i + 1] = d[i + 2] = g;
+        }
+        ctx.putImageData(img, 0, 0);
+        // Estimasi cahaya latar via blur besar, lalu bagi (hilangkan bayangan/warna kertas)
+        const r = Math.max(8, Math.round(Math.max(w, h) / 25));
+        const bg = eijiMakeCanvas(w, h);
+        const bctx = bg.getContext('2d');
+        bctx.filter = 'blur(' + r + 'px)';
+        bctx.drawImage(canvas, 0, 0);
+        const bgd = bctx.getImageData(0, 0, w, h).data;
+        for (let i = 0; i < d.length; i += 4) {
+            let v = (d[i] / (bgd[i] || 1)) * 255 * 1.02;
+            v = (v - 128) * 1.45 + 128 + 6; // kontras + sedikit terang
+            v = eijiClamp(v);
+            d[i] = d[i + 1] = d[i + 2] = v;
+        }
+        ctx.putImageData(img, 0, 0);
+    }
+
+    function eijiPhotoDownload() {
+        const canvas = document.getElementById('eijiPhotoCanvas');
+        if (!canvas || !canvas.width) return;
+        const isScan = eijiPhotoMode === 'scan';
+        const a = document.createElement('a');
+        a.download = (isScan ? 'scan' : 'foto-perbaikan') + '-' + Date.now() + (isScan ? '.png' : '.jpg');
+        a.href = canvas.toDataURL(isScan ? 'image/png' : 'image/jpeg', 0.92);
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
+
+    function eijiPhotoPrint() {
+        const canvas = document.getElementById('eijiPhotoCanvas');
+        if (!canvas || !canvas.width) return;
+        const url = canvas.toDataURL('image/png');
+        const win = window.open('', '_blank');
+        if (!win) { alert('Popup diblokir browser. Izinkan popup lalu coba Print lagi.'); return; }
+        win.document.write('<html><head><title>Print</title></head><body style="margin:0;text-align:center;">' +
+            '<img src="' + url + '" style="max-width:100%" ' +
+            'onload="window.focus();window.print();" /></body></html>');
+        win.document.close();
+    }
+
+    /* ══════════════════════════════════════════════════
+       EIJI FILE CONVERTER (client-side, gratis)
+       - Gambar: JPG / PNG / WEBP (via canvas)
+       - Audio/Video -> MP3 / WAV (decode audio track via Web Audio, encode MP3 via lamejs)
+         Termasuk MP4 -> MP3 (ambil audionya). Semua di browser, tanpa server.
+       ══════════════════════════════════════════════════ */
+    let eijiConvFile = null;
+    let eijiConvCat = null;       // 'image' | 'audio'
+    let eijiConvTarget = null;    // mime/format string
+    let eijiConvBlobUrl = null;
+
+    const EIJI_IMG_TARGETS = [
+        { label: 'JPG', mime: 'image/jpeg', ext: 'jpg' },
+        { label: 'PNG', mime: 'image/png', ext: 'png' },
+        { label: 'WEBP', mime: 'image/webp', ext: 'webp' }
+    ];
+    const EIJI_AUDIO_TARGETS = [
+        { label: 'MP3', mime: 'audio/mpeg', ext: 'mp3' },
+        { label: 'WAV', mime: 'audio/wav', ext: 'wav' }
+    ];
+
+    function eijiOpenConv() {
+        eijiConvReset();
+        document.getElementById('eijiConvModal').classList.add('open');
+    }
+
+    function eijiConvClose() {
+        document.getElementById('eijiConvModal').classList.remove('open');
+        eijiConvReset();
+    }
+
+    function eijiConvReset() {
+        eijiConvFile = null; eijiConvCat = null; eijiConvTarget = null;
+        if (eijiConvBlobUrl) { try { URL.revokeObjectURL(eijiConvBlobUrl); } catch (e) {} eijiConvBlobUrl = null; }
+        const info = document.getElementById('eijiConvInfo');
+        const wrap = document.getElementById('eijiConvTargetWrap');
+        const runBtn = document.getElementById('eijiConvRunBtn');
+        const status = document.getElementById('eijiConvStatus');
+        const dl = document.getElementById('eijiConvDownload');
+        if (info) info.textContent = '';
+        if (wrap) wrap.style.display = 'none';
+        if (runBtn) runBtn.style.display = 'none';
+        if (status) status.textContent = '';
+        if (dl) dl.style.display = 'none';
+    }
+
+    function eijiConvHumanSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / 1048576).toFixed(1) + ' MB';
+    }
+
+    function eijiConvHandle(input) {
+        const file = input && input.files && input.files[0];
+        if (!file) return;
+        eijiConvFile = file;
+        eijiConvBlobUrl && URL.revokeObjectURL(eijiConvBlobUrl);
+        eijiConvBlobUrl = null;
+
+        const type = file.type || '';
+        if (/^image\//.test(type)) eijiConvCat = 'image';
+        else if (/^audio\//.test(type) || /^video\//.test(type)) eijiConvCat = 'audio';
+        else { eijiConvCat = null; }
+
+        const info = document.getElementById('eijiConvInfo');
+        const dl = document.getElementById('eijiConvDownload');
+        const status = document.getElementById('eijiConvStatus');
+        if (dl) dl.style.display = 'none';
+        if (status) status.textContent = '';
+
+        if (!eijiConvCat) {
+            info.textContent = 'Format ini belum didukung. Pilih file gambar, audio, atau video.';
+            document.getElementById('eijiConvTargetWrap').style.display = 'none';
+            document.getElementById('eijiConvRunBtn').style.display = 'none';
+            return;
+        }
+
+        info.textContent = file.name + '  •  ' + eijiConvHumanSize(file.size) +
+            (eijiConvCat === 'audio' ? '  •  (video/audio → diambil audionya)' : '');
+
+        const targets = eijiConvCat === 'image' ? EIJI_IMG_TARGETS : EIJI_AUDIO_TARGETS;
+        const cont = document.getElementById('eijiConvTargets');
+        cont.innerHTML = '';
+        targets.forEach((t, idx) => {
+            const b = document.createElement('button');
+            b.className = 'eiji-photo-mode' + (idx === 0 ? ' active' : '');
+            b.textContent = t.label;
+            b.setAttribute('data-mime', t.mime);
+            b.onclick = () => eijiConvSetTarget(t.mime);
+            cont.appendChild(b);
+        });
+        eijiConvTarget = targets[0].mime;
+        document.getElementById('eijiConvTargetWrap').style.display = 'block';
+        document.getElementById('eijiConvRunBtn').style.display = 'block';
+    }
+
+    function eijiConvSetTarget(mime) {
+        eijiConvTarget = mime;
+        document.querySelectorAll('#eijiConvTargets .eiji-photo-mode').forEach(b =>
+            b.classList.toggle('active', b.getAttribute('data-mime') === mime));
+        const dl = document.getElementById('eijiConvDownload');
+        if (dl) dl.style.display = 'none';
+        document.getElementById('eijiConvStatus').textContent = '';
+    }
+
+    async function eijiConvRun() {
+        if (!eijiConvFile || !eijiConvTarget) return;
+        const status = document.getElementById('eijiConvStatus');
+        const dl = document.getElementById('eijiConvDownload');
+        dl.style.display = 'none';
+        status.textContent = '⏳ Mengonversi... (file besar bisa butuh beberapa detik)';
+        await new Promise(r => setTimeout(r, 60)); // biar status sempat tampil
+
+        try {
+            let blob, ext;
+            if (eijiConvCat === 'image') {
+                const meta = EIJI_IMG_TARGETS.find(t => t.mime === eijiConvTarget);
+                ext = meta.ext;
+                blob = await eijiConvertImage(eijiConvFile, eijiConvTarget);
+            } else {
+                const meta = EIJI_AUDIO_TARGETS.find(t => t.mime === eijiConvTarget);
+                ext = meta.ext;
+                blob = await eijiConvertAudio(eijiConvFile, ext);
+            }
+            if (!blob) throw new Error('Hasil konversi kosong.');
+            if (eijiConvBlobUrl) { try { URL.revokeObjectURL(eijiConvBlobUrl); } catch (e) {} }
+            eijiConvBlobUrl = URL.createObjectURL(blob);
+            const base = (eijiConvFile.name || 'hasil').replace(/\.[^.]+$/, '') || 'hasil';
+            dl.href = eijiConvBlobUrl;
+            dl.setAttribute('download', base + '.' + ext);
+            dl.style.display = 'block';
+            status.textContent = '✅ Selesai (' + eijiConvHumanSize(blob.size) + '). Klik Download Hasil.';
+        } catch (e) {
+            console.error('Convert error:', e);
+            status.textContent = '⚠️ Gagal konversi: ' + (e.message || 'format tidak didukung browser') +
+                '. Untuk audio, pastikan file punya track audio yang bisa dibaca browser.';
+        }
+    }
+
+    function eijiConvertImage(file, mime) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                const c = document.createElement('canvas');
+                c.width = img.naturalWidth; c.height = img.naturalHeight;
+                const ctx = c.getContext('2d');
+                if (mime === 'image/jpeg') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); }
+                ctx.drawImage(img, 0, 0);
+                c.toBlob(b => b ? resolve(b) : reject(new Error('format tidak didukung')), mime, 0.92);
+            };
+            img.onerror = () => reject(new Error('gagal membuka gambar'));
+            const r = new FileReader();
+            r.onload = e => { img.src = e.target.result; };
+            r.onerror = () => reject(new Error('gagal membaca file'));
+            r.readAsDataURL(file);
+        });
+    }
+
+    async function eijiConvertAudio(file, ext) {
+        const arrayBuf = await file.arrayBuffer();
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) throw new Error('browser tidak mendukung Web Audio');
+        const ac = new AC();
+        let audioBuf;
+        try {
+            audioBuf = await ac.decodeAudioData(arrayBuf.slice(0));
+        } finally {
+            try { ac.close(); } catch (e) {}
+        }
+        if (ext === 'wav') return eijiAudioBufToWav(audioBuf);
+        if (typeof lamejs === 'undefined') throw new Error('encoder MP3 belum termuat, refresh halaman');
+        return eijiAudioBufToMp3(audioBuf);
+    }
+
+    function eijiFloatTo16(f) {
+        const o = new Int16Array(f.length);
+        for (let i = 0; i < f.length; i++) {
+            const s = f[i] < -1 ? -1 : f[i] > 1 ? 1 : f[i];
+            o[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+        return o;
+    }
+
+    function eijiAudioBufToMp3(ab) {
+        const numCh = Math.min(2, ab.numberOfChannels);
+        const enc = new lamejs.Mp3Encoder(numCh, ab.sampleRate, 128);
+        const left = eijiFloatTo16(ab.getChannelData(0));
+        const right = numCh > 1 ? eijiFloatTo16(ab.getChannelData(1)) : null;
+        const block = 1152;
+        const out = [];
+        for (let i = 0; i < left.length; i += block) {
+            const l = left.subarray(i, i + block);
+            let buf;
+            if (numCh > 1) buf = enc.encodeBuffer(l, right.subarray(i, i + block));
+            else buf = enc.encodeBuffer(l);
+            if (buf.length > 0) out.push(new Uint8Array(buf));
+        }
+        const fin = enc.flush();
+        if (fin.length > 0) out.push(new Uint8Array(fin));
+        return new Blob(out, { type: 'audio/mpeg' });
+    }
+
+    function eijiAudioBufToWav(ab) {
+        const numCh = ab.numberOfChannels, sr = ab.sampleRate, len = ab.length;
+        const blockAlign = numCh * 2;
+        const dataLen = len * blockAlign;
+        const buffer = new ArrayBuffer(44 + dataLen);
+        const view = new DataView(buffer);
+        const ws = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+        ws(0, 'RIFF'); view.setUint32(4, 36 + dataLen, true); ws(8, 'WAVE');
+        ws(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
+        view.setUint16(22, numCh, true); view.setUint32(24, sr, true);
+        view.setUint32(28, sr * blockAlign, true); view.setUint16(32, blockAlign, true);
+        view.setUint16(34, 16, true); ws(36, 'data'); view.setUint32(40, dataLen, true);
+        const chans = [];
+        for (let c = 0; c < numCh; c++) chans.push(ab.getChannelData(c));
+        let off = 44;
+        for (let i = 0; i < len; i++) {
+            for (let c = 0; c < numCh; c++) {
+                let s = chans[c][i]; s = s < -1 ? -1 : s > 1 ? 1 : s;
+                view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7FFF, true); off += 2;
+            }
+        }
+        return new Blob([view], { type: 'audio/wav' });
     }
 
     /* ══════════════════════════════════════════════════
