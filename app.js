@@ -2226,7 +2226,7 @@
         let hash = 0;
         for (const ch of (sym || '?')) hash += ch.charCodeAt(0);
         const c = colors[hash % colors.length];
-        const letter = (sym && sym[0] ? sym[0] : '?').toUpperCase();
+        const letter = escapeHtml((sym && sym[0] ? sym[0] : '?').toUpperCase());
         return `<div style="width:22px;height:22px;border-radius:50%;background:${c};display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;vertical-align:middle;">${letter}</div>`;
     }
 
@@ -2279,7 +2279,7 @@
             btn.className = 'flex items-center gap-3 px-4 py-2 rounded-xl hover:bg-white/5 transition w-full text-left';
             const isCurrent = (target === 'from' ? swapFrom : swapTo) === i;
             const tag = tk.custom ? '<span class="text-[10px] text-gray-500 ml-1">Imported</span>' : '';
-            btn.innerHTML = `<span style="font-size:1.3rem">${escapeHtml(tk.icon)}</span><span class="flex flex-col"><span class="font-semibold leading-tight">${escapeHtml(tk.sym)}${tag}</span>${tk.name ? `<span class="text-[11px] text-gray-500 leading-tight">${escapeHtml(tk.name)}</span>` : ''}</span>${isCurrent ? '<span class="ml-auto text-xs text-cyan-400">Selected</span>' : ''}`;
+            btn.innerHTML = `<span style="font-size:1.3rem">${tk.icon}</span><span class="flex flex-col"><span class="font-semibold leading-tight">${escapeHtml(tk.sym)}${tag}</span>${tk.name ? `<span class="text-[11px] text-gray-500 leading-tight">${escapeHtml(tk.name)}</span>` : ''}</span>${isCurrent ? '<span class="ml-auto text-xs text-cyan-400">Selected</span>' : ''}`;
             btn.onclick = () => {
                 if (target === 'from') swapFrom = i; else swapTo = i;
                 menu.classList.add('hidden'); tokenMenuTarget = null;
