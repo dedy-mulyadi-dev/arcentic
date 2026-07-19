@@ -1822,10 +1822,12 @@
 
     function setSpotPair(idxStr) {
         spotPairIdx = parseInt(idxStr, 10) || 0;
+        spotLastMidPrice = null; // reset so % change isn't computed across two different pairs
         const p = spotPair();
         document.getElementById('spotPairLabel').innerText = `${p.base.sym} / ${p.quote.sym}`;
         document.getElementById('spotAmountLabel').innerText = `Jumlah (${spotSide === 'buy' ? p.quote.sym : p.base.sym})`;
         updateSpotSubmitLabel();
+        updateSpotBalance();
         renderSpotChart();
         pollSpotMarket();
     }
@@ -1838,6 +1840,7 @@
         document.getElementById('spotAmountLabel').innerText = `Jumlah (${side === 'buy' ? p.quote.sym : p.base.sym})`;
         document.getElementById('spotEstimateLabel').innerText = side === 'buy' ? `Estimasi ${p.base.sym} diterima` : `Estimasi ${p.quote.sym} diterima`;
         updateSpotSubmitLabel();
+        updateSpotBalance();
         updateSpotEstimate();
     }
 
@@ -1868,6 +1871,20 @@
         const val = parseFloat(bal) * pct;
         document.getElementById('spotAmount').value = val > 0 ? val.toFixed(6) : '';
         updateSpotEstimate();
+    }
+
+    /* Show the wallet balance of the token being spent (quote when buying,
+       base when selling) next to the amount input. */
+    async function updateSpotBalance() {
+        const el = document.getElementById('spotBalance');
+        if (!el) return;
+        const p = spotPair();
+        const tok = spotSide === 'buy' ? p.quote : p.base;
+        if (!isConnected || !currentAccount) { el.innerText = 'Balance: —'; return; }
+        try {
+            const bal = await fetchTokenBalance(tok, currentAccount);
+            el.innerText = `Balance: ${bal} ${tok.sym}`;
+        } catch { el.innerText = 'Balance: —'; }
     }
 
     /* Live mid price from pool reserves (base priced in quote) */
@@ -1931,21 +1948,19 @@
        konstanta x*y=k pada beberapa ukuran trade untuk menggambarkan
        price impact, ditampilkan gaya order book. */
     function computeAmmDepth(resBase, resQuote) {
-        const sizes = [0.005, 0.01, 0.025, 0.05, 0.1]; // % dari reserve base
-        const asks = []; // jual base -> dapat quote (harga naik dari sisi taker)
-        const bids = []; // beli base pakai quote (harga turun dari sisi taker)
+        const sizes = [0.005, 0.01, 0.025, 0.05, 0.1]; // % dari reserve
+        const asks = []; // beli base pakai quote -> harga DI ATAS mid (yang dibayar pembeli)
+        const bids = []; // jual base -> dapat quote -> harga DI BAWAH mid (yang diterima penjual)
         sizes.forEach(pct => {
-            const amtBase = resBase * pct;
-            // sell base: k=resBase*resQuote tetap; out = resQuote - k/(resBase+amtBase)
-            const quoteOut = resQuote - (resBase * resQuote) / (resBase + amtBase);
-            const askPrice = quoteOut / amtBase;
-            asks.push({ price: askPrice, amount: amtBase });
-
-            // buy base with quote worth same notional at current mid, approx via amtQuote
+            // ask: buy base with quote; price impact pushes price up (> mid)
             const amtQuote = resQuote * pct;
             const baseOut = resBase - (resBase * resQuote) / (resQuote + amtQuote);
-            const bidPrice = amtQuote / baseOut;
-            bids.push({ price: bidPrice, amount: baseOut });
+            asks.push({ price: amtQuote / baseOut, amount: baseOut });
+
+            // bid: sell base for quote; price impact pushes price down (< mid)
+            const amtBase = resBase * pct;
+            const quoteOut = resQuote - (resBase * resQuote) / (resBase + amtBase);
+            bids.push({ price: quoteOut / amtBase, amount: amtBase });
         });
         return { asks, bids };
     }
@@ -2083,6 +2098,7 @@
             await executeSwap();
             document.getElementById('spotAmount').value = '';
             updateSpotEstimate();
+            updateSpotBalance();
         } finally {
             if (submitBtn) submitBtn.disabled = false;
         }
@@ -2159,6 +2175,7 @@
         populateSpotPairSelect();
         setSpotSide(spotSide);
         setSpotOrderType(spotOrderType);
+        updateSpotBalance();
         renderSpotChart();
         renderSpotLimitOrders();
         pollSpotMarket();
