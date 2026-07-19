@@ -188,9 +188,19 @@ svg{width:100%;height:100%}
 }
 .spot-pair-btn {
     background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
-    border-radius: 12px; padding: 8px 14px; font-weight: 700; font-size: .85rem;
+    border-radius: 12px; padding: 8px 34px 8px 14px; font-weight: 700; font-size: .85rem;
     cursor: pointer; white-space: nowrap; color: #fff;
+    appearance: none; -webkit-appearance: none; -moz-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%239aa5c9' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    transition: .2s;
 }
+.spot-pair-btn:hover { background-color: rgba(92,120,255,.2); border-color: rgba(92,120,255,.5); }
+/* Style the opened <option> list — otherwise it falls back to the browser's
+   default white background, making the white option text invisible. Same trick
+   as .stake-token-select / .admin-select / .bridge-chain-select. */
+.spot-pair-btn option { background: #0b0f1f; color: #fff; }
 .ob-row { display:flex; justify-content:space-between; font-size:.78rem; padding:3px 8px; position:relative; font-variant-numeric: tabular-nums; }
 .ob-row .ob-bar { position:absolute; top:0; bottom:0; right:0; z-index:0; opacity:.16; }
 .ob-row.ask .ob-bar { background:#ef4444; }
@@ -882,7 +892,6 @@ nav button.glass:hover {
 #addTokenModal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(4,8,22,.93); align-items:center; justify-content:center; }
 #addTokenModal.open { display:flex; }
 </style>
-<script src="secrets.js"></script>
 </head>
 <body class="gridbg min-h-screen">
 <div class="orb1"></div>
@@ -1162,7 +1171,10 @@ nav button.glass:hover {
                 </div>
 
                 <label class="text-xs text-gray-400 mb-1 block" id="spotAmountLabel">Jumlah (CENTIC)</label>
-                <input id="spotAmount" type="number" placeholder="0.00" oninput="updateSpotEstimate()" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-cyan-400/50 mb-3" style="color:#fff;">
+                <div class="relative mb-3">
+                    <input id="spotAmount" type="number" placeholder="0.00" oninput="updateSpotEstimate()" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-cyan-400/50 pr-20" style="color:#fff;">
+                    <div id="spotBalance" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Balance: —</div>
+                </div>
 
                 <div class="flex gap-2 mb-3">
                     <button onclick="setSpotAmountPct(0.25)" class="glass rounded-lg py-1.5 text-xs flex-1">25%</button>
@@ -1171,16 +1183,21 @@ nav button.glass:hover {
                     <button onclick="setSpotAmountPct(1)" class="glass rounded-lg py-1.5 text-xs flex-1">Max</button>
                 </div>
 
-                <div class="glass rounded-xl px-3 py-2.5 mb-4 text-xs flex justify-between text-gray-400">
+                <div class="glass rounded-xl px-3 py-2.5 mb-3 text-xs flex justify-between text-gray-400">
                     <span id="spotEstimateLabel">Estimasi diterima</span>
                     <span id="spotEstimateValue">—</span>
+                </div>
+
+                <div class="glass rounded-xl px-3 py-2.5 mb-4 text-xs flex justify-between text-gray-400">
+                    <span>Slippage: ~0.5%</span>
+                    <span id="spotFeeDisplay">Gas: —</span>
                 </div>
 
                 <button id="spotSubmitBtn" onclick="submitSpotOrder()" class="w-full py-3.5 rounded-2xl font-bold text-base" style="background:linear-gradient(135deg,#22c55e,#16a34a);">Buy CENTIC</button>
                 <p id="spotStatus" class="text-center text-xs text-gray-500 mt-3 hidden"></p>
 
                 <div class="mt-4 rounded-xl px-3 py-2.5 text-[11px] text-gray-400" style="background:rgba(92,120,255,.08);border:1px solid rgba(92,120,255,.15);">
-                    ⚠️ <b class="text-gray-300">Limit order</b> dijalankan otomatis oleh browser-mu saat harga tercapai — <b>hanya berjalan selama tab ini terbuka</b> dan wallet tetap connect. Ini bukan order book on-chain sungguhan, murni fitur klien.
+                    ⚠️ Limit order berjalan di browser & hanya saat tab terbuka. Bukan order on-chain.
                 </div>
             </div>
         </div>
