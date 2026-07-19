@@ -4659,12 +4659,57 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
                 try {
                     return await eijiCallGroq(messages, false);
                 } catch (err2) {
-                    console.warn('Groq (no-tools) juga gagal, fallback ke Gemini:', err2.message);
+                    console.warn('Groq (no-tools) juga gagal, fallback ke OpenRouter:', err2.message);
+                    return await eijiCallOpenRouterSafe(messages);
+                }
+            }
+            // Groq down / rate-limited / 5xx / network error -> fallback ke OpenRouter
+            console.warn('Groq gagal (' + err.message + '), fallback ke OpenRouter...');
+            return await eijiCallOpenRouterSafe(messages);
+        }
+    }
+
+    /* Fallback provider #1: OpenRouter (pakai OPENROUTER_API_KEY di server).
+       Body OpenAI-style yang sama diteruskan apa adanya via /api/openrouter,
+       jadi semua logic tool-calling tetap jalan. Kalau OpenRouter juga gagal,
+       lanjut fallback terakhir ke Gemini. */
+    async function eijiCallOpenRouter(messages, useTools) {
+        if (useTools === undefined) useTools = true;
+        const body = {
+            model: 'meta-llama/llama-3.3-70b-instruct',
+            max_tokens: 1024,
+            messages
+        };
+        if (useTools) {
+            body.tools = EIJI_TOOLS;
+            body.tool_choice = 'auto';
+        }
+        const res = await eijiFetchWithTimeout('/api/openrouter', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const json = await res.json();
+        if (!res.ok) {
+            const apiMsg = (json && json.error && json.error.message) ? json.error.message : JSON.stringify(json);
+            throw new Error('OpenRouter API ' + res.status + ': ' + apiMsg);
+        }
+        return json;
+    }
+
+    async function eijiCallOpenRouterSafe(messages) {
+        try {
+            return await eijiCallOpenRouter(messages, true);
+        } catch (err) {
+            if (err && /failed to call a function/i.test(err.message)) {
+                try {
+                    return await eijiCallOpenRouter(messages, false);
+                } catch (err2) {
+                    console.warn('OpenRouter (no-tools) juga gagal, fallback ke Gemini:', err2.message);
                     return await eijiCallGeminiSafe(messages);
                 }
             }
-            // Groq down / rate-limited / 5xx / network error -> fallback diam-diam ke Gemini
-            console.warn('Groq gagal (' + err.message + '), fallback ke Gemini...');
+            console.warn('OpenRouter gagal (' + err.message + '), fallback ke Gemini...');
             return await eijiCallGeminiSafe(messages);
         }
     }
@@ -4868,7 +4913,9 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
         } catch (err) {
             removeEijiTyping();
             console.error('Eiji error:', err);
-            appendEijiBubble('agent', '⚠️ Error: ' + (err && err.message ? err.message : String(err)));
+            // Jangan tampilkan pesan error mentah dari provider (mis. JSON kuota
+            // Gemini) ke user. Semua provider gagal -> pesan ramah + saran retry.
+            appendEijiBubble('agent', '⚠️ Maaf, layanan AI sedang sibuk atau limit sementara. Coba tanya lagi sebentar lagi ya!');
         }
 
         eijiIsTyping = false;
