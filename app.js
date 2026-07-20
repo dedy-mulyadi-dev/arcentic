@@ -20,10 +20,10 @@
     const ARC_CHAIN = {
         chainId: '0x4CEF52',
         chainName: 'Arc Testnet',
-        // Multiple independent public RPC endpoints for better resilience
-        // If the primary one hiccups (returns an HTTP 4xx/5xx) the wallet can
-        // fail over to the next available endpoint.
+        // Dedicated Alchemy endpoint first (faster, less shared congestion),
+        // public endpoints as fallback if Alchemy hiccups or quota runs out.
         rpcUrls: [
+            'https://arc-testnet.g.alchemy.com/v2/ujJWV8UeW1N9-LcH7aXK8',
             'https://rpc.testnet.arc.network',
             'https://arc-testnet.drpc.org'
         ],
@@ -540,7 +540,7 @@
         }
         try {
             const erc20 = new ethers.Contract(addr, ['function symbol() view returns (string)', 'function decimals() view returns (uint8)'], provider);
-            const [sym, decimals] = await Promise.all([erc20.symbol(), erc20.decimals()]);
+            const [sym, decimals] = await withRpcRetry(() => Promise.all([erc20.symbol(), erc20.decimals()]));
             const meta = { sym, decimals, icon: '' };
             stakeTokenMetaCache[key] = meta;
             return meta;
@@ -1260,14 +1260,18 @@
             const provider = readOnlyProvider() || (window.ethereum ? new ethers.providers.Web3Provider(window.ethereum) : null);
             if (!provider) throw new Error('No RPC provider available');
             const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, provider);
-            const count = (await staking.supportedTokensLength()).toNumber();
+            const onRpcRetry = (n, max) => {
+                const sel = document.getElementById('stakeTokenPicker');
+                if (sel) sel.innerHTML = `<option value="">RPC lambat — mencoba ulang (${n}/${max})…</option>`;
+            };
+            const count = (await withRpcRetry(() => staking.supportedTokensLength(), { onRetry: onRpcRetry })).toNumber();
 
             // Fetch every token's address, support flag, and metadata concurrently
             // instead of one at a time — with several whitelisted tokens this was
             // N sequential RPC round-trips, which is what made opening Stake feel slow.
-            const addrs = await Promise.all(Array.from({ length: count }, (_, i) => staking.supportedTokenAt(i)));
+            const addrs = await Promise.all(Array.from({ length: count }, (_, i) => withRpcRetry(() => staking.supportedTokenAt(i), { onRetry: onRpcRetry })));
             const entries = await Promise.all(addrs.map(async (addr) => {
-                const isSupported = await staking.tokenSupported(addr);
+                const isSupported = await withRpcRetry(() => staking.tokenSupported(addr), { onRetry: onRpcRetry });
                 if (!isSupported) return null; // owner paused new stakes for this token
                 const meta = await getStakeTokenMeta(addr, provider);
                 return { addr, ...meta };
@@ -1337,10 +1341,14 @@
             const provider = readOnlyProvider() || (window.ethereum ? new ethers.providers.Web3Provider(window.ethereum) : null);
             if (!provider) throw new Error('No RPC provider available');
             const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, provider);
-            const count = (await staking.tiersLength(selectedStakeToken)).toNumber();
+            const onRpcRetry = (n, max) => {
+                document.getElementById('stakeTierGrid').innerHTML =
+                    `<div class="text-center col-span-3 text-gray-400 text-sm py-4">RPC lambat — mencoba ulang (${n}/${max})…</div>`;
+            };
+            const count = (await withRpcRetry(() => staking.tiersLength(selectedStakeToken), { onRetry: onRpcRetry })).toNumber();
             const tiers = await Promise.all(
                 Array.from({ length: count }, async (_, i) => {
-                    const t = await staking.tierAt(selectedStakeToken, i);
+                    const t = await withRpcRetry(() => staking.tierAt(selectedStakeToken, i), { onRetry: onRpcRetry });
                     return { id: i, lockDuration: t.lockDuration.toNumber(), aprBps: t.aprBps.toNumber(), active: t.active };
                 })
             );
