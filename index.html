@@ -173,7 +173,11 @@ svg{width:100%;height:100%}
     transform: scale(0.985);
     opacity: 0;
     transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
-    overflow-y: auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
     will-change: transform, opacity;
     -webkit-overflow-scrolling: touch;
     pointer-events: none;
@@ -202,6 +206,7 @@ svg{width:100%;height:100%}
 /* Top ticker bar */
 .spot-pro-header {
     position: sticky; top: 0; z-index: 5;
+    flex-shrink: 0;
     display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
     padding: 10px 16px; background: rgba(8,12,24,.92); backdrop-filter: blur(10px);
     border-bottom: 1px solid rgba(255,255,255,.08);
@@ -228,13 +233,16 @@ svg{width:100%;height:100%}
     grid-template-columns: 1fr 260px 300px;
     gap: 1px;
     background: rgba(255,255,255,.06);
-    min-height: 560px;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
 }
 .spot-pro-chart-col, .spot-pro-ob-col, .spot-pro-trade-col { background:#070b16; }
-.spot-pro-chart-col { display:flex; flex-direction:column; min-width:0; }
+.spot-pro-chart-col { display:flex; flex-direction:column; min-width:0; min-height:0; overflow:hidden; }
 .spot-pro-toolbar {
     display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
-    padding:8px 12px; border-bottom:1px solid rgba(255,255,255,.06);
+    padding:6px 12px; border-bottom:1px solid rgba(255,255,255,.06);
+    flex-shrink: 0;
 }
 .spot-pro-tf-group { display:flex; gap:4px; }
 .spot-tf-btn {
@@ -244,11 +252,11 @@ svg{width:100%;height:100%}
 .spot-tf-btn:hover { color:#fff; background:rgba(255,255,255,.05); }
 .spot-tf-btn.spot-tf-active { color:#fff; background:rgba(139,92,246,.18); border-color:rgba(139,92,246,.4); }
 .spot-pro-toolbar-right { display:flex; align-items:center; gap:10px; }
-.spot-pro-chart-wrap { flex:1; padding:10px 12px 14px; min-height:420px; }
+.spot-pro-chart-wrap { flex:1; padding:8px 12px 10px; min-height:0; }
 .spot-pro-chart-wrap canvas { width:100%; height:100%; display:block; }
 
 /* Order book column */
-.spot-pro-ob-col { display:flex; flex-direction:column; padding:10px 0; min-width:0; }
+.spot-pro-ob-col { display:flex; flex-direction:column; padding:8px 0; min-width:0; min-height:0; overflow-y:auto; }
 .spot-pro-ob-tabs { display:flex; gap:16px; padding:0 12px 8px; border-bottom:1px solid rgba(255,255,255,.06); margin-bottom:6px; }
 .spot-pro-ob-tab { font-size:.78rem; font-weight:700; color:rgba(255,255,255,.35); cursor:default; padding-bottom:8px; }
 .spot-pro-ob-tab.active { color:#fff; border-bottom:2px solid #8b5cf6; margin-bottom:-9px; }
@@ -278,7 +286,7 @@ svg{width:100%;height:100%}
 .spot-pro-spread { font-size:.65rem; font-weight:600; color:rgba(255,255,255,.4); }
 
 /* Trade panel column */
-.spot-pro-trade-col { padding:14px; display:flex; flex-direction:column; min-width:0; }
+.spot-pro-trade-col { padding:12px 14px; display:flex; flex-direction:column; min-width:0; min-height:0; overflow-y:auto; }
 .spot-tab-btn {
     flex:1; text-align:center; padding:10px; border-radius:12px; font-weight:700; font-size:.85rem;
     cursor:pointer; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); color:rgba(255,255,255,.55);
@@ -290,8 +298,10 @@ svg{width:100%;height:100%}
 .limit-order-row { display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:10px 14px; font-size:.8rem; }
 
 @media (max-width: 1024px) {
-    .spot-pro-body { grid-template-columns: 1fr; }
+    #spotTradeView { overflow-y: auto; height: auto; min-height: 100vh; min-height: 100dvh; }
+    .spot-pro-body { grid-template-columns: 1fr; flex: none; overflow: visible; }
     .spot-pro-chart-wrap { min-height:320px; }
+    .spot-pro-ob-col, .spot-pro-trade-col { overflow-y: visible; }
 }
 
 /* ── Trading Hub overlay ── */
