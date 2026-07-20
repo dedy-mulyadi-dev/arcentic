@@ -166,10 +166,10 @@ svg{width:100%;height:100%}
     animation: fadeInUp .35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* ── Spot Trading overlay (pro exchange layout) ── */
+/* ── Spot Trading overlay (Synthra-like CEX layout) ── */
 #spotTradeView {
     position: fixed; inset: 0; z-index: 200;
-    background: #04070f;
+    background: #0a0e17;
     transform: scale(0.985);
     opacity: 0;
     transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
@@ -188,114 +188,119 @@ svg{width:100%;height:100%}
     pointer-events: auto;
 }
 .spot-pair-btn, .spot-pair-btn2 {
-    background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
-    border-radius: 10px; padding: 7px 30px 7px 12px; font-weight: 800; font-size: .85rem;
-    cursor: pointer; white-space: nowrap; color: #fff;
+    background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(71, 85, 105, 0.5);
+    border-radius: 8px; padding: 8px 32px 8px 14px; font-weight: 600; font-size: .9rem;
+    cursor: pointer; white-space: nowrap; color: #e2e8f0;
     appearance: none; -webkit-appearance: none; -moz-appearance: none;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%239aa5c9' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
     background-repeat: no-repeat;
-    background-position: right 10px center;
+    background-position: right 12px center;
     transition: .2s;
 }
-.spot-pair-btn:hover, .spot-pair-btn2:hover { background-color: rgba(92,120,255,.2); border-color: rgba(92,120,255,.5); }
+.spot-pair-btn:hover, .spot-pair-btn2:hover { background-color: rgba(51, 65, 85, 0.9); border-color: rgba(100, 116, 139, 0.6); }
 /* Style the opened <option> list — otherwise it falls back to the browser's
    default white background, making the white option text invisible. Same trick
    as .stake-token-select / .admin-select / .bridge-chain-select. */
 .spot-pair-btn option, .spot-pair-btn2 option { background: #0b0f1f; color: #fff; }
 
-/* Top ticker bar */
+/* Top ticker bar - Synthra style */
 .spot-pro-header {
     position: sticky; top: 0; z-index: 5;
     flex-shrink: 0;
-    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
-    padding: 10px 16px; background: rgba(8,12,24,.92); backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(255,255,255,.08);
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+    padding: 12px 20px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(51, 65, 85, 0.6);
 }
 .spot-pro-header-left { display:flex; align-items:center; gap:18px; flex-wrap: wrap; min-width:0; }
 .spot-pro-back {
-    width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center;
-    background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); color:#fff; font-size:1rem;
+    width:40px; height:40px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+    background:rgba(30, 41, 59, 0.8); border:1px solid rgba(71, 85, 105, 0.5); color:#cbd5e1; font-size:1.1rem;
     cursor:pointer; transition:.2s; flex-shrink:0;
 }
-.spot-pro-back:hover { border-color:rgba(255,255,255,.3); }
-.spot-pro-price-block { display:flex; align-items:baseline; gap:8px; }
-.spot-pro-price { font-size:1.15rem; font-weight:800; font-variant-numeric: tabular-nums; }
-.spot-pro-change { font-size:.75rem; font-weight:700; padding:2px 0; }
-.spot-pro-stat { display:flex; flex-direction:column; gap:2px; min-width:96px; }
-.spot-pro-stat-label { font-size:.65rem; text-transform:uppercase; letter-spacing:.04em; color:rgba(255,255,255,.4); }
-.spot-pro-stat-value { font-size:.8rem; font-weight:700; font-variant-numeric: tabular-nums; }
+.spot-pro-back:hover { background:rgba(51, 65, 85, 0.9); border-color:rgba(100, 116, 139, 0.7); color:#fff; }
+.spot-pro-price-block { display:flex; align-items:baseline; gap:10px; }
+.spot-pro-price { font-size:1.4rem; font-weight:700; font-variant-numeric: tabular-nums; color:#f1f5f9; }
+.spot-pro-change { font-size:.8rem; font-weight:600; padding:3px 8px; border-radius:6px; background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+.spot-pro-stat { display:flex; flex-direction:column; gap:3px; min-width:100px; }
+.spot-pro-stat-label { font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:rgba(148, 163, 184, 0.7); font-weight:500; }
+.spot-pro-stat-value { font-size:.85rem; font-weight:600; font-variant-numeric: tabular-nums; color:#e2e8f0; }
 .spot-pro-header-right { display:flex; align-items:center; gap:8px; flex-shrink:0; }
-.spot-live-badge { display:flex; align-items:center; gap:4px; }
+.spot-live-badge { display:flex; align-items:center; gap:6px; padding: 6px 12px; border-radius:20px; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); font-size:.75rem; font-weight:600; color: #22c55e; }
 
-/* 3-column body */
+/* 3-column body - Synthra style */
 .spot-pro-body {
     display: grid;
-    grid-template-columns: 1fr 260px 300px;
+    grid-template-columns: 1fr 280px 320px;
     gap: 1px;
-    background: rgba(255,255,255,.06);
+    background: rgba(51, 65, 85, 0.4);
     flex: 1;
     min-height: 0;
     overflow: hidden;
 }
-.spot-pro-chart-col, .spot-pro-ob-col, .spot-pro-trade-col { background:#070b16; }
+.spot-pro-chart-col, .spot-pro-ob-col, .spot-pro-trade-col { background:#0f172a; }
 .spot-pro-chart-col { display:flex; flex-direction:column; min-width:0; min-height:0; overflow:hidden; }
 .spot-pro-toolbar {
-    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
-    padding:6px 12px; border-bottom:1px solid rgba(255,255,255,.06);
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+    padding:10px 16px; border-bottom:1px solid rgba(51, 65, 85, 0.5);
     flex-shrink: 0;
+    background: rgba(15, 23, 42, 0.5);
 }
-.spot-pro-tf-group { display:flex; gap:4px; }
+.spot-pro-tf-group { display:flex; gap:6px; background: rgba(30, 41, 59, 0.6); padding: 4px; border-radius: 8px; }
 .spot-tf-btn {
-    padding:5px 10px; font-size:.72rem; font-weight:700; border-radius:7px; cursor:pointer;
-    background:transparent; border:1px solid transparent; color:rgba(255,255,255,.45);
+    padding:6px 12px; font-size:.75rem; font-weight:600; border-radius:6px; cursor:pointer;
+    background:transparent; border:1px solid transparent; color:rgba(148, 163, 184, 0.8);
+    transition: .2s;
 }
-.spot-tf-btn:hover { color:#fff; background:rgba(255,255,255,.05); }
-.spot-tf-btn.spot-tf-active { color:#fff; background:rgba(139,92,246,.18); border-color:rgba(139,92,246,.4); }
-.spot-pro-toolbar-right { display:flex; align-items:center; gap:10px; }
-.spot-pro-chart-wrap { flex:1; padding:8px 12px 10px; min-height:0; }
+.spot-tf-btn:hover { color:#f1f5f9; background:rgba(51, 65, 85, 0.8); }
+.spot-tf-btn.spot-tf-active { color:#f1f5f9; background:rgba(59, 130, 246, 0.25); border-color:rgba(59, 130, 246, 0.4); }
+.spot-pro-toolbar-right { display:flex; align-items:center; gap:12px; }
+.spot-pro-chart-wrap { flex:1; padding:12px 16px 14px; min-height:0; }
 .spot-pro-chart-wrap canvas { width:100%; height:100%; display:block; }
 
-/* Order book column */
-.spot-pro-ob-col { display:flex; flex-direction:column; padding:8px 0; min-width:0; min-height:0; overflow-y:auto; }
-.spot-pro-ob-tabs { display:flex; gap:16px; padding:0 12px 8px; border-bottom:1px solid rgba(255,255,255,.06); margin-bottom:6px; }
-.spot-pro-ob-tab { font-size:.78rem; font-weight:700; color:rgba(255,255,255,.35); cursor:default; padding-bottom:8px; }
-.spot-pro-ob-tab.active { color:#fff; border-bottom:2px solid #8b5cf6; margin-bottom:-9px; }
-.spot-pro-ob-head { display:grid; grid-template-columns:1fr 1fr 1fr; font-size:.65rem; color:rgba(255,255,255,.35); padding:0 12px 4px; }
+/* Order book column - Synthra style */
+.spot-pro-ob-col { display:flex; flex-direction:column; padding:12px 0; min-width:0; min-height:0; overflow-y:auto; }
+.spot-pro-ob-tabs { display:flex; gap:20px; padding:0 16px 10px; border-bottom:1px solid rgba(51, 65, 85, 0.5); margin-bottom:8px; }
+.spot-pro-ob-tab { font-size:.8rem; font-weight:600; color:rgba(148, 163, 184, 0.6); cursor:default; padding-bottom:10px; transition: .2s; }
+.spot-pro-ob-tab.active { color:#f1f5f9; border-bottom:2px solid #3b82f6; margin-bottom:-10px; }
+.spot-pro-ob-head { display:grid; grid-template-columns:1fr 1fr 1fr; font-size:.7rem; color:rgba(148, 163, 184, 0.5); padding:0 16px 6px; font-weight:500; }
 .spot-pro-ob-head span:nth-child(2) { text-align:center; }
 .spot-pro-ob-head span:nth-child(3) { text-align:right; }
 .spot-pro-ob-rows { display:flex; flex-direction:column; }
 .spot-pro-ob-row {
-    display:grid; grid-template-columns:1fr 1fr 1fr; font-size:.74rem; padding:2.5px 12px;
-    position:relative; font-variant-numeric: tabular-nums; cursor:default;
+    display:grid; grid-template-columns:1fr 1fr 1fr; font-size:.78rem; padding:3px 16px;
+    position:relative; font-variant-numeric: tabular-nums; cursor:default; transition: .15s;
 }
-.spot-pro-ob-row:hover { background: rgba(255,255,255,.04); }
-.spot-pro-ob-row .spot-pro-ob-bar { position:absolute; top:0; bottom:0; right:0; z-index:0; opacity:.14; }
+.spot-pro-ob-row:hover { background: rgba(30, 41, 59, 0.6); }
+.spot-pro-ob-row .spot-pro-ob-bar { position:absolute; top:0; bottom:0; right:0; z-index:0; opacity:.12; }
 .spot-pro-ob-row.ask .spot-pro-ob-bar { background:#ef4444; }
 .spot-pro-ob-row.bid .spot-pro-ob-bar { background:#22c55e; }
 .spot-pro-ob-row span { position:relative; z-index:1; }
-.spot-pro-ob-row span:nth-child(2) { text-align:center; color:rgba(255,255,255,.65); }
-.spot-pro-ob-row span:nth-child(3) { text-align:right; color:rgba(255,255,255,.4); }
-.ob-ask-price { color:#f87171; }
-.ob-bid-price { color:#4ade80; }
+.spot-pro-ob-row span:nth-child(2) { text-align:center; color:rgba(148, 163, 184, 0.7); }
+.spot-pro-ob-row span:nth-child(3) { text-align:right; color:rgba(148, 163, 184, 0.5); }
+.ob-ask-price { color:#f87171; font-weight:600; }
+.ob-bid-price { color:#4ade80; font-weight:600; }
 .spot-pro-ob-mid {
-    display:flex; align-items:center; justify-content:space-between; gap:10px;
-    padding:8px 12px; margin:4px 0; font-weight:800; font-size:.88rem;
-    border-top:1px dashed rgba(255,255,255,.1); border-bottom:1px dashed rgba(255,255,255,.1);
-    background:rgba(255,255,255,.02);
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:10px 16px; margin:6px 0; font-weight:700; font-size:.92rem;
+    border-top:1px dashed rgba(71, 85, 105, 0.5); border-bottom:1px dashed rgba(71, 85, 105, 0.5);
+    background:rgba(30, 41, 59, 0.4);
+    color:#f1f5f9;
 }
-.spot-pro-spread { font-size:.65rem; font-weight:600; color:rgba(255,255,255,.4); }
+.spot-pro-spread { font-size:.7rem; font-weight:600; color:rgba(148, 163, 184, 0.6); }
 
-/* Trade panel column */
-.spot-pro-trade-col { padding:12px 14px; display:flex; flex-direction:column; min-width:0; min-height:0; overflow-y:auto; }
+/* Trade panel column - Synthra style */
+.spot-pro-trade-col { padding:16px 18px; display:flex; flex-direction:column; min-width:0; min-height:0; overflow-y:auto; background: rgba(15, 23, 42, 0.5); }
 .spot-tab-btn {
-    flex:1; text-align:center; padding:10px; border-radius:12px; font-weight:700; font-size:.85rem;
-    cursor:pointer; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); color:rgba(255,255,255,.55);
+    flex:1; text-align:center; padding:12px; border-radius:10px; font-weight:600; font-size:.9rem;
+    cursor:pointer; background:rgba(30, 41, 59, 0.6); border:1px solid rgba(71, 85, 105, 0.5); color:rgba(148, 163, 184, 0.7); transition: .2s;
 }
-.spot-tab-btn.spot-tab-active-buy { background:linear-gradient(135deg,#22c55e,#16a34a); border-color:transparent; color:#fff; }
-.spot-tab-btn.spot-tab-active-sell { background:linear-gradient(135deg,#ef4444,#dc2626); border-color:transparent; color:#fff; }
-.spot-order-tab { padding:8px 4px; font-size:.8rem; font-weight:700; color:rgba(255,255,255,.4); cursor:pointer; border-bottom:2px solid transparent; }
-.spot-order-tab.spot-order-tab-active { color:#fff; border-color:#8b5cf6; }
-.limit-order-row { display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:10px 14px; font-size:.8rem; }
+.spot-tab-btn:hover { background:rgba(51, 65, 85, 0.8); color:#e2e8f0; }
+.spot-tab-btn.spot-tab-active-buy { background:linear-gradient(135deg,#16a34a,#15803d); border-color:transparent; color:#fff; font-weight:700; }
+.spot-tab-btn.spot-tab-active-sell { background:linear-gradient(135deg,#dc2626,#b91c1c); border-color:transparent; color:#fff; font-weight:700; }
+.spot-order-tab { padding:10px 6px; font-size:.85rem; font-weight:600; color:rgba(148, 163, 184, 0.6); cursor:pointer; border-bottom:2px solid transparent; transition: .2s; }
+.spot-order-tab:hover { color:#e2e8f0; }
+.spot-order-tab.spot-order-tab-active { color:#f1f5f9; border-color:#3b82f6; }
+.limit-order-row { display:flex; justify-content:space-between; align-items:center; background:rgba(30, 41, 59, 0.5); border:1px solid rgba(71, 85, 105, 0.4); border-radius:10px; padding:12px 16px; font-size:.85rem; color:#e2e8f0; }
 
 @media (max-width: 1024px) {
     #spotTradeView { overflow-y: auto; height: auto; min-height: 100vh; min-height: 100dvh; }
@@ -1300,44 +1305,44 @@ nav button.glass:hover {
                 <div class="spot-tab-btn spot-tab-active-buy" onclick="setSpotSide('buy')" id="spotTabBuy">Buy</div>
                 <div class="spot-tab-btn" onclick="setSpotSide('sell')" id="spotTabSell">Sell</div>
             </div>
-            <div class="flex gap-4 mb-4 text-sm" id="spotOrderTypeTabs">
+            <div class="flex gap-4 mb-5 text-sm" id="spotOrderTypeTabs">
                 <div class="spot-order-tab spot-order-tab-active" onclick="setSpotOrderType('market')" id="spotTypeMarket">Market</div>
                 <div class="spot-order-tab" onclick="setSpotOrderType('limit')" id="spotTypeLimit">Limit</div>
             </div>
 
-            <div id="spotLimitPriceWrap" class="hidden mb-3">
-                <label class="text-xs text-gray-400 mb-1 block">Harga limit</label>
-                <input id="spotLimitPrice" type="number" placeholder="0.00" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-cyan-400/50" style="color:#fff;">
+            <div id="spotLimitPriceWrap" class="hidden mb-4">
+                <label class="text-xs text-gray-400 mb-2 block font-medium">Limit Price</label>
+                <input id="spotLimitPrice" type="number" placeholder="0.00" class="w-full bg-slate-800/60 border border-slate-600/50 rounded-lg px-4 py-3 text-sm outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition" style="color:#f1f5f9;">
             </div>
 
-            <label class="text-xs text-gray-400 mb-1 block" id="spotAmountLabel">Jumlah (CENTIC)</label>
-            <div class="relative mb-3">
-                <input id="spotAmount" type="number" placeholder="0.00" oninput="updateSpotEstimate()" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-cyan-400/50 pr-28" style="color:#fff;">
-                <div id="spotBalance" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Balance: —</div>
+            <label class="text-xs text-gray-400 mb-2 block font-medium" id="spotAmountLabel">Amount (CENTIC)</label>
+            <div class="relative mb-4">
+                <input id="spotAmount" type="number" placeholder="0.00" oninput="updateSpotEstimate()" class="w-full bg-slate-800/60 border border-slate-600/50 rounded-lg px-4 py-3 text-sm outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition pr-32" style="color:#f1f5f9;">
+                <div id="spotBalance" class="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium">Balance: —</div>
             </div>
 
-            <div class="flex gap-2 mb-3">
-                <button onclick="setSpotAmountPct(0.25)" class="glass rounded-lg py-1.5 text-xs flex-1">25%</button>
-                <button onclick="setSpotAmountPct(0.5)" class="glass rounded-lg py-1.5 text-xs flex-1">50%</button>
-                <button onclick="setSpotAmountPct(0.75)" class="glass rounded-lg py-1.5 text-xs flex-1">75%</button>
-                <button onclick="setSpotAmountPct(1)" class="glass rounded-lg py-1.5 text-xs flex-1">Max</button>
+            <div class="flex gap-2 mb-4">
+                <button onclick="setSpotAmountPct(0.25)" class="bg-slate-700/50 hover:bg-slate-600/60 border border-slate-600/40 rounded-lg py-2 text-xs flex-1 font-medium transition text-slate-300">25%</button>
+                <button onclick="setSpotAmountPct(0.5)" class="bg-slate-700/50 hover:bg-slate-600/60 border border-slate-600/40 rounded-lg py-2 text-xs flex-1 font-medium transition text-slate-300">50%</button>
+                <button onclick="setSpotAmountPct(0.75)" class="bg-slate-700/50 hover:bg-slate-600/60 border border-slate-600/40 rounded-lg py-2 text-xs flex-1 font-medium transition text-slate-300">75%</button>
+                <button onclick="setSpotAmountPct(1)" class="bg-slate-700/50 hover:bg-slate-600/60 border border-slate-600/40 rounded-lg py-2 text-xs flex-1 font-medium transition text-slate-300">Max</button>
             </div>
 
-            <div class="glass rounded-xl px-3 py-2.5 mb-3 text-xs flex justify-between text-gray-400">
-                <span id="spotEstimateLabel">Estimasi diterima</span>
-                <span id="spotEstimateValue">—</span>
+            <div class="bg-slate-800/40 border border-slate-600/30 rounded-lg px-4 py-3 mb-4 text-xs flex justify-between items-center">
+                <span class="text-slate-400 font-medium" id="spotEstimateLabel">Est. Received</span>
+                <span class="text-slate-200 font-semibold" id="spotEstimateValue">—</span>
             </div>
 
-            <div class="glass rounded-xl px-3 py-2.5 mb-4 text-xs flex justify-between text-gray-400">
-                <span>Slippage: ~0.5%</span>
-                <span id="spotFeeDisplay">Gas: —</span>
+            <div class="bg-slate-800/40 border border-slate-600/30 rounded-lg px-4 py-3 mb-5 text-xs flex justify-between items-center">
+                <span class="text-slate-400">Slippage: ~0.5%</span>
+                <span class="text-slate-400" id="spotFeeDisplay">Gas: —</span>
             </div>
 
-            <button id="spotSubmitBtn" onclick="submitSpotOrder()" class="w-full py-3.5 rounded-2xl font-bold text-base" style="background:linear-gradient(135deg,#22c55e,#16a34a);">Buy CENTIC</button>
-            <p id="spotStatus" class="text-center text-xs text-gray-500 mt-3 hidden"></p>
+            <button id="spotSubmitBtn" onclick="submitSpotOrder()" class="w-full py-4 rounded-xl font-bold text-base transition transform hover:scale-[1.02] active:scale-[0.98] shadow-lg" style="background:linear-gradient(135deg,#16a34a,#15803d); color:#fff;">Buy CENTIC</button>
+            <p id="spotStatus" class="text-center text-xs text-slate-500 mt-4 hidden"></p>
 
-            <div class="mt-4 rounded-xl px-3 py-2.5 text-[11px] text-gray-400" style="background:rgba(92,120,255,.08);border:1px solid rgba(92,120,255,.15);">
-                ⚠️ Limit order berjalan di browser & hanya saat tab terbuka. Bukan order on-chain.
+            <div class="mt-5 rounded-lg px-4 py-3 text-[11px] text-slate-400 leading-relaxed" style="background:rgba(30, 41, 59, 0.6);border:1px solid rgba(71, 85, 105, 0.4);">
+                ⚠️ Limit orders run in-browser & only while tab is open. Not on-chain orders.
             </div>
         </div>
     </div>
