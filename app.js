@@ -4964,10 +4964,13 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
 
     let eijiHistory = [];
     let eijiIsTyping = false;
-    let eijiVoiceActive = false;
+    let eijiVoiceActive = false;   // sesi voice chat ON/OFF (ditoggle tombol mic)
+    let eijiListening = false;     // sedang aktif merekam suara saat ini (per-giliran)
     let eijiRecognition = null;
     let eijiSynthesis = window.speechSynthesis;
     let eijiVoiceSessionId = null;
+    let eijiSpeakPending = false;  // true = balasan berikutnya harus dibacakan (TTS)
+    let eijiSpeakLang = 'id-ID';   // bahasa yang dipakai saat speech recognition, untuk TTS balasan
 
     function toggleEiji() {
         const el = document.getElementById('eijiView');
@@ -5066,6 +5069,12 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
         const text = input.value.trim();
         if (!text || eijiIsTyping) return;
 
+        // Ambil flag "harus dibacakan" SEKARANG, sebelum eijiRecognition.onend
+        // (yang bisa menyala hampir bersamaan) sempat mereset state voice lain.
+        const shouldSpeakReply = eijiSpeakPending;
+        const speakLang = eijiSpeakLang;
+        eijiSpeakPending = false;
+
         document.getElementById('eijiSuggestions').style.display = 'none';
         input.value = '';
         eijiAutoResize(input);
@@ -5150,9 +5159,9 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
             appendEijiBubble('agent', reply);
             eijiHistory.push({ role: 'assistant', content: reply });
             
-            // Speak the response if voice was recently used
-            if (eijiVoiceSessionId) {
-                speakEijiResponse(reply);
+            // Bacakan balasan jika pesan ini berasal dari input suara
+            if (shouldSpeakReply) {
+                speakEijiResponse(reply, speakLang);
             }
 
         } catch (err) {
@@ -5192,15 +5201,15 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
        ══════════════════════════════════════════════════ */
     function toggleEijiVoice() {
         const btn = document.getElementById('eijiVoiceBtn');
-        
         if (eijiVoiceActive) {
             stopEijiVoice();
-            btn.style.background = 'rgba(92,120,255,.15)';
-            btn.style.color = '#a5b4fc';
         } else {
+            eijiVoiceActive = true;
+            if (btn) {
+                btn.style.background = 'linear-gradient(135deg,#3478ff,#8b5cf6)';
+                btn.style.color = '#fff';
+            }
             startEijiVoice();
-            btn.style.background = 'linear-gradient(135deg,#3478ff,#8b5cf6)';
-            btn.style.color = '#fff';
         }
     }
 
@@ -5212,13 +5221,14 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
             return;
         }
 
-        // Check if already recording to prevent conflicts
-        if (eijiVoiceActive) return;
+        // Cegah start dobel kalau memang sedang merekam saat ini
+        if (eijiListening) return;
 
         try {
             // Check if we're on HTTPS (required for microphone access)
             if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
                 showToast('error', 'HTTPS Required', 'Voice chat membutuhkan koneksi HTTPS. Pastikan website diakses via HTTPS.');
+                eijiVoiceActive = false;
                 return;
             }
 
@@ -5235,7 +5245,7 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
             eijiRecognition.maxAlternatives = 1;
 
             eijiRecognition.onstart = () => {
-                eijiVoiceActive = true;
+                eijiListening = true;
                 const btn = document.getElementById('eijiVoiceBtn');
                 if (btn) {
                     btn.style.background = 'linear-gradient(135deg,#3478ff,#8b5cf6)';
@@ -5249,6 +5259,8 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
                 const transcript = event.results[0][0].transcript;
                 if (transcript && transcript.trim()) {
                     document.getElementById('eijiInput').value = transcript;
+                    eijiSpeakPending = true;
+                    eijiSpeakLang = eijiRecognition.lang || 'id-ID';
                     sendEijiMessage();
                 }
             };
@@ -5284,9 +5296,13 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
             };
 
             eijiRecognition.onend = () => {
-                if (eijiVoiceActive) {
-                    stopEijiVoice();
-                }
+                // API speech recognition selalu berhenti setelah 1 ucapan
+                // (continuous=false). Jangan matikan sesi voice chat di sini —
+                // biarkan tetap ON sampai user klik stop. Giliran berikutnya
+                // dimulai otomatis lewat speakEijiResponse() setelah Eiji
+                // selesai membalas (lihat onend di sana).
+                eijiListening = false;
+                eijiRecognition = null;
             };
 
             eijiRecognition.start();
@@ -5299,8 +5315,11 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
     }
 
     function stopEijiVoice() {
+        // Set false DULUAN: utterance.onend (dipicu oleh cancel() di bawah)
+        // mengecek flag ini untuk memutuskan apakah harus auto-restart mic.
         eijiVoiceActive = false;
-        
+        eijiListening = false;
+
         if (eijiRecognition) {
             try {
                 eijiRecognition.stop();
@@ -5310,7 +5329,12 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
             eijiRecognition = null;
         }
 
+        if (eijiSynthesis) {
+            eijiSynthesis.cancel();
+        }
+
         eijiVoiceSessionId = null;
+        eijiSpeakPending = false;
         
         const btn = document.getElementById('eijiVoiceBtn');
         if (btn) {
@@ -5321,7 +5345,7 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
         document.getElementById('eijiInput').placeholder = 'Ask Eiji anything...';
     }
 
-    function speakEijiResponse(text) {
+    function speakEijiResponse(text, lang) {
         if (!eijiSynthesis) return;
         
         // Stop any ongoing speech
@@ -5341,13 +5365,21 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
         if (!cleanText) return;
 
         const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.lang = 'id-ID';
+        utterance.lang = lang || 'id-ID';
         utterance.rate = 1;
         utterance.pitch = 1;
         utterance.volume = 0.8;
 
         utterance.onerror = (event) => {
             console.error('Speech synthesis error:', event.error);
+        };
+
+        // Setelah Eiji selesai bicara, otomatis dengarkan giliran berikutnya —
+        // asal sesi voice chat masih ON (user belum klik stop).
+        utterance.onend = () => {
+            if (eijiVoiceActive) {
+                startEijiVoice();
+            }
         };
 
         eijiSynthesis.speak(utterance);
