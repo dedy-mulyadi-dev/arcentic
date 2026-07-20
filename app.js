@@ -2112,13 +2112,19 @@
         const dpr = window.devicePixelRatio || 1;
         const wrap = canvas.parentElement;
         const wrapRect = wrap.getBoundingClientRect();
-        const w = Math.max(wrapRect.width, 300), h = Math.max(wrapRect.height, 300);
-        canvas.width = w * dpr; canvas.height = h * dpr;
+        
+        // Ensure minimum dimensions and proper sizing
+        const w = Math.max(wrapRect.width, 300);
+        const h = Math.max(wrapRect.height, 250);
+        
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
         canvas.style.width = w + 'px';
         canvas.style.height = h + 'px';
+        
         const ctx = canvas.getContext('2d');
-        ctx.setTransform(dpr,0,0,dpr,0,0);
-        ctx.clearRect(0,0,w,h);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
 
         const candles = loadSpotCandles();
         document.getElementById('spotCandleCount').innerText = candles.length + ' candle';
@@ -2306,9 +2312,17 @@
     function stopSpotTradePolling() {
         if (spotPollTimer) { clearInterval(spotPollTimer); spotPollTimer = null; }
     }
+    
+    // Debounced resize handler for better performance
+    let resizeTimeout;
     window.addEventListener('resize', () => {
-        const view = document.getElementById('spotTradeView');
-        if (view && view.classList.contains('open')) renderSpotChart();
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            const view = document.getElementById('spotTradeView');
+            if (view && view.classList.contains('open')) {
+                renderSpotChart();
+            }
+        }, 100);
     });
 
 
