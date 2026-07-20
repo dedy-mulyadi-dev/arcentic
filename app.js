@@ -1945,6 +1945,8 @@
             document.getElementById('spotMidPrice').innerText = 'Pool belum ada likuiditas';
             document.getElementById('spotAsks').innerHTML = '';
             document.getElementById('spotBids').innerHTML = '';
+            const liqEl = document.getElementById('spotLiquidity'); if (liqEl) liqEl.innerText = '—';
+            const spreadEl = document.getElementById('spotSpread'); if (spreadEl) spreadEl.innerText = '—';
             return;
         }
         const prevMid = spotLastMidPrice;
@@ -1992,15 +1994,41 @@
 
     function renderSpotOrderBook(resBase, resQuote) {
         const { asks, bids } = computeAmmDepth(resBase, resQuote);
-        const maxAmt = Math.max(...asks.map(a=>a.amount), ...bids.map(b=>b.amount), 0.000001);
-        const asksHtml = asks.slice().reverse().map(a => `
-            <div class="ob-row ask"><div class="ob-bar" style="width:${(a.amount/maxAmt*100).toFixed(1)}%"></div>
-                <span class="ob-ask-price">${spotFmtPrice(a.price)}</span><span>${a.amount.toFixed(3)}</span></div>`).join('');
-        const bidsHtml = bids.map(b => `
-            <div class="ob-row bid"><div class="ob-bar" style="width:${(b.amount/maxAmt*100).toFixed(1)}%"></div>
-                <span class="ob-bid-price">${spotFmtPrice(b.price)}</span><span>${b.amount.toFixed(3)}</span></div>`).join('');
+
+        // running cumulative size per side (best price -> worst) for the Total column
+        let cumAsk = 0;
+        const askRows = asks.map(a => { cumAsk += a.amount; return { ...a, total: cumAsk }; });
+        let cumBid = 0;
+        const bidRows = bids.map(b => { cumBid += b.amount; return { ...b, total: cumBid }; });
+        const maxTotal = Math.max(cumAsk, cumBid, 0.000001);
+
+        const asksHtml = askRows.slice().reverse().map(a => `
+            <div class="spot-pro-ob-row ask"><div class="spot-pro-ob-bar" style="width:${(a.total/maxTotal*100).toFixed(1)}%"></div>
+                <span class="ob-ask-price">${spotFmtPrice(a.price)}</span><span>${a.amount.toFixed(3)}</span><span>${a.total.toFixed(3)}</span></div>`).join('');
+        const bidsHtml = bidRows.map(b => `
+            <div class="spot-pro-ob-row bid"><div class="spot-pro-ob-bar" style="width:${(b.total/maxTotal*100).toFixed(1)}%"></div>
+                <span class="ob-bid-price">${spotFmtPrice(b.price)}</span><span>${b.amount.toFixed(3)}</span><span>${b.total.toFixed(3)}</span></div>`).join('');
         document.getElementById('spotAsks').innerHTML = asksHtml;
         document.getElementById('spotBids').innerHTML = bidsHtml;
+
+        // spread between the tightest synthetic ask/bid
+        const spreadEl = document.getElementById('spotSpread');
+        if (spreadEl && asks[0] && bids[0] && bids[0].price > 0) {
+            const spreadPct = ((asks[0].price - bids[0].price) / bids[0].price) * 100;
+            spreadEl.innerText = spreadPct.toFixed(3) + '%';
+        }
+
+        // pool liquidity, from real reserves (not fabricated volume data)
+        const liqEl = document.getElementById('spotLiquidity');
+        if (liqEl) {
+            const p = spotPair();
+            liqEl.innerText = `${resBase.toFixed(2)} ${p.base.sym} / ${resQuote.toFixed(2)} ${p.quote.sym}`;
+        }
+    }
+
+    /* Cosmetic — only 1m candles are actually recorded client-side for now. */
+    function spotTfToast() {
+        showToast('info', 'Timeframe', 'Saat ini hanya candle 1m yang direkam live di browser.');
     }
 
     /* Candle recording — 1 candle = 1 menit, dibangun dari sampel harga
@@ -2024,9 +2052,11 @@
         const canvas = document.getElementById('spotCandleCanvas');
         if (!canvas) return;
         const dpr = window.devicePixelRatio || 1;
-        const rect = canvas.getBoundingClientRect();
-        const w = Math.max(rect.width, 300), h = 340;
+        const wrap = canvas.parentElement;
+        const wrapRect = wrap.getBoundingClientRect();
+        const w = Math.max(wrapRect.width, 300), h = Math.max(wrapRect.height, 300);
         canvas.width = w * dpr; canvas.height = h * dpr;
+        canvas.style.width = w + 'px';
         canvas.style.height = h + 'px';
         const ctx = canvas.getContext('2d');
         ctx.setTransform(dpr,0,0,dpr,0,0);
