@@ -1885,6 +1885,21 @@
             const bal = await fetchTokenBalance(tok, currentAccount);
             el.innerText = `Balance: ${bal} ${tok.sym}`;
         } catch { el.innerText = 'Balance: —'; }
+        updateSpotGasEstimate();
+    }
+
+    async function updateSpotGasEstimate() {
+        const el = document.getElementById('spotFeeDisplay');
+        if (!el) return;
+        if (!isConnected || !currentAccount) { el.innerText = 'Gas: —'; return; }
+        try {
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const gasPrice = await provider.getGasPrice();
+            const gasPriceGwei = parseFloat(ethers.utils.formatUnits(gasPrice, 'gwei'));
+            const estimatedGas = 150000; // Typical swap gas limit
+            const gasCostEth = (gasPriceGwei * estimatedGas) / 1e9;
+            el.innerText = `Gas: ~${gasCostEth.toFixed(4)} ETH`;
+        } catch { el.innerText = 'Gas: —'; }
     }
 
     /* Live mid price from pool reserves (base priced in quote) */
@@ -3077,7 +3092,7 @@
                     }
                     // 404 just means Iris hasn't indexed the tx yet — keep polling.
                 } catch (err) {
-                    console.log('Attestation poll error:', err);
+                    // Attestation poll error - will retry
                 }
                 await new Promise(r => setTimeout(r, pollInterval));
             }
