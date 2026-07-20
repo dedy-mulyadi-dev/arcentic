@@ -3361,6 +3361,12 @@
             if (accounts && accounts.length > 0) {
                 const bal = await fetchBalance(accounts[0]);
                 setConnectedUI(accounts[0], bal);
+                // Sama seperti connectWallet(): tanpa event ini, halaman yang
+                // sudah terbuka duluan (mis. Stake dibuka lewat direct link
+                // sebelum auto-reconnect ini selesai) tidak pernah tahu wallet
+                // sudah tersambung, sehingga "Your Staked"/"Claimable" tetap
+                // kosong walau isConnected sebenarnya sudah true.
+                document.dispatchEvent(new Event('walletConnected'));
             }
         } catch (err) {
             console.warn('Auto-reconnect wallet gagal:', err);
