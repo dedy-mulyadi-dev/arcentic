@@ -1130,6 +1130,8 @@
                     <button onclick="adminCopyTiers()" class="token-select-btn tok-active w-full mt-4">Preview &amp; Copy Tiers</button>
                 </div>
             </div>
+
+            <div id="adminTab-rewards" class="admin-tab-panel">
                 <div class="glass rounded-3xl p-5 sm:p-8">
                     <h3 class="text-lg font-black mb-4">Reward Pool</h3>
                     <div class="grid sm:grid-cols-2 gap-6">
