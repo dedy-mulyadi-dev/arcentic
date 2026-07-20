@@ -5222,36 +5222,6 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
                 return;
             }
 
-            // Check if mediaDevices is available
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                showToast('error', 'Not Supported', 'Browser tidak mendukung akses mikrofon. Gunakan Chrome/Edge terbaru.');
-                return;
-            }
-
-            // Request microphone permission explicitly first
-            let stream;
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                // Stop the stream immediately - we just needed permission
-                stream.getTracks().forEach(track => track.stop());
-            } catch (permErr) {
-                console.error('Microphone permission denied:', permErr);
-                let permMsg = 'Akses mikrofon ditolak.\n\n';
-                
-                if (permErr.name === 'NotAllowedError' || permErr.name === 'PermissionDeniedError') {
-                    permMsg += 'Cek browser settings:\n1. Klik ⋮ di pojok kanan\n2. Site settings → Microphone → Allow\n3. Refresh halaman';
-                } else if (permErr.name === 'NotFoundError') {
-                    permMsg += 'Tidak ada mikrofon terdeteksi. Pastikan mikrofon terhubung.';
-                } else if (permErr.name === 'NotReadableError') {
-                    permMsg += 'Mikrofon sedang digunakan aplikasi lain. Tutup aplikasi lain dan coba lagi.';
-                } else {
-                    permMsg += 'Error: ' + permErr.message;
-                }
-                
-                showToast('error', 'Permission Error', permMsg);
-                return;
-            }
-
             // Generate unique session ID for security tracking
             eijiVoiceSessionId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             
@@ -5288,7 +5258,7 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
                 let errorMsg = 'Terjadi kesalahan voice recognition.';
                 
                 if (event.error === 'not-allowed') {
-                    errorMsg = 'Akses mikrofon ditolak. Izinkan akses mikrofon di browser dan refresh halaman.';
+                    errorMsg = 'Akses mikrofon ditolak.\n\nCoba:\n1. Refresh halaman\n2. Klik tombol voice lagi\n3. Izinkan saat browser meminta permission\n\nJika masih gagal, coba di browser lain (Chrome/Edge).';
                 } else if (event.error === 'no-speech') {
                     errorMsg = 'Tidak ada suara terdeteksi. Coba lagi.';
                 } else if (event.error === 'network') {
