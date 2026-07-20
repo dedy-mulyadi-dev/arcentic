@@ -5216,15 +5216,39 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
         if (eijiVoiceActive) return;
 
         try {
+            // Check if we're on HTTPS (required for microphone access)
+            if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                showToast('error', 'HTTPS Required', 'Voice chat membutuhkan koneksi HTTPS. Pastikan website diakses via HTTPS.');
+                return;
+            }
+
+            // Check if mediaDevices is available
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showToast('error', 'Not Supported', 'Browser tidak mendukung akses mikrofon. Gunakan Chrome/Edge terbaru.');
+                return;
+            }
+
             // Request microphone permission explicitly first
+            let stream;
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 // Stop the stream immediately - we just needed permission
                 stream.getTracks().forEach(track => track.stop());
             } catch (permErr) {
                 console.error('Microphone permission denied:', permErr);
-                showToast('error', 'Permission Required', 
-                    'Akses mikrofon diperlukan untuk voice chat.\n\nCara mengizinkan:\n1. Klik ikon 🔒 di address bar\n2. Izinkan akses mikrofon\n3. Refresh halaman dan coba lagi');
+                let permMsg = 'Akses mikrofon ditolak.\n\n';
+                
+                if (permErr.name === 'NotAllowedError' || permErr.name === 'PermissionDeniedError') {
+                    permMsg += 'Cek browser settings:\n1. Klik ⋮ di pojok kanan\n2. Site settings → Microphone → Allow\n3. Refresh halaman';
+                } else if (permErr.name === 'NotFoundError') {
+                    permMsg += 'Tidak ada mikrofon terdeteksi. Pastikan mikrofon terhubung.';
+                } else if (permErr.name === 'NotReadableError') {
+                    permMsg += 'Mikrofon sedang digunakan aplikasi lain. Tutup aplikasi lain dan coba lagi.';
+                } else {
+                    permMsg += 'Error: ' + permErr.message;
+                }
+                
+                showToast('error', 'Permission Error', permMsg);
                 return;
             }
 
