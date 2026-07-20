@@ -978,7 +978,7 @@ nav button.glass:hover {
         <button id="navAdmin" onclick="showAdmin()" class="px-6 py-3 rounded-xl" style="display:none;">🔒 Admin</button>
     </nav>
     <div class="flex gap-2 sm:gap-3 items-center flex-shrink-0">
-        <button id="langToggleBtn" data-no-i18n onclick="window.__toggleLang && window.__toggleLang()" class="glass px-2.5 sm:px-3 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap flex-shrink-0" title="Language / Bahasa">🌐 <span id="langToggleLabel">ID</span></button>
+        <button data-no-i18n onclick="window.__toggleLang && window.__toggleLang()" class="lang-toggle-btn glass px-2.5 sm:px-3 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap flex-shrink-0" title="Language / Bahasa · Ganti ke Indonesia atau English">🌐 <span class="lang-toggle-label">ID</span></button>
         <div class="hidden sm:block glass px-4 py-3 rounded-xl text-sm whitespace-nowrap">🟢 ARC TESTNET</div>
         <button id="connectBtn" onclick="handleWallet()" class="gradient px-3 sm:px-7 py-2 sm:py-3 rounded-xl font-bold glow text-xs sm:text-base whitespace-nowrap">Connect Wallet</button>
         <button id="navToggleBtn" onclick="toggleMobileNav()" class="lg:hidden glass w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0" aria-label="Menu">☰</button>
@@ -1104,7 +1104,10 @@ nav button.glass:hover {
                     <p class="text-gray-400 text-xs">ARCENTIC · Semua alat trading dalam satu tempat</p>
                 </div>
             </div>
-            <div class="glass px-2.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap"><span class="sm:hidden">🟢</span><span class="hidden sm:inline">🟢 ARC TESTNET</span></div>
+            <div class="flex items-center gap-2 sm:gap-3">
+                <button data-no-i18n onclick="window.__toggleLang && window.__toggleLang()" class="lang-toggle-btn glass px-2.5 sm:px-3 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap flex-shrink-0" title="Language / Bahasa">🌐 <span class="lang-toggle-label">ID</span></button>
+                <div class="glass px-2.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap"><span class="sm:hidden">🟢</span><span class="hidden sm:inline">🟢 ARC TESTNET</span></div>
+            </div>
         </div>
     </div>
 
@@ -1153,6 +1156,7 @@ nav button.glass:hover {
                 </div>
             </div>
             <div class="flex items-center gap-2">
+                <button data-no-i18n onclick="window.__toggleLang && window.__toggleLang()" class="lang-toggle-btn glass px-2.5 sm:px-3 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap flex-shrink-0" title="Language / Bahasa">🌐 <span class="lang-toggle-label">ID</span></button>
                 <select id="spotPairSelect" onchange="setSpotPair(this.value)" class="spot-pair-btn outline-none cursor-pointer"></select>
                 <div class="glass px-3 py-2 rounded-xl text-xs whitespace-nowrap">🟢 LIVE</div>
             </div>
@@ -1265,7 +1269,10 @@ nav button.glass:hover {
                     <p class="text-gray-400 text-xs">ARC Testnet · Instant swaps</p>
                 </div>
             </div>
-            <div class="glass px-2.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap"><span class="sm:hidden">🟢</span><span class="hidden sm:inline">🟢 ARC TESTNET</span></div>
+            <div class="flex items-center gap-2 sm:gap-3">
+                <button data-no-i18n onclick="window.__toggleLang && window.__toggleLang()" class="lang-toggle-btn glass px-2.5 sm:px-3 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap flex-shrink-0" title="Language / Bahasa">🌐 <span class="lang-toggle-label">ID</span></button>
+                <div class="glass px-2.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap"><span class="sm:hidden">🟢</span><span class="hidden sm:inline">🟢 ARC TESTNET</span></div>
+            </div>
         </div>
     </div>
 
@@ -1363,6 +1370,7 @@ nav button.glass:hover {
             </div>
             <div class="flex items-center gap-2 sm:gap-3">
                 <button id="pfRefreshBtn" onclick="refreshPortfolioData()" class="glass px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:border-white/30 transition hidden whitespace-nowrap">⟳<span class="hidden sm:inline"> Refresh</span></button>
+                <button data-no-i18n onclick="window.__toggleLang && window.__toggleLang()" class="lang-toggle-btn glass px-2.5 sm:px-3 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap flex-shrink-0" title="Language / Bahasa">🌐 <span class="lang-toggle-label">ID</span></button>
                 <div class="glass px-2.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap"><span class="sm:hidden">🟢</span><span class="hidden sm:inline">🟢 ARC TESTNET</span></div>
             </div>
         </div>
@@ -1522,7 +1530,10 @@ nav button.glass:hover {
                     <p class="text-gray-400 text-xs">CCTP · Cross-chain transfers</p>
                 </div>
             </div>
-            <div class="glass px-2.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap"><span class="sm:hidden">🌐</span><span class="hidden sm:inline">🌐 CCTP ENABLED</span></div>
+            <div class="flex items-center gap-2 sm:gap-3">
+                <button data-no-i18n onclick="window.__toggleLang && window.__toggleLang()" class="lang-toggle-btn glass px-2.5 sm:px-3 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap flex-shrink-0" title="Language / Bahasa">🌐 <span class="lang-toggle-label">ID</span></button>
+                <div class="glass px-2.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap"><span class="sm:hidden">🌐</span><span class="hidden sm:inline">🌐 CCTP ENABLED</span></div>
+            </div>
         </div>
     </div>
 
@@ -1644,6 +1655,7 @@ nav button.glass:hover {
             </div>
             <div class="flex items-center gap-2 sm:gap-3">
                 <button onclick="openAddTokenModal()" class="gradient px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm glow whitespace-nowrap"><span class="sm:hidden">+ Add Token</span><span class="hidden sm:inline">+ Add Token to Pool</span></button>
+                <button data-no-i18n onclick="window.__toggleLang && window.__toggleLang()" class="lang-toggle-btn glass px-2.5 sm:px-3 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap flex-shrink-0" title="Language / Bahasa">🌐 <span class="lang-toggle-label">ID</span></button>
                 <div class="glass px-2.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap"><span class="sm:hidden">🟢</span><span class="hidden sm:inline">🟢 ARC TESTNET</span></div>
             </div>
         </div>
@@ -2061,6 +2073,7 @@ nav button.glass:hover {
             </div>
             <div class="flex items-center gap-2 sm:gap-3">
                 <div id="lendHealthBadge" class="pool-badge" style="display:none; color:#4ade80;">HF: <span id="lendHFVal">—</span></div>
+                <button data-no-i18n onclick="window.__toggleLang && window.__toggleLang()" class="lang-toggle-btn glass px-2.5 sm:px-3 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap flex-shrink-0" title="Language / Bahasa">🌐 <span class="lang-toggle-label">ID</span></button>
                 <div class="glass px-2.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap"><span class="sm:hidden">🟢</span><span class="hidden sm:inline">🟢 ARC TESTNET</span></div>
             </div>
         </div>
@@ -2250,7 +2263,10 @@ nav button.glass:hover {
                     <p class="text-gray-400 text-xs hidden sm:block">ARC Testnet &middot; Pick any whitelisted token, lock it, earn rewards in that same token</p>
                 </div>
             </div>
-            <div class="glass px-2.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap"><span class="sm:hidden">🟢</span><span class="hidden sm:inline">🟢 ARC TESTNET</span></div>
+            <div class="flex items-center gap-2 sm:gap-3">
+                <button data-no-i18n onclick="window.__toggleLang && window.__toggleLang()" class="lang-toggle-btn glass px-2.5 sm:px-3 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap flex-shrink-0" title="Language / Bahasa">🌐 <span class="lang-toggle-label">ID</span></button>
+                <div class="glass px-2.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap"><span class="sm:hidden">🟢</span><span class="hidden sm:inline">🟢 ARC TESTNET</span></div>
+            </div>
         </div>
     </div>
 
@@ -2345,7 +2361,10 @@ nav button.glass:hover {
                     <p class="text-gray-400 text-xs">Restricted — visible only to the configured admin wallet</p>
                 </div>
             </div>
-            <button onclick="loadAdminOverview()" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">⟳ Refresh</button>
+            <div class="flex items-center gap-2 sm:gap-3">
+                <button data-no-i18n onclick="window.__toggleLang && window.__toggleLang()" class="lang-toggle-btn glass px-2.5 sm:px-3 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap flex-shrink-0" title="Language / Bahasa">🌐 <span class="lang-toggle-label">ID</span></button>
+                <button onclick="loadAdminOverview()" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">⟳ Refresh</button>
+            </div>
         </div>
     </div>
 
@@ -2368,6 +2387,7 @@ nav button.glass:hover {
                 </div>
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
+                <button data-no-i18n onclick="window.__toggleLang && window.__toggleLang()" class="lang-toggle-btn text-xs font-bold text-gray-400 hover:text-white transition glass px-2.5 py-1.5 rounded-lg whitespace-nowrap flex-shrink-0" title="Language / Bahasa">🌐 <span class="lang-toggle-label">ID</span></button>
                 <button onclick="clearEijiChat()" class="text-xs font-semibold text-gray-400 hover:text-white transition glass px-3 py-1.5 rounded-lg">New</button>
                 <button onclick="showHome()" class="glass w-8 h-8 rounded-lg flex items-center justify-center text-base flex-shrink-0">&#10005;</button>
             </div>
@@ -2690,7 +2710,8 @@ nav button.glass:hover {
             if (el.nodeType === 1) {
                 var tag = el.tagName;
                 if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT') return true;
-                if (el.id === 'eijiMessages' || el.id === 'langToggleBtn') return true;
+                if (el.id === 'eijiMessages') return true;
+                if (el.classList && el.classList.contains('lang-toggle-btn')) return true;
                 if (el.hasAttribute && el.hasAttribute('data-no-i18n')) return true;
             }
             el = el.parentElement;
@@ -2778,8 +2799,12 @@ nav button.glass:hover {
     }
 
     function updateToggle() {
-        var lbl = document.getElementById('langToggleLabel');
-        if (lbl) lbl.textContent = LANG.toUpperCase();
+        var lbls = document.querySelectorAll('.lang-toggle-label');
+        for (var i = 0; i < lbls.length; i++) lbls[i].textContent = LANG.toUpperCase();
+        var btns = document.querySelectorAll('.lang-toggle-btn');
+        for (var j = 0; j < btns.length; j++) {
+            btns[j].setAttribute('aria-pressed', LANG === 'en' ? 'true' : 'false');
+        }
         document.documentElement.setAttribute('lang', LANG === 'en' ? 'en' : 'id');
     }
 
