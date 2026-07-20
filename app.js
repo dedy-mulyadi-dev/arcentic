@@ -5216,6 +5216,18 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
         if (eijiVoiceActive) return;
 
         try {
+            // Request microphone permission explicitly first
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // Stop the stream immediately - we just needed permission
+                stream.getTracks().forEach(track => track.stop());
+            } catch (permErr) {
+                console.error('Microphone permission denied:', permErr);
+                showToast('error', 'Permission Required', 
+                    'Akses mikrofon diperlukan untuk voice chat.\n\nCara mengizinkan:\n1. Klik ikon 🔒 di address bar\n2. Izinkan akses mikrofon\n3. Refresh halaman dan coba lagi');
+                return;
+            }
+
             // Generate unique session ID for security tracking
             eijiVoiceSessionId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             
@@ -5252,7 +5264,7 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
                 let errorMsg = 'Terjadi kesalahan voice recognition.';
                 
                 if (event.error === 'not-allowed') {
-                    errorMsg = 'Akses mikrofon ditolak. Izinkan akses mikrofon di browser.';
+                    errorMsg = 'Akses mikrofon ditolak. Izinkan akses mikrofon di browser dan refresh halaman.';
                 } else if (event.error === 'no-speech') {
                     errorMsg = 'Tidak ada suara terdeteksi. Coba lagi.';
                 } else if (event.error === 'network') {
