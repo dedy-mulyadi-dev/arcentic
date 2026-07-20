@@ -1803,13 +1803,122 @@
     let spotLastMidPrice = null;
     let spotObTab = 'orderbook';
     let spotTrades = [];
+    let spotAlerts = [];
+
+    function spotAlertsKey() {
+        const p = spotPair();
+        return 'arcentic_alerts_' + p.base.sym + '_' + p.quote.sym;
+    }
+
+    function loadSpotAlerts() {
+        try { return JSON.parse(localStorage.getItem(spotAlertsKey())) || []; }
+        catch { return []; }
+    }
+
+    function saveSpotAlerts(alerts) {
+        try { localStorage.setItem(spotAlertsKey(), JSON.stringify(alerts)); } catch {}
+    }
+
+    function addPriceAlert() {
+        const priceInput = document.getElementById('alertPrice');
+        const conditionSelect = document.getElementById('alertCondition');
+        const price = parseFloat(priceInput.value);
+        const condition = conditionSelect.value;
+        
+        if (!price || price <= 0) {
+            showToast('warning', 'Invalid Price', 'Please enter a valid target price.');
+            return;
+        }
+        
+        const alerts = loadSpotAlerts();
+        const alert = {
+            id: 'alert_' + Date.now(),
+            price: price,
+            condition: condition,
+            pairIdx: spotPairIdx,
+            createdAt: Date.now(),
+            triggered: false
+        };
+        alerts.push(alert);
+        saveSpotAlerts(alerts);
+        spotAlerts = alerts;
+        
+        priceInput.value = '';
+        renderSpotAlerts();
+        showToast('success', 'Alert Set', `Price alert set for ${condition} ${spotFmtPrice(price)}`);
+    }
+
+    function removeSpotAlert(id) {
+        const alerts = loadSpotAlerts().filter(a => a.id !== id);
+        saveSpotAlerts(alerts);
+        spotAlerts = alerts;
+        renderSpotAlerts();
+    }
+
+    function renderSpotAlerts() {
+        const el = document.getElementById('spotAlertsList');
+        if (!el) return;
+        const alerts = loadSpotAlerts();
+        if (alerts.length === 0) {
+            el.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(148,163,184,0.5);font-size:0.8rem;">No price alerts set</div>';
+            return;
+        }
+        el.innerHTML = alerts.map(a => {
+            const conditionText = a.condition === 'above' ? '↑ Above' : '↓ Below';
+            const conditionColor = a.condition === 'above' ? '#4ade80' : '#f87171';
+            return `
+                <div class="spot-pro-ob-row ${a.triggered ? 'triggered' : ''}">
+                    <span style="font-weight:600;">${spotFmtPrice(a.price)}</span>
+                    <span style="text-align:center;color:${conditionColor};font-weight:600;">${conditionText}</span>
+                    <span style="text-align:right;">
+                        <button onclick="removeSpotAlert('${a.id}')" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.4);color:#f87171;padding:4px 8px;border-radius:4px;font-size:0.7rem;cursor:pointer;transition:0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.3)'" onmouseout="this.style.background='rgba(239,68,68,0.2)'">Delete</button>
+                    </span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    async function checkSpotAlerts(currentPrice) {
+        if (!currentPrice) return;
+        const alerts = loadSpotAlerts();
+        let updated = false;
+        
+        for (const alert of alerts) {
+            if (alert.triggered) continue;
+            if (alert.pairIdx !== spotPairIdx) continue;
+            
+            let shouldTrigger = false;
+            if (alert.condition === 'above' && currentPrice.midPrice >= alert.price) {
+                shouldTrigger = true;
+            } else if (alert.condition === 'below' && currentPrice.midPrice <= alert.price) {
+                shouldTrigger = true;
+            }
+            
+            if (shouldTrigger) {
+                alert.triggered = true;
+                alert.triggeredAt = Date.now();
+                updated = true;
+                
+                showToast('success', 'Price Alert Triggered', `Price ${spotFmtPrice(currentPrice.midPrice)} ${alert.condition} ${spotFmtPrice(alert.price)}`);
+            }
+        }
+        
+        if (updated) {
+            saveSpotAlerts(alerts);
+            spotAlerts = alerts;
+            if (spotObTab === 'alerts') renderSpotAlerts();
+        }
+    }
 
     function switchSpotObTab(tab) {
         spotObTab = tab;
         document.getElementById('spotTabOrderBook').classList.toggle('active', tab === 'orderbook');
         document.getElementById('spotTabTrades').classList.toggle('active', tab === 'trades');
+        document.getElementById('spotTabAlerts').classList.toggle('active', tab === 'alerts');
         document.getElementById('spotOrderBookView').style.display = tab === 'orderbook' ? 'block' : 'none';
         document.getElementById('spotTradesView').style.display = tab === 'trades' ? 'block' : 'none';
+        document.getElementById('spotAlertsView').style.display = tab === 'alerts' ? 'block' : 'none';
+        if (tab === 'alerts') renderSpotAlerts();
     }
 
     function spotPair() {
@@ -1916,7 +2025,11 @@
         spotOrderType = type;
         document.getElementById('spotTypeMarket').classList.toggle('spot-order-tab-active', type === 'market');
         document.getElementById('spotTypeLimit').classList.toggle('spot-order-tab-active', type === 'limit');
+        document.getElementById('spotTypeStopLoss').classList.toggle('spot-order-tab-active', type === 'stoploss');
+        document.getElementById('spotTypeTakeProfit').classList.toggle('spot-order-tab-active', type === 'takeprofit');
         document.getElementById('spotLimitPriceWrap').classList.toggle('hidden', type !== 'limit');
+        document.getElementById('spotStopLossWrap').classList.toggle('hidden', type !== 'stoploss');
+        document.getElementById('spotTakeProfitWrap').classList.toggle('hidden', type !== 'takeprofit');
         updateSpotSubmitLabel();
     }
 
@@ -1924,11 +2037,16 @@
         const p = spotPair();
         const btn = document.getElementById('spotSubmitBtn');
         if (!btn) return;
-        const action = spotOrderType === 'limit' ? 'Place Limit' : (spotSide === 'buy' ? 'Buy' : 'Sell');
+        let action = spotSide === 'buy' ? 'Buy' : 'Sell';
+        if (spotOrderType === 'limit') action = 'Place Limit';
+        else if (spotOrderType === 'stoploss') action = 'Set Stop-Loss';
+        else if (spotOrderType === 'takeprofit') action = 'Set Take-Profit';
         btn.innerText = `${action} ${p.base.sym}`;
-        btn.style.background = spotSide === 'buy'
+        btn.style.background = spotOrderType === 'stoploss'
+            ? 'linear-gradient(135deg,#ef4444,#dc2626)'
+            : spotOrderType === 'takeprofit'
             ? 'linear-gradient(135deg,#22c55e,#16a34a)'
-            : 'linear-gradient(135deg,#ef4444,#dc2626)';
+            : (spotSide === 'buy' ? 'linear-gradient(135deg,#22c55e,#16a34a)' : 'linear-gradient(135deg,#ef4444,#dc2626)');
     }
 
     async function setSpotAmountPct(pct) {
@@ -2027,6 +2145,7 @@
         recordSpotCandle(data.price);
         updateSpotEstimate();
         checkSpotLimitOrders(data.price);
+        checkSpotAlerts({ midPrice: data.price });
     }
 
     /* Synthetic AMM depth — bukan order book on-chain, murni turunan

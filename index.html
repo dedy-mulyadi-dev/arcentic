@@ -391,6 +391,32 @@ svg{width:100%;height:100%}
     animation: fadeInUp 0.24s cubic-bezier(0.16, 1, 0.3, 1) 0.03s both;
 }
 
+/* Fix: on some mobile browsers <input type="number"> ignores Tailwind
+   bg-slate-800/60 and falls back to a native white background, making the
+   light text unreadable. Force the dark styling explicitly. */
+#spotAmount, #spotLimitPrice, #spotStopLossPrice, #spotTakeProfitPrice,
+#alertPrice, #depositAmt, #borrowAmt, #repayAmt, #withdrawAmt, #stakeAmount {
+    background-color: rgba(30,41,59,.6) !important;
+    color: #f1f5f9 !important;
+    -webkit-appearance: none;
+    appearance: none;
+    color-scheme: dark;
+}
+#spotAmount::placeholder, #spotLimitPrice::placeholder,
+#spotStopLossPrice::placeholder, #spotTakeProfitPrice::placeholder,
+#alertPrice::placeholder, #depositAmt::placeholder, #borrowAmt::placeholder,
+#repayAmt::placeholder, #withdrawAmt::placeholder, #stakeAmount::placeholder {
+    color: rgba(241,245,249,.35) !important;
+}
+/* Guard against autofill (e.g. saved values) forcing a white/yellow box */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #f1f5f9 !important;
+    -webkit-box-shadow: 0 0 0px 1000px rgba(30,41,59,.6) inset !important;
+    transition: background-color 9999s ease-in-out 0s;
+}
+
 .swap-input-wrap {
     background: rgba(255,255,255,.04);
     border: 1px solid rgba(92,120,255,.2);
@@ -1317,6 +1343,7 @@ nav button.glass:hover {
             <div class="spot-pro-ob-tabs">
                 <span class="spot-pro-ob-tab active" onclick="switchSpotObTab('orderbook')" id="spotTabOrderBook">Order Book</span>
                 <span class="spot-pro-ob-tab" onclick="switchSpotObTab('trades')" id="spotTabTrades">Trades</span>
+                <span class="spot-pro-ob-tab" onclick="switchSpotObTab('alerts')" id="spotTabAlerts">🔔 Alerts</span>
             </div>
             <div id="spotOrderBookView">
                 <div class="spot-pro-ob-head">
@@ -1334,6 +1361,22 @@ nav button.glass:hover {
                 </div>
                 <div id="spotTradesList" class="spot-pro-ob-rows"></div>
             </div>
+            <div id="spotAlertsView" style="display:none;">
+                <div class="spot-pro-ob-head">
+                    <span>Price</span><span>Condition</span><span>Action</span>
+                </div>
+                <div id="spotAlertsList" class="spot-pro-ob-rows"></div>
+                <div style="padding:12px 16px;border-top:1px solid rgba(51,65,85,0.5);">
+                    <div class="flex gap-2 mb-2">
+                        <input type="number" id="alertPrice" placeholder="Target Price" class="flex-1 bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-blue-500">
+                        <select id="alertCondition" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                            <option value="above">Above</option>
+                            <option value="below">Below</option>
+                        </select>
+                    </div>
+                    <button onclick="addPriceAlert()" class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 text-sm font-semibold transition">Set Alert</button>
+                </div>
+            </div>
         </div>
 
         <!-- Buy / Sell panel -->
@@ -1345,11 +1388,23 @@ nav button.glass:hover {
             <div class="flex gap-4 mb-5 text-sm" id="spotOrderTypeTabs">
                 <div class="spot-order-tab spot-order-tab-active" onclick="setSpotOrderType('market')" id="spotTypeMarket">Market</div>
                 <div class="spot-order-tab" onclick="setSpotOrderType('limit')" id="spotTypeLimit">Limit</div>
+                <div class="spot-order-tab" onclick="setSpotOrderType('stoploss')" id="spotTypeStopLoss">Stop-Loss</div>
+                <div class="spot-order-tab" onclick="setSpotOrderType('takeprofit')" id="spotTypeTakeProfit">Take-Profit</div>
             </div>
 
             <div id="spotLimitPriceWrap" class="hidden mb-4">
                 <label class="text-xs text-gray-400 mb-2 block font-medium">Limit Price</label>
                 <input id="spotLimitPrice" type="number" placeholder="0.00" class="w-full bg-slate-800/60 border border-slate-600/50 rounded-lg px-4 py-3 text-sm outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition" style="color:#f1f5f9;">
+            </div>
+
+            <div id="spotStopLossWrap" class="hidden mb-4">
+                <label class="text-xs text-gray-400 mb-2 block font-medium">Stop Loss Price</label>
+                <input id="spotStopLossPrice" type="number" placeholder="0.00" class="w-full bg-slate-800/60 border border-slate-600/50 rounded-lg px-4 py-3 text-sm outline-none focus:border-red-500/60 focus:ring-1 focus:ring-red-500/30 transition" style="color:#f1f5f9;">
+            </div>
+
+            <div id="spotTakeProfitWrap" class="hidden mb-4">
+                <label class="text-xs text-gray-400 mb-2 block font-medium">Take Profit Price</label>
+                <input id="spotTakeProfitPrice" type="number" placeholder="0.00" class="w-full bg-slate-800/60 border border-slate-600/50 rounded-lg px-4 py-3 text-sm outline-none focus:border-green-500/60 focus:ring-1 focus:ring-green-500/30 transition" style="color:#f1f5f9;">
             </div>
 
             <label class="text-xs text-gray-400 mb-2 block font-medium" id="spotAmountLabel">Amount (CENTIC)</label>
