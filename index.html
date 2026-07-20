@@ -260,7 +260,8 @@ svg{width:100%;height:100%}
 /* Order book column - Synthra style */
 .spot-pro-ob-col { display:flex; flex-direction:column; padding:12px 0; min-width:0; min-height:0; overflow-y:auto; }
 .spot-pro-ob-tabs { display:flex; gap:20px; padding:0 16px 10px; border-bottom:1px solid rgba(51, 65, 85, 0.5); margin-bottom:8px; }
-.spot-pro-ob-tab { font-size:.8rem; font-weight:600; color:rgba(148, 163, 184, 0.6); cursor:default; padding-bottom:10px; transition: .2s; }
+.spot-pro-ob-tab { font-size:.8rem; font-weight:600; color:rgba(148, 163, 184, 0.6); cursor:pointer; padding-bottom:10px; transition: .2s; }
+.spot-pro-ob-tab:hover { color:#e2e8f0; }
 .spot-pro-ob-tab.active { color:#f1f5f9; border-bottom:2px solid #3b82f6; margin-bottom:-10px; }
 .spot-pro-ob-head { display:grid; grid-template-columns:1fr 1fr 1fr; font-size:.7rem; color:rgba(148, 163, 184, 0.5); padding:0 16px 6px; font-weight:500; }
 .spot-pro-ob-head span:nth-child(2) { text-align:center; }
@@ -1286,17 +1287,25 @@ nav button.glass:hover {
         <!-- Order book (AMM depth) -->
         <div class="spot-pro-ob-col">
             <div class="spot-pro-ob-tabs">
-                <span class="spot-pro-ob-tab active">Order Book</span>
-                <span class="spot-pro-ob-tab" title="Dari kurva AMM, bukan order book on-chain">Trades</span>
+                <span class="spot-pro-ob-tab active" onclick="switchSpotObTab('orderbook')" id="spotTabOrderBook">Order Book</span>
+                <span class="spot-pro-ob-tab" onclick="switchSpotObTab('trades')" id="spotTabTrades">Trades</span>
             </div>
-            <div class="spot-pro-ob-head">
-                <span>Harga</span><span>Jumlah</span><span>Total</span>
+            <div id="spotOrderBookView">
+                <div class="spot-pro-ob-head">
+                    <span>Price</span><span>Amount</span><span>Total</span>
+                </div>
+                <div id="spotAsks" class="spot-pro-ob-rows"></div>
+                <div id="spotMidPrice" class="spot-pro-ob-mid">
+                    <span>—</span>
+                </div>
+                <div id="spotBids" class="spot-pro-ob-rows"></div>
             </div>
-            <div id="spotAsks" class="spot-pro-ob-rows"></div>
-            <div id="spotMidPrice" class="spot-pro-ob-mid">
-                <span>—</span>
+            <div id="spotTradesView" style="display:none;">
+                <div class="spot-pro-ob-head">
+                    <span>Price</span><span>Amount</span><span>Time</span>
+                </div>
+                <div id="spotTradesList" class="spot-pro-ob-rows"></div>
             </div>
-            <div id="spotBids" class="spot-pro-ob-rows"></div>
         </div>
 
         <!-- Buy / Sell panel -->

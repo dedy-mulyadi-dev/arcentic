@@ -1801,6 +1801,16 @@
     let spotPollTimer = null;
     let spotLimitTimer = null;
     let spotLastMidPrice = null;
+    let spotObTab = 'orderbook';
+    let spotTrades = [];
+
+    function switchSpotObTab(tab) {
+        spotObTab = tab;
+        document.getElementById('spotTabOrderBook').classList.toggle('active', tab === 'orderbook');
+        document.getElementById('spotTabTrades').classList.toggle('active', tab === 'trades');
+        document.getElementById('spotOrderBookView').style.display = tab === 'orderbook' ? 'block' : 'none';
+        document.getElementById('spotTradesView').style.display = tab === 'trades' ? 'block' : 'none';
+    }
 
     function spotPair() {
         const p = SPOT_PAIRS[spotPairIdx];
@@ -1810,6 +1820,52 @@
     function spotCandleKey() {
         const p = spotPair();
         return 'arcentic_candles_' + p.base.sym + '_' + p.quote.sym;
+    }
+
+    function spotTradesKey() {
+        const p = spotPair();
+        return 'arcentic_trades_' + p.base.sym + '_' + p.quote.sym;
+    }
+
+    function loadSpotTrades() {
+        try { return JSON.parse(localStorage.getItem(spotTradesKey())) || []; }
+        catch { return []; }
+    }
+    function saveSpotTrades(trades) {
+        try { localStorage.setItem(spotTradesKey(), JSON.stringify(trades.slice(-50))); } catch {}
+    }
+    function addSpotTrade(price, amount, side) {
+        const trades = loadSpotTrades();
+        const trade = {
+            price: price,
+            amount: amount,
+            side: side,
+            time: Date.now()
+        };
+        trades.push(trade);
+        saveSpotTrades(trades);
+        spotTrades = trades;
+        if (spotObTab === 'trades') renderSpotTrades();
+    }
+    function renderSpotTrades() {
+        const el = document.getElementById('spotTradesList');
+        if (!el) return;
+        const trades = loadSpotTrades().slice().reverse(); // newest first
+        if (trades.length === 0) {
+            el.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(148,163,184,0.5);font-size:0.8rem;">No trades yet</div>';
+            return;
+        }
+        el.innerHTML = trades.map(t => {
+            const timeStr = new Date(t.time).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const priceColor = t.side === 'buy' ? '#4ade80' : '#f87171';
+            return `
+                <div class="spot-pro-ob-row ${t.side}">
+                    <span style="color:${priceColor};font-weight:600;">${spotFmtPrice(t.price)}</span>
+                    <span style="text-align:center;">${spotFmtPrice(t.amount)}</span>
+                    <span style="text-align:right;color:rgba(148,163,184,0.5);">${timeStr}</span>
+                </div>
+            `;
+        }).join('');
     }
 
     function loadSpotCandles() {
@@ -1836,6 +1892,8 @@
         const p = spotPair();
         document.getElementById('spotPairLabel').innerText = `${p.base.sym} / ${p.quote.sym}`;
         document.getElementById('spotAmountLabel').innerText = `Jumlah (${spotSide === 'buy' ? p.quote.sym : p.base.sym})`;
+        spotTrades = loadSpotTrades();
+        if (spotObTab === 'trades') renderSpotTrades();
         updateSpotSubmitLabel();
         updateSpotBalance();
         renderSpotChart();
@@ -2150,7 +2208,12 @@
             else                    { swapFrom = SPOT_PAIRS[spotPairIdx].base;  swapTo = SPOT_PAIRS[spotPairIdx].quote; }
             document.getElementById('swapFromAmt').value = amt;
             await getQuote();
+            const currentPrice = await fetchSpotMidPrice();
             await executeSwap();
+            // Record the trade
+            if (currentPrice) {
+                addSpotTrade(currentPrice.midPrice, amt, spotSide);
+            }
             document.getElementById('spotAmount').value = '';
             updateSpotEstimate();
             updateSpotBalance();
@@ -2230,6 +2293,8 @@
         populateSpotPairSelect();
         setSpotSide(spotSide);
         setSpotOrderType(spotOrderType);
+        spotTrades = loadSpotTrades();
+        if (spotObTab === 'trades') renderSpotTrades();
         updateSpotBalance();
         renderSpotChart();
         renderSpotLimitOrders();
