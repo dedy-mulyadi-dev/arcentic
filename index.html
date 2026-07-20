@@ -937,7 +937,7 @@ nav button.glass:hover {
            transition:.2s;">
     <span style="width:32px; height:32px; border-radius:50%; flex-shrink:0;
                   background:linear-gradient(135deg,#3478ff,#8b5cf6,#d66bff);
-                  display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 0 16px rgba(101,119,255,.55);">✦</span>
+                  display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 0 16px rgba(101,119,255,.55);">🎤</span>
     <span style="font-weight:700; font-size:.92rem; color:#fff; white-space:nowrap;">Ask Eiji AI</span>
     <span style="font-size:.7rem; font-weight:700; color:rgba(255,255,255,.45); background:rgba(255,255,255,.07);
                   border-radius:6px; padding:3px 7px; flex-shrink:0;">AI</span>
@@ -2361,7 +2361,7 @@ nav button.glass:hover {
 
         <div class="px-4 py-3.5 flex items-center justify-between gap-3">
             <div class="flex items-center gap-3 min-w-0">
-                <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#3478ff,#8b5cf6,#d66bff);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">&#10022;</div>
+                <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#3478ff,#8b5cf6,#d66bff);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">&#127908;</div>
                 <div class="min-w-0">
                     <div class="font-black text-base flex items-center gap-1.5">Eiji AI <span style="width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block;"></span></div>
                     <div class="text-xs text-purple-400 truncate">live on-chain &middot; ARCENTIC</div>
@@ -2384,6 +2384,7 @@ nav button.glass:hover {
         <input type="file" id="eijiPhotoInput" accept="image/*" style="display:none" onchange="eijiHandlePhoto(this)">
         <button class="eiji-photo-btn" id="eijiPhotoBtn" title="Perbaiki foto / Scan dokumen" onclick="eijiOpenPhoto()">&#128247;</button>
         <button class="eiji-photo-btn" id="eijiConvBtnOpen" title="Konversi file (gambar / MP4 ke MP3)" onclick="eijiOpenConv()">&#128260;</button>
+        <button class="eiji-photo-btn" id="eijiVoiceBtn" title="Voice Chat" onclick="toggleEijiVoice()">&#127908;</button>
         <textarea id="eijiInput" rows="1" placeholder="Ask Eiji anything..." onkeydown="eijiKeydown(event)" oninput="eijiAutoResize(this)"></textarea>
         <button class="eiji-send-btn" id="eijiSendBtn" onclick="sendEijiMessage()">&#10148;</button>
     </div>

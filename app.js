@@ -4964,6 +4964,10 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
 
     let eijiHistory = [];
     let eijiIsTyping = false;
+    let eijiVoiceActive = false;
+    let eijiRecognition = null;
+    let eijiSynthesis = window.speechSynthesis;
+    let eijiVoiceSessionId = null;
 
     function toggleEiji() {
         const el = document.getElementById('eijiView');
@@ -5145,6 +5149,11 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
 
             appendEijiBubble('agent', reply);
             eijiHistory.push({ role: 'assistant', content: reply });
+            
+            // Speak the response if voice was recently used
+            if (eijiVoiceSessionId) {
+                speakEijiResponse(reply);
+            }
 
         } catch (err) {
             removeEijiTyping();
@@ -5175,6 +5184,147 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
     function eijiAutoResize(el) {
         el.style.height = 'auto';
         el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+    }
+
+    /* ══════════════════════════════════════════════════
+       EIJI VOICE CHAT - Secure speech recognition & synthesis
+       Uses Web Speech API with proper error handling and session management
+       ══════════════════════════════════════════════════ */
+    function toggleEijiVoice() {
+        const btn = document.getElementById('eijiVoiceBtn');
+        
+        if (eijiVoiceActive) {
+            stopEijiVoice();
+            btn.style.background = 'rgba(92,120,255,.15)';
+            btn.style.color = '#a5b4fc';
+        } else {
+            startEijiVoice();
+            btn.style.background = 'linear-gradient(135deg,#3478ff,#8b5cf6)';
+            btn.style.color = '#fff';
+        }
+    }
+
+    async function startEijiVoice() {
+        // Check browser support
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            showToast('error', 'Voice Not Supported', 'Browser Anda tidak mendukung fitur voice chat. Gunakan Chrome atau Edge.');
+            return;
+        }
+
+        // Check if already recording to prevent conflicts
+        if (eijiVoiceActive) return;
+
+        try {
+            // Generate unique session ID for security tracking
+            eijiVoiceSessionId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            eijiRecognition = new SpeechRecognition();
+            
+            // Configure recognition for security and accuracy
+            eijiRecognition.lang = 'id-ID'; // Default to Indonesian
+            eijiRecognition.continuous = false;
+            eijiRecognition.interimResults = false;
+            eijiRecognition.maxAlternatives = 1;
+
+            eijiRecognition.onstart = () => {
+                eijiVoiceActive = true;
+                showToast('info', 'Voice Active', 'Silakan berbicara...');
+                document.getElementById('eijiInput').placeholder = 'Mendengarkan...';
+            };
+
+            eijiRecognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                if (transcript && transcript.trim()) {
+                    document.getElementById('eijiInput').value = transcript;
+                    sendEijiMessage();
+                }
+            };
+
+            eijiRecognition.onerror = (event) => {
+                console.error('Voice recognition error:', event.error);
+                let errorMsg = 'Terjadi kesalahan voice recognition.';
+                
+                if (event.error === 'not-allowed') {
+                    errorMsg = 'Akses mikrofon ditolak. Izinkan akses mikrofon di browser.';
+                } else if (event.error === 'no-speech') {
+                    errorMsg = 'Tidak ada suara terdeteksi. Coba lagi.';
+                } else if (event.error === 'network') {
+                    errorMsg = 'Koneksi internet bermasalah untuk voice recognition.';
+                }
+                
+                showToast('error', 'Voice Error', errorMsg);
+                stopEijiVoice();
+            };
+
+            eijiRecognition.onend = () => {
+                if (eijiVoiceActive) {
+                    stopEijiVoice();
+                }
+            };
+
+            eijiRecognition.start();
+
+        } catch (err) {
+            console.error('Failed to start voice recognition:', err);
+            showToast('error', 'Voice Error', 'Gagal memulai voice recognition.');
+            stopEijiVoice();
+        }
+    }
+
+    function stopEijiVoice() {
+        eijiVoiceActive = false;
+        
+        if (eijiRecognition) {
+            try {
+                eijiRecognition.stop();
+            } catch (e) {
+                // Recognition might already be stopped
+            }
+            eijiRecognition = null;
+        }
+
+        eijiVoiceSessionId = null;
+        
+        const btn = document.getElementById('eijiVoiceBtn');
+        if (btn) {
+            btn.style.background = 'rgba(92,120,255,.15)';
+            btn.style.color = '#a5b4fc';
+        }
+        
+        document.getElementById('eijiInput').placeholder = 'Ask Eiji anything...';
+    }
+
+    function speakEijiResponse(text) {
+        if (!eijiSynthesis) return;
+        
+        // Stop any ongoing speech
+        eijiSynthesis.cancel();
+        
+        // Clean text for speech (remove markdown, emojis, etc.)
+        const cleanText = text
+            .replace(/\*\*/g, '')
+            .replace(/\*/g, '')
+            .replace(/```[\s\S]*?```/g, '')
+            .replace(/`[^`]+`/g, '')
+            .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+            .replace(/[^\w\s.,?!-]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        if (!cleanText) return;
+
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.lang = 'id-ID';
+        utterance.rate = 1;
+        utterance.pitch = 1;
+        utterance.volume = 0.8;
+
+        utterance.onerror = (event) => {
+            console.error('Speech synthesis error:', event.error);
+        };
+
+        eijiSynthesis.speak(utterance);
     }
 
     function clearEijiChat() {
