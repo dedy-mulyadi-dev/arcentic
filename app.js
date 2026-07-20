@@ -5206,7 +5206,8 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
 
     async function startEijiVoice() {
         // Check browser support
-        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
             showToast('error', 'Voice Not Supported', 'Browser Anda tidak mendukung fitur voice chat. Gunakan Chrome atau Edge.');
             return;
         }
@@ -5218,17 +5219,22 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
             // Generate unique session ID for security tracking
             eijiVoiceSessionId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             eijiRecognition = new SpeechRecognition();
             
             // Configure recognition for security and accuracy
-            eijiRecognition.lang = 'id-ID'; // Default to Indonesian
+            // Try Indonesian first, fallback to English if not available
+            eijiRecognition.lang = 'id-ID';
             eijiRecognition.continuous = false;
             eijiRecognition.interimResults = false;
             eijiRecognition.maxAlternatives = 1;
 
             eijiRecognition.onstart = () => {
                 eijiVoiceActive = true;
+                const btn = document.getElementById('eijiVoiceBtn');
+                if (btn) {
+                    btn.style.background = 'linear-gradient(135deg,#3478ff,#8b5cf6)';
+                    btn.style.color = '#fff';
+                }
                 showToast('info', 'Voice Active', 'Silakan berbicara...');
                 document.getElementById('eijiInput').placeholder = 'Mendengarkan...';
             };
@@ -5251,6 +5257,20 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
                     errorMsg = 'Tidak ada suara terdeteksi. Coba lagi.';
                 } else if (event.error === 'network') {
                     errorMsg = 'Koneksi internet bermasalah untuk voice recognition.';
+                } else if (event.error === 'language-not-supported') {
+                    errorMsg = 'Bahasa tidak didukung. Menggunakan bahasa default.';
+                    // Retry with English
+                    if (eijiRecognition.lang === 'id-ID') {
+                        eijiRecognition.lang = 'en-US';
+                        try {
+                            eijiRecognition.start();
+                            return;
+                        } catch (retryErr) {
+                            console.error('Retry failed:', retryErr);
+                        }
+                    }
+                } else if (event.error === 'audio-capture') {
+                    errorMsg = 'Tidak ada mikrofon terdeteksi. Pastikan mikrofon terhubung.';
                 }
                 
                 showToast('error', 'Voice Error', errorMsg);
@@ -5267,7 +5287,7 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
 
         } catch (err) {
             console.error('Failed to start voice recognition:', err);
-            showToast('error', 'Voice Error', 'Gagal memulai voice recognition.');
+            showToast('error', 'Voice Error', 'Gagal memulai voice recognition: ' + err.message);
             stopEijiVoice();
         }
     }
