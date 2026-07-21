@@ -5457,18 +5457,6 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
         }
     }
 
-    // Cek status izin mikrofon tanpa memicu prompt (kalau browser mendukung
-    // Permissions API). Return 'granted' | 'denied' | 'prompt' | 'unknown'.
-    async function getEijiMicPermissionState() {
-        try {
-            if (!navigator.permissions || !navigator.permissions.query) return 'unknown';
-            const status = await navigator.permissions.query({ name: 'microphone' });
-            return status.state; // 'granted' | 'denied' | 'prompt'
-        } catch (e) {
-            return 'unknown';
-        }
-    }
-
     function showMicBlockedToast() {
         showToast('error', 'Mikrofon Diblokir', 'Izin mikrofon untuk situs ini sudah ditolak sebelumnya.\n\nCara mengaktifkan:\n1. Klik ikon gembok/info di address bar browser\n2. Cari "Mikrofon" lalu ubah ke "Izinkan"\n3. Refresh halaman ini\n\nRefresh saja tanpa mengubah setting di atas TIDAK akan memunculkan prompt izin lagi.');
     }
@@ -5494,18 +5482,14 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
                 return;
             }
 
-            // Kalau izin mic sebelumnya sudah DITOLAK secara permanen, browser
-            // tidak akan menampilkan prompt izin lagi — SpeechRecognition.start()
-            // akan langsung gagal dengan 'not-allowed' berulang kali. Deteksi ini
-            // lebih awal supaya user diarahkan ke langkah yang benar-benar
-            // memperbaiki masalah (ubah setting situs), bukan sekadar "refresh".
-            const micState = await getEijiMicPermissionState();
-            if (micState === 'denied') {
-                showMicBlockedToast();
-                eijiVoiceActive = false;
-                stopEijiVoice();
-                return;
-            }
+            // CATATAN: sebelumnya di sini ada pre-check pakai
+            // navigator.permissions.query({name:'microphone'}) untuk deteksi izin
+            // yang sudah ditolak permanen. Pre-check itu DIHAPUS karena terbukti
+            // tidak akurat di sebagian browser/device — bisa melaporkan 'denied'
+            // padahal izin OS & site settings sebenarnya sudah benar, sehingga
+            // memblokir user secara keliru sebelum sempat mencoba akses mic asli.
+            // Sekarang getUserMedia() di bawah ini adalah satu-satunya sumber
+            // kebenaran soal izin mic.
 
             // Minta izin mikrofon secara eksplisit lewat getUserMedia terlebih
             // dahulu. Ini memicu prompt izin browser secara konsisten (beberapa
@@ -5514,16 +5498,20 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
             // jelas (NotAllowedError, NotFoundError, dll) sebelum mulai recognition.
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 try {
+                    console.log('[EijiVoice] Meminta izin mikrofon via getUserMedia...');
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    console.log('[EijiVoice] Izin mikrofon berhasil didapat.');
                     // Kita hanya butuh izinnya, bukan streamnya — SpeechRecognition
                     // akan membuka akses mic sendiri. Matikan track segera.
                     stream.getTracks().forEach(track => track.stop());
                 } catch (mediaErr) {
-                    console.error('getUserMedia error:', mediaErr);
+                    console.error('[EijiVoice] getUserMedia error:', mediaErr.name, mediaErr.message);
                     if (mediaErr.name === 'NotAllowedError' || mediaErr.name === 'SecurityError') {
                         showMicBlockedToast();
                     } else if (mediaErr.name === 'NotFoundError') {
                         showToast('error', 'Mikrofon Tidak Ditemukan', 'Tidak ada mikrofon yang terdeteksi. Pastikan mikrofon terhubung.');
+                    } else if (mediaErr.name === 'NotReadableError') {
+                        showToast('error', 'Mikrofon Sedang Dipakai', 'Mikrofon sedang digunakan aplikasi lain (mis. Discord, Zoom, Meet). Tutup aplikasi lain yang memakai mikrofon lalu coba lagi.');
                     } else {
                         showToast('error', 'Voice Error', 'Gagal mengakses mikrofon: ' + mediaErr.message);
                     }
@@ -5537,6 +5525,7 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
             eijiVoiceSessionId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             
             eijiRecognition = new SpeechRecognition();
+            
             
             // Configure recognition for security and accuracy
             // Try Indonesian first, fallback to English if not available
@@ -5571,7 +5560,9 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
                 let errorMsg = 'Terjadi kesalahan voice recognition.';
                 
                 if (event.error === 'not-allowed') {
-                    errorMsg = 'Akses mikrofon ditolak.\n\nCara mengaktifkan:\n1. Klik ikon gembok/info di address bar browser\n2. Cari "Mikrofon" lalu ubah ke "Izinkan"\n3. Refresh halaman ini\n\nJika masih gagal, coba di browser lain (Chrome/Edge).';
+                    showMicBlockedToast();
+                    stopEijiVoice();
+                    return;
                 } else if (event.error === 'no-speech') {
                     errorMsg = 'Tidak ada suara terdeteksi. Coba lagi.';
                 } else if (event.error === 'network') {
