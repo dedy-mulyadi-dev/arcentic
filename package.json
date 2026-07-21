@@ -1,0 +1,24 @@
+{
+  "name": "arcentic",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dedy-mulyadi-dev/arcentic.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/dedy-mulyadi-dev/arcentic/issues"
+  },
+  "homepage": "https://github.com/dedy-mulyadi-dev/arcentic#readme",
+  "dependencies": {
+    "ethers": "^6.17.0"
+  }
+}
