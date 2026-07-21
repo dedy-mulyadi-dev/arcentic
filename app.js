@@ -232,6 +232,28 @@
         throw lastErr;
     }
 
+    /* Run `fn` over `items` with at most `limit` in flight at once, instead of
+       firing every call simultaneously via Promise.all. Public RPC endpoints
+       rate-limit (429) based on how many requests land in the same instant —
+       so with N tokens, blasting out 3-5×N calls all at once was routinely
+       the very thing that triggered the rate limit in the first place, which
+       then made each of those calls sit through withRpcRetry's slow backoff.
+       Capping concurrency keeps us under that threshold so most loads finish
+       on the first try instead of needing retries at all. */
+    async function mapWithConcurrency(items, limit, fn) {
+        const results = new Array(items.length);
+        let nextIndex = 0;
+        async function worker() {
+            while (nextIndex < items.length) {
+                const i = nextIndex++;
+                results[i] = await fn(items[i], i);
+            }
+        }
+        const workers = Array.from({ length: Math.min(limit, items.length) }, worker);
+        await Promise.all(workers);
+        return results;
+    }
+
     /* Turn a raw ethers/wallet error into a short, user-facing message.
        Transient RPC failures get an actionable hint instead of the raw
        "RPC endpoint returned HTTP client error." string. */
@@ -916,7 +938,7 @@
             })(),
             (async () => {
                 const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, readOnlyProvider());
-                return Promise.all(TOKENS.map(async (t) => {
+                return mapWithConcurrency(TOKENS, 4, async (t) => {
                     try {
                         const [supported, tierCount] = await Promise.all([
                             staking.tokenSupported(t.addr),
@@ -926,7 +948,7 @@
                     } catch (err) {
                         return { ...t, supported: null, tierCount: null };
                     }
-                }));
+                });
             })()
         ]);
 
@@ -1271,13 +1293,17 @@
             // Fetch every token's address, support flag, and metadata concurrently
             // instead of one at a time — with several whitelisted tokens this was
             // N sequential RPC round-trips, which is what made opening Stake feel slow.
-            const addrs = await Promise.all(Array.from({ length: count }, (_, i) => withRpcRetry(() => staking.supportedTokenAt(i), { onRetry: onRpcRetry })));
-            const entries = await Promise.all(addrs.map(async (addr) => {
+            const addrs = await mapWithConcurrency(
+                Array.from({ length: count }, (_, i) => i),
+                4,
+                (i) => withRpcRetry(() => staking.supportedTokenAt(i), { onRetry: onRpcRetry })
+            );
+            const entries = await mapWithConcurrency(addrs, 4, async (addr) => {
                 const isSupported = await withRpcRetry(() => staking.tokenSupported(addr), { onRetry: onRpcRetry });
                 if (!isSupported) return null; // owner paused new stakes for this token
                 const meta = await getStakeTokenMeta(addr, provider);
                 return { addr, ...meta };
-            }));
+            });
             stakeTokens = entries.filter(Boolean);
             if (!selectedStakeToken || !stakeTokens.some(t => t.addr === selectedStakeToken)) {
                 selectedStakeToken = stakeTokens.length > 0 ? stakeTokens[0].addr : null;
@@ -1348,11 +1374,13 @@
                     `<div class="text-center col-span-3 text-gray-400 text-sm py-4">RPC lambat — mencoba ulang (${n}/${max})…</div>`;
             };
             const count = (await withRpcRetry(() => staking.tiersLength(selectedStakeToken), { onRetry: onRpcRetry })).toNumber();
-            const tiers = await Promise.all(
-                Array.from({ length: count }, async (_, i) => {
+            const tiers = await mapWithConcurrency(
+                Array.from({ length: count }, (_, i) => i),
+                4,
+                async (i) => {
                     const t = await withRpcRetry(() => staking.tierAt(selectedStakeToken, i), { onRetry: onRpcRetry });
                     return { id: i, lockDuration: t.lockDuration.toNumber(), aprBps: t.aprBps.toNumber(), active: t.active };
-                })
+                }
             );
             stakeTiers = tiers;
             const firstActive = tiers.find(t => t.active);
@@ -1560,9 +1588,9 @@
             // wallets with several open positions. Order is preserved so the
             // list renders in the same index order as before.
             const idxs = Array.from({ length: count }, (_, i) => i);
-            const rawStakes = await Promise.all(idxs.map(i => staking.stakesOf(currentAccount, i)));
+            const rawStakes = await mapWithConcurrency(idxs, 4, (i) => staking.stakesOf(currentAccount, i));
             const activeIdxs = idxs.filter(i => !rawStakes[i].withdrawn);
-            const details = await Promise.all(activeIdxs.map(async (i) => {
+            const details = await mapWithConcurrency(activeIdxs, 4, async (i) => {
                 const s = rawStakes[i];
                 const [pending, unlocked, meta] = await Promise.all([
                     staking.pendingReward(currentAccount, i),
@@ -1570,7 +1598,7 @@
                     getStakeTokenMeta(s.token, provider)
                 ]);
                 return { i, s, pending, unlocked, meta };
-            }));
+            });
 
             for (const { i, s, pending, unlocked, meta } of details) {
                 if (selectedStakeToken && s.token.toLowerCase() === selectedStakeToken.toLowerCase()) {
@@ -4127,11 +4155,11 @@
             // Fetch every token's decimals + reserves in parallel instead of
             // one-by-one in a sequential loop — with N tokens that turned a
             // single admin-panel load into N sequential RPC round-trips.
-            const amountsUsd = await Promise.all(TOKENS.map(async (tok) => {
-                const [dec, raw] = await Promise.all([getDecimals(tok), pool.reserves(tok.addr)]);
+            const amountsUsd = await mapWithConcurrency(TOKENS, 4, async (tok) => {
+                const [dec, raw] = await withRpcRetry(() => Promise.all([getDecimals(tok), pool.reserves(tok.addr)]), { retries: 2 });
                 const amt = parseFloat(ethers.utils.formatUnits(raw, dec));
                 return amt * tok.rate;
-            }));
+            });
             return amountsUsd.reduce((sum, v) => sum + v, 0); // in plain USD
         } catch {
             return null; // contract not deployed at this address / RPC unreachable / etc.
