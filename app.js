@@ -292,6 +292,31 @@
         return !!addr && addr.toLowerCase() === ADMIN_WALLET.toLowerCase();
     }
 
+    /* ======= EIJI CODING MODE (admin-only) =======
+       Lets Eiji read this project's own source from GitHub and, after an
+       explicit wallet-signed approval, push an edit back to GitHub via
+       /api/eiji-code. This client-side isAdminWallet() check is only a UX
+       gate (hides the button) — the real authorization happens server-side
+       in /api/eiji-code.js against ADMIN_WALLET + a wallet signature, so
+       this feature stays safe even if someone bypasses the frontend. */
+    const EIJI_CODE_EDITABLE_FILES = ['app.js', 'index.html', 'styles.css'];
+    let eijiCodingSessionToken = null;
+    let eijiCodingSessionExpiry = 0;
+    let eijiCodeFileCache = {}; // path -> { sha, startLine, endLine, content }
+    let eijiPendingEdits = {};  // editId -> parsed edit, for Approve/Reject buttons
+
+    function eijiCodingModeActive() {
+        return !!eijiCodingSessionToken && Date.now() < eijiCodingSessionExpiry;
+    }
+
+    async function eijiSha256Hex(str) {
+        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+        return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    async function eijiShortHash(str) {
+        return (await eijiSha256Hex(str)).slice(0, 16);
+    }
+
     function updateAdminVisibility() {
         const show = isConnected && isAdminWallet(currentAccount);
         const btn  = document.getElementById('navAdmin');
@@ -302,6 +327,16 @@
         // was open (e.g. user switched accounts in MetaMask), boot them out.
         const view = document.getElementById('adminView');
         if (!show && view && view.classList.contains('open')) showHome();
+
+        const codeBtn = document.getElementById('eijiCodingModeBtn');
+        if (codeBtn) codeBtn.style.display = show ? '' : 'none';
+        if (!show && eijiCodingModeActive()) {
+            // Wallet switched away from admin mid-session — kill the session,
+            // don't just hide the button.
+            eijiCodingSessionToken = null;
+            eijiCodingSessionExpiry = 0;
+            eijiCodeFileCache = {};
+        }
     }
 
     /* ── Helpers ── */
@@ -4734,7 +4769,22 @@ BATASAN KONTEN (WAJIB, TIDAK BISA DITAWAR):
 - Tetap ramah tapi tegas; tidak perlu menghakimi, cukup katakan kamu tidak bisa membantu untuk permintaan itu.
 - FILM/MOVIE: boleh memberi info film (judul, sinopsis, rating) dan HANYA link RESMI/legal — trailer di channel resmi, IMDb, atau platform legal (Netflix, Disney+, Prime Video, Vidio, bioskop). JANGAN PERNAH memberi link download/streaming bajakan atau situs subtitle ilegal (mis. situs sejenis LK21/IndoXXI). Kalau user minta film bajakan/subtitle ilegal, tolak sopan dan arahkan ke opsi legal.
 
-Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dari tool, sebutkan juga bahwa datanya live/real-time.`;
+Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dari tool, sebutkan juga bahwa datanya live/real-time.
+
+MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di daftar tool-mu; kalau tidak muncul, berarti coding mode sedang tidak aktif dan kamu TIDAK BOLEH membahas isi kode sama sekali):
+- Kamu punya tool read_code_file(path, startLine?, endLine?, query?) untuk membaca kode sumber project ARCENTIC ini sendiri langsung dari GitHub (real-time). WAJIB panggil tool ini dulu sebelum mengusulkan perubahan apapun — JANGAN PERNAH mengarang/menebak isi kode dari ingatanmu, karena kode aslinya bisa saja sudah berbeda dari yang pernah kamu lihat.
+- File yang bisa kamu akses HANYA: "app.js", "index.html", "styles.css". Tidak ada file lain (jangan pernah menyebut atau mengasumsikan kamu bisa akses folder api/, vercel.json, package.json, atau file rahasia apapun — kamu memang tidak punya akses ke situ).
+- Kalau filenya besar, gunakan parameter query dulu untuk mencari baris yang relevan (misal cari nama fungsi/selector CSS), baru read_code_file dengan startLine/endLine di sekitar hasil pencarian itu. Jangan minta seluruh file sekaligus kecuali user memang minta rewrite total pada file kecil.
+- Setelah yakin dengan perubahannya, tulis PERSIS satu blok berikut di AKHIR jawabanmu (tidak ada teks lain di dalam blok ini):
+
+<<<EIJI_CODE_EDIT path="NAMA_FILE" sha="SHA_DARI_HASIL_TOOL" startLine="N" endLine="M">>>
+(baris-baris kode baru yang akan MENGGANTIKAN baris startLine sampai endLine, apa adanya, TANPA nomor baris)
+<<<END_EIJI_CODE_EDIT>>>
+
+- startLine/endLine HARUS memakai nomor baris PERSIS seperti yang ditampilkan di hasil tool read_code_file terakhir untuk file itu, jangan menebak. Kalau mau mengganti seluruh file, pakai startLine=1 dan endLine=totalLines (nilai totalLines ada di hasil tool).
+- Sebelum blok itu, jelaskan singkat ke user (dalam bahasa yang sama dengan pesannya) apa yang akan diubah dan kenapa.
+- Perubahan TIDAK langsung ter-push ke GitHub. Sistem akan menampilkan diff untuk direview, dan hanya ter-push kalau admin klik "Approve & Push" lalu menandatangani dengan wallet-nya. Boleh kamu jelaskan itu ke user.
+- Kalau user minta hal yang berisiko (menghapus validasi keamanan, mengubah ADMIN_WALLET, dsb), tetap boleh dikerjakan kalau memang diminta eksplisit, tapi ingatkan risikonya dengan jelas sebelum blok edit.`;
 
     /* -- Tool definitions (function calling, format OpenAI/Groq) -- */
     const EIJI_TOOLS = [
@@ -4839,6 +4889,40 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
             }
         }
     ];
+
+    /* Admin-only tool(s) for Eiji coding mode. Kept in a SEPARATE array from
+       EIJI_TOOLS (not merged in) so that regular users never even see this
+       tool advertised to the model — it's appended only when
+       eijiCodingModeActive() is true, right before each API call. This is
+       purely a UX/token-budget nicety; the real gate is server-side in
+       /api/eiji-code.js, which independently verifies the caller's wallet
+       signature regardless of what tools were offered to the model. */
+    const EIJI_CODE_TOOLS = [
+        {
+            type: 'function',
+            function: {
+                name: 'read_code_file',
+                description: 'ADMIN CODING MODE ONLY. Membaca kode sumber project ARCENTIC ini sendiri (real-time dari GitHub, bukan dari ingatanmu). Gunakan "query" untuk mencari teks/nama fungsi/selector dulu di file besar, atau startLine/endLine untuk membaca rentang baris tertentu. Kalau semua parameter opsional dikosongkan, hanya sampai 400 baris pertama yang dikembalikan.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        path: { type: 'string', enum: EIJI_CODE_EDITABLE_FILES, description: 'Nama file yang mau dibaca' },
+                        query: { type: 'string', description: 'Cari teks/nama fungsi/selector CSS di file ini; hasilnya nomor baris + potongan sekitarnya' },
+                        startLine: { type: 'integer', description: 'Baris awal (1-indexed) yang mau dibaca' },
+                        endLine: { type: 'integer', description: 'Baris akhir (inclusive) yang mau dibaca' }
+                    },
+                    required: ['path']
+                }
+            }
+        }
+    ];
+
+    function eijiActiveTools() {
+        return eijiCodingModeActive() ? EIJI_TOOLS.concat(EIJI_CODE_TOOLS) : EIJI_TOOLS;
+    }
+    function eijiActiveMaxTokens() {
+        return eijiCodingModeActive() ? 4096 : 1024;
+    }
 
     /* -- Tool implementations: real public APIs, no key required -- */
     async function tool_get_crypto_price(coinIdRaw) {
@@ -5062,8 +5146,41 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
         get_weather: (args) => tool_get_weather(args.location),
         web_search: (args) => tool_web_search(args.query),
         get_trending_coins: () => tool_get_trending_coins(),
-        create_presentation: (args) => tool_create_presentation(args)
+        create_presentation: (args) => tool_create_presentation(args),
+        read_code_file: (args) => tool_read_code_file(args.path, args.startLine, args.endLine, args.query)
     };
+
+    /* Admin coding-mode tool implementation. Talks to /api/eiji-code, which
+       independently re-verifies admin access server-side before returning
+       anything — this function is not itself a security boundary. */
+    async function tool_read_code_file(path, startLine, endLine, query) {
+        if (!EIJI_CODE_EDITABLE_FILES.includes(path)) {
+            return JSON.stringify({ error: 'File tidak diizinkan. Hanya app.js, index.html, atau styles.css.' });
+        }
+        if (!eijiCodingModeActive()) {
+            return JSON.stringify({ error: 'Coding mode belum aktif atau sudah kedaluwarsa. Minta user mengaktifkan tombol Coding Mode dulu.' });
+        }
+        try {
+            const res = await eijiFetchWithTimeout('/api/eiji-code?action=read', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionToken: eijiCodingSessionToken, path, startLine, endLine, query })
+            }, 15000);
+            const data = await res.json();
+            if (!res.ok) return JSON.stringify({ error: data.error || 'Gagal membaca file.' });
+            if (data.matches) {
+                return JSON.stringify({ path, sha: data.sha, totalLines: data.totalLines, matches: data.matches });
+            }
+            eijiCodeFileCache[path] = { sha: data.sha, startLine: data.startLine, endLine: data.endLine, content: data.content };
+            return JSON.stringify({
+                path, sha: data.sha, totalLines: data.totalLines,
+                startLine: data.startLine, endLine: data.endLine,
+                truncated: data.truncated, content: data.content
+            });
+        } catch (err) {
+            return JSON.stringify({ error: 'Gagal membaca file: ' + err.message });
+        }
+    }
 
     /* Safety net: small models sometimes "leak" a fake function call as plain text
        (e.g. "(function=get_crypto_price> {\"coin_id\":\"x\"})") instead of using the
@@ -5169,6 +5286,26 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
         return null;
     }
 
+    /* Parses the <<<EIJI_CODE_EDIT ...>>> ... <<<END_EIJI_CODE_EDIT>>> block Eiji
+       is instructed (in EIJI_SYSTEM) to emit when proposing a code change in
+       coding mode. Returns null if no well-formed block is present — the
+       caller falls back to showing the reply as normal text in that case. */
+    function eijiExtractCodeEdit(text) {
+        if (!text) return null;
+        const re = /<<<EIJI_CODE_EDIT\s+path="([^"]+)"\s+sha="([^"]+)"\s+startLine="(\d+)"\s+endLine="(\d+)"\s*>>>\r?\n?([\s\S]*?)\r?\n?<<<END_EIJI_CODE_EDIT>>>/;
+        const m = text.match(re);
+        if (!m) return null;
+        return {
+            path: m[1],
+            sha: m[2],
+            startLine: parseInt(m[3], 10),
+            endLine: parseInt(m[4], 10),
+            newText: m[5],
+            before: text.slice(0, m.index).trim(),
+            after: text.slice(m.index + m[0].length).trim()
+        };
+    }
+
     /* fetch() has no built-in timeout — without this, a stalled /api/groq or
        /api/gemini response (server hung, network black hole, etc.) leaves the
        chat stuck on "typing…" forever with the send button locked, since
@@ -5192,11 +5329,11 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
         if (useTools === undefined) useTools = true;
         const body = {
             model: 'llama-3.3-70b-versatile',
-            max_tokens: 1024,
+            max_tokens: eijiActiveMaxTokens(),
             messages
         };
         if (useTools) {
-            body.tools = EIJI_TOOLS;
+            body.tools = eijiActiveTools();
             body.tool_choice = 'auto';
         }
         const res = await eijiFetchWithTimeout('/api/groq', {
@@ -5244,11 +5381,11 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
         if (useTools === undefined) useTools = true;
         const body = {
             model: 'meta-llama/llama-3.3-70b-instruct',
-            max_tokens: 1024,
+            max_tokens: eijiActiveMaxTokens(),
             messages
         };
         if (useTools) {
-            body.tools = EIJI_TOOLS;
+            body.tools = eijiActiveTools();
             body.tool_choice = 'auto';
         }
         const res = await eijiFetchWithTimeout('/api/openrouter', {
@@ -5290,11 +5427,11 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
         if (useTools === undefined) useTools = true;
         const body = {
             model: 'gemini-2.0-flash',
-            max_tokens: 1024,
+            max_tokens: eijiActiveMaxTokens(),
             messages
         };
         if (useTools) {
-            body.tools = EIJI_TOOLS;
+            body.tools = eijiActiveTools();
             body.tool_choice = 'auto';
         }
         const res = await eijiFetchWithTimeout('/api/gemini', {
@@ -5400,6 +5537,220 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
         container.appendChild(div);
         container.scrollTop = container.scrollHeight;
         return div;
+    }
+
+    /* ══════════════════════════════════════════════════
+       EIJI CODING MODE UI — admin-only
+       ══════════════════════════════════════════════════ */
+
+    // One wallet signature -> a 30-minute session token that only allows
+    // READ access (see /api/eiji-code.js). Committing always needs a
+    // fresh, separate signature over the exact change, no matter what.
+    async function eijiToggleCodingMode() {
+        if (eijiCodingModeActive()) {
+            eijiCodingSessionToken = null;
+            eijiCodingSessionExpiry = 0;
+            eijiCodeFileCache = {};
+            updateEijiCodingBadge(false);
+            appendEijiBubble('agent', '🛠️ Coding mode dimatikan.');
+            return;
+        }
+        if (!isConnected || !isAdminWallet(currentAccount)) {
+            alert('Coding mode hanya untuk wallet admin. Hubungkan wallet admin dulu.');
+            return;
+        }
+        const btn = document.getElementById('eijiCodingModeBtn');
+        if (btn) btn.disabled = true;
+        try {
+            const nonceRes = await eijiFetchWithTimeout('/api/eiji-code?action=nonce', {}, 15000);
+            const { nonceToken, nonceHash } = await nonceRes.json();
+            const message = `Eiji Coding Session\nwallet:${currentAccount}\nnonce:${nonceHash}`;
+            const signature = await window.ethereum.request({
+                method: 'personal_sign',
+                params: [message, currentAccount]
+            });
+            const sessRes = await eijiFetchWithTimeout('/api/eiji-code?action=session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nonceToken, signature, wallet: currentAccount })
+            }, 15000);
+            const sessData = await sessRes.json();
+            if (!sessRes.ok) throw new Error(sessData.error || 'Gagal mengaktifkan coding mode');
+            eijiCodingSessionToken = sessData.sessionToken;
+            eijiCodingSessionExpiry = Date.now() + (sessData.expiresInMs || 0);
+            updateEijiCodingBadge(true);
+            appendEijiBubble('agent', '🛠️ Coding mode aktif selama 30 menit. Sekarang kamu bisa minta aku baca & usulkan perbaikan ke app.js, index.html, atau styles.css — tiap perubahan tetap harus kamu approve & tanda tangani sebelum ter-push.');
+        } catch (err) {
+            console.error('eijiToggleCodingMode error:', err);
+            if (err && err.code === 4001) {
+                // user rejected the signature request — no need for an alert
+            } else {
+                alert('Gagal mengaktifkan coding mode: ' + (err && err.message ? err.message : err));
+            }
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    function updateEijiCodingBadge(active) {
+        const btn = document.getElementById('eijiCodingModeBtn');
+        if (!btn) return;
+        btn.classList.toggle('active', !!active);
+        btn.title = active ? 'Coding mode aktif — klik untuk matikan' : 'Aktifkan coding mode (khusus admin)';
+    }
+
+    // Simple word-level-ish line diff for the review card: LCS-free, just
+    // marks whole lines as removed/added/unchanged. Good enough for
+    // reviewing a targeted range replacement, not meant to be a full diff algo.
+    function eijiSimpleLineDiff(oldLines, newLines) {
+        const rows = [];
+        const max = Math.max(oldLines.length, newLines.length);
+        // If lines match 1:1 in order for a shared prefix/suffix, mark unchanged;
+        // everything else in the middle is shown as removed (old) then added (new).
+        let prefix = 0;
+        while (prefix < oldLines.length && prefix < newLines.length && oldLines[prefix] === newLines[prefix]) prefix++;
+        let suffix = 0;
+        while (
+            suffix < (oldLines.length - prefix) && suffix < (newLines.length - prefix) &&
+            oldLines[oldLines.length - 1 - suffix] === newLines[newLines.length - 1 - suffix]
+        ) suffix++;
+        for (let i = 0; i < prefix; i++) rows.push({ type: 'ctx', text: oldLines[i] });
+        for (let i = prefix; i < oldLines.length - suffix; i++) rows.push({ type: 'del', text: oldLines[i] });
+        for (let i = prefix; i < newLines.length - suffix; i++) rows.push({ type: 'add', text: newLines[i] });
+        for (let i = oldLines.length - suffix; i < oldLines.length; i++) rows.push({ type: 'ctx', text: oldLines[i] });
+        return rows;
+    }
+
+    function appendEijiCodeEditCard(edit) {
+        const editId = 'edit_' + Math.random().toString(36).slice(2, 10);
+        eijiPendingEdits[editId] = edit;
+
+        const container = document.getElementById('eijiMessages');
+        const div = document.createElement('div');
+        div.className = 'eiji-bubble agent eiji-code-card';
+        div.id = editId;
+
+        const name = document.createElement('div');
+        name.className = 'eiji-name';
+        name.textContent = '\u2726 EIJI \u2014 USULAN PERUBAHAN';
+        div.appendChild(name);
+
+        const meta = document.createElement('div');
+        meta.className = 'eiji-code-meta';
+        meta.textContent = `${edit.path} \u00b7 baris ${edit.startLine}\u2013${edit.endLine}`;
+        div.appendChild(meta);
+
+        const cached = eijiCodeFileCache[edit.path];
+        const oldLines = (cached && cached.startLine <= edit.startLine && cached.endLine >= edit.endLine)
+            ? cached.content.split('\n').slice(edit.startLine - cached.startLine, edit.endLine - cached.startLine + 1)
+                .map(l => l.replace(/^\d+:\s?/, ''))
+            : null;
+        const newLines = edit.newText.split('\n');
+
+        const pre = document.createElement('pre');
+        pre.className = 'eiji-code-diff';
+        if (oldLines) {
+            const rows = eijiSimpleLineDiff(oldLines, newLines);
+            pre.innerHTML = rows.map(r => {
+                const cls = r.type === 'add' ? 'eiji-diff-add' : r.type === 'del' ? 'eiji-diff-del' : 'eiji-diff-ctx';
+                const prefix = r.type === 'add' ? '+ ' : r.type === 'del' ? '- ' : '  ';
+                return `<span class="${cls}">${prefix}${eijiEscapeHtml(r.text)}</span>`;
+            }).join('\n');
+        } else {
+            pre.innerHTML = `<span class="eiji-code-nopreview">\u26a0\ufe0f Belum ada versi lama tersimpan untuk baris ini di sesi ini \u2014 menampilkan kode baru saja. Tetap aman: server akan cek ulang isi file terbaru sebelum commit.</span>\n` +
+                newLines.map(l => `<span class="eiji-diff-add">+ ${eijiEscapeHtml(l)}</span>`).join('\n');
+        }
+        div.appendChild(pre);
+
+        const actions = document.createElement('div');
+        actions.className = 'eiji-code-actions';
+        const approveBtn = document.createElement('button');
+        approveBtn.className = 'eiji-code-btn approve';
+        approveBtn.textContent = '\u2705 Approve & Push';
+        approveBtn.onclick = () => eijiApproveCodeEdit(editId);
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'eiji-code-btn';
+        copyBtn.textContent = '\ud83d\udccb Copy';
+        copyBtn.onclick = () => { navigator.clipboard.writeText(edit.newText); copyBtn.textContent = '\u2713 Disalin'; setTimeout(() => copyBtn.textContent = '\ud83d\udccb Copy', 1500); };
+        const rejectBtn = document.createElement('button');
+        rejectBtn.className = 'eiji-code-btn reject';
+        rejectBtn.textContent = '\u2716 Tolak';
+        rejectBtn.onclick = () => eijiRejectCodeEdit(editId);
+        actions.appendChild(approveBtn);
+        actions.appendChild(copyBtn);
+        actions.appendChild(rejectBtn);
+        div.appendChild(actions);
+
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function eijiEscapeHtml(s) {
+        return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    }
+
+    function eijiRejectCodeEdit(editId) {
+        delete eijiPendingEdits[editId];
+        const el = document.getElementById(editId);
+        if (el) {
+            const actions = el.querySelector('.eiji-code-actions');
+            if (actions) actions.remove();
+            const note = document.createElement('div');
+            note.className = 'eiji-code-status rejected';
+            note.textContent = 'Ditolak \u2014 tidak ada perubahan yang di-push.';
+            el.appendChild(note);
+        }
+    }
+
+    async function eijiApproveCodeEdit(editId) {
+        const edit = eijiPendingEdits[editId];
+        if (!edit) return;
+        if (!isConnected || !isAdminWallet(currentAccount)) {
+            alert('Hubungkan wallet admin dulu untuk approve.');
+            return;
+        }
+        const el = document.getElementById(editId);
+        const actions = el && el.querySelector('.eiji-code-actions');
+        const approveBtn = actions && actions.querySelector('.approve');
+        if (approveBtn) { approveBtn.disabled = true; approveBtn.textContent = 'Menunggu tanda tangan\u2026'; }
+
+        try {
+            const nonceRes = await eijiFetchWithTimeout('/api/eiji-code?action=nonce', {}, 15000);
+            const { nonceToken, nonceHash } = await nonceRes.json();
+            const payloadHash = await eijiShortHash(JSON.stringify({ path: edit.path, newText: edit.newText, startLine: edit.startLine, endLine: edit.endLine, sha: edit.sha }));
+            const message = `Eiji Admin Commit\nwallet:${currentAccount}\npath:${edit.path}\nlines:${edit.startLine}-${edit.endLine}\npayloadHash:${payloadHash}\nnonce:${nonceHash}`;
+            const signature = await window.ethereum.request({
+                method: 'personal_sign',
+                params: [message, currentAccount]
+            });
+
+            if (approveBtn) approveBtn.textContent = 'Mendorong ke GitHub\u2026';
+            const commitRes = await eijiFetchWithTimeout('/api/eiji-code?action=commit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    path: edit.path, newText: edit.newText, startLine: edit.startLine, endLine: edit.endLine, sha: edit.sha,
+                    commitMessage: `Eiji AI: update ${edit.path} (lines ${edit.startLine}-${edit.endLine})`,
+                    signature, message, nonceToken, wallet: currentAccount
+                })
+            }, 20000);
+            const commitData = await commitRes.json();
+            if (!commitRes.ok) throw new Error(commitData.error || 'Gagal push ke GitHub');
+
+            delete eijiPendingEdits[editId];
+            if (actions) actions.remove();
+            const note = document.createElement('div');
+            note.className = 'eiji-code-status approved';
+            note.innerHTML = `\u2705 Ter-push ke GitHub${commitData.commitUrl ? ` \u2014 <a href="${commitData.commitUrl}" target="_blank" rel="noopener">lihat commit</a>` : ''}. Vercel akan auto-deploy dalam beberapa menit.`;
+            if (el) el.appendChild(note);
+            delete eijiCodeFileCache[edit.path]; // sha berubah, paksa Eiji baca ulang kalau mau edit lagi
+        } catch (err) {
+            console.error('eijiApproveCodeEdit error:', err);
+            if (approveBtn) { approveBtn.disabled = false; approveBtn.textContent = '\u2705 Approve & Push'; }
+            if (!(err && err.code === 4001)) {
+                alert('Gagal push perubahan: ' + (err && err.message ? err.message : err));
+            }
+        }
     }
 
     function showEijiTyping() {
@@ -5516,9 +5867,18 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
                 reply = 'Maaf, ada gangguan teknis saat memproses jawaban ini. Coba tanya ulang ya!';
             }
 
-            appendEijiBubble('agent', reply);
-            eijiHistory.push({ role: 'assistant', content: reply });
-            
+            const codeEdit = eijiCodingModeActive() ? eijiExtractCodeEdit(reply) : null;
+            if (codeEdit && EIJI_CODE_EDITABLE_FILES.includes(codeEdit.path)) {
+                if (codeEdit.before) appendEijiBubble('agent', codeEdit.before);
+                appendEijiCodeEditCard(codeEdit);
+                // Keep full history natural for the model's own context, but
+                // the user never sees the raw <<<EIJI_CODE_EDIT>>> block itself.
+                eijiHistory.push({ role: 'assistant', content: codeEdit.before || '(mengusulkan perubahan kode)' });
+            } else {
+                appendEijiBubble('agent', reply);
+                eijiHistory.push({ role: 'assistant', content: reply });
+            }
+
             // Bacakan balasan jika pesan ini berasal dari input suara
             if (shouldSpeakReply) {
                 speakEijiResponse(reply, speakLang);
