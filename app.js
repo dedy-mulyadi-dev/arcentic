@@ -4707,7 +4707,7 @@ Kemampuanmu:
 - Kamu PUNYA AKSES ke data real-time lewat tools: get_crypto_price (harga kripto live dari CoinGecko), get_metal_price (harga emas/perak/platina/palladium live dari Gold-API.com), get_weather (cuaca live dari Open-Meteo), web_search (pencarian web live lewat Tavily), dan get_trending_coins (koin trending + top gainer 24 jam live dari CoinGecko)
 - KOIN NAIK/PUMP/REKOMENDASI: kalau user tanya "koin apa yang lagi naik/hot/trending", "top gainer", atau minta rekomendasi/koin yang "berpotensi pump", panggil get_trending_coins lalu tampilkan datanya apa adanya. TAPI JANGAN PERNAH menjanjikan atau memastikan sebuah koin akan naik/pump. Selalu sertakan disclaimer bahwa ini DATA pasar, bukan jaminan dan bukan saran investasi (DYOR). Jujur bahwa tidak ada yang bisa memprediksi pump dengan pasti.
 - BATASAN TOOL (PENTING): get_crypto_price HANYA untuk cryptocurrency/token yang benar-benar ada (bitcoin, ethereum, dst). Kalau user menanyakan SIAPA/APA seseorang, tempat, istilah, atau hal apapun yang BUKAN nama coin kripto yang jelas — JANGAN coba get_crypto_price. Gunakan web_search untuk itu.
-- LOGAM MULIA (PENTING): kalau user tanya harga emas, perak, platina, atau palladium (bukan koin kripto), panggil get_metal_price — JANGAN pakai web_search untuk ini, karena get_metal_price memberi angka live yang akurat langsung, sementara web_search cuma cari cuplikan artikel yang bisa saja sudah basi
+- LOGAM MULIA (PENTING): kalau user tanya harga emas, perak, platina, atau palladium (bukan koin kripto), panggil get_metal_price — JANGAN pakai web_search untuk ini, karena get_metal_price memberi angka live yang akurat langsung, sementara web_search cuma cari cuplikan artikel yang bisa saja sudah basi. Hasilnya sudah termasuk harga per troy ons DAN per gram, dalam USD dan IDR sekaligus — SELALU sebutkan kedua mata uang itu di jawabanmu (USD dan Rupiah), tidak perlu user minta ulang.
 - Kalau kamu ragu apakah sesuatu itu nama koin kripto atau bukan, gunakan web_search dulu untuk memastikan, jangan asumsikan itu koin
 - ATURAN WAJIB: kamu HARUS memanggil tool lewat mekanisme function-call yang sebenarnya (bukan menulis teks seperti kode/JSON di jawabanmu). JANGAN PERNAH menulis sesuatu seperti "(function=...)" atau menampilkan format JSON mentah ke user — itu salah. Panggil tool secara nyata, lalu jawab dengan kalimat natural berdasarkan hasilnya
 - ATURAN WAJIB: kalau user menanyakan apapun yang butuh info terkini/aktual (harga, cuaca, berita, hasil pertandingan, siapa pemenang/juara, peringkat, status terbaru sesuatu, siapa/apa itu X yang tidak kamu kenal, dll), kamu HARUS memanggil tool yang sesuai dulu — JANGAN PERNAH hanya menyebutkan "aku bisa cari pakai web_search" tanpa benar-benar memanggilnya. Langsung panggil tool-nya.
@@ -4862,6 +4862,8 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
         }
     }
 
+    const TROY_OZ_TO_GRAM = 31.1034768;
+
     async function tool_get_metal_price(metalRaw) {
         try {
             const aliasMap = {
@@ -4879,14 +4881,36 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
             if (!data || typeof data.price !== 'number') {
                 return JSON.stringify({ error: `Data harga untuk '${metalRaw}' tidak ditemukan.` });
             }
-            return JSON.stringify({
+            const priceUsdOz = data.price;
+            const priceUsdGram = priceUsdOz / TROY_OZ_TO_GRAM;
+
+            // Konversi ke IDR (sumber kurs terpisah, karena Gold-API.com tidak
+            // menyediakan IDR). Kalau kurs gagal diambil, tetap kembalikan
+            // data USD-nya saja daripada gagal total.
+            let usdToIdr = null;
+            try {
+                const fxRes = await eijiFetchWithTimeout(
+                    'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json', {}, 8000);
+                const fxData = await fxRes.json();
+                usdToIdr = fxData && fxData.usd && typeof fxData.usd.idr === 'number' ? fxData.usd.idr : null;
+            } catch (e) { /* biarkan null, jawaban USD tetap dikirim */ }
+
+            const out = {
                 metal: data.name,
                 symbol: data.symbol,
-                price_usd_per_troy_oz: data.price,
-                currency: data.currency,
+                price_usd_per_troy_oz: Number(priceUsdOz.toFixed(2)),
+                price_usd_per_gram: Number(priceUsdGram.toFixed(2)),
                 updated_at: data.updatedAt,
-                source: 'Gold-API.com (live spot price)'
-            });
+                source: 'Gold-API.com (live spot price) + kurs USD/IDR live'
+            };
+            if (usdToIdr) {
+                out.usd_to_idr_rate = Math.round(usdToIdr);
+                out.price_idr_per_troy_oz = Math.round(priceUsdOz * usdToIdr);
+                out.price_idr_per_gram = Math.round(priceUsdGram * usdToIdr);
+            } else {
+                out.note = 'Kurs IDR gagal diambil saat ini, hanya harga USD yang tersedia.';
+            }
+            return JSON.stringify(out);
         } catch (e) {
             return JSON.stringify({ error: 'Gagal mengambil data harga logam: ' + e.message });
         }
