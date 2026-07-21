@@ -4704,13 +4704,15 @@ Kepribadianmu:
 - Selalu jujur kalau tidak tahu sesuatu
 
 Kemampuanmu:
-- Kamu PUNYA AKSES ke data real-time lewat tools: get_crypto_price (harga kripto live dari CoinGecko), get_weather (cuaca live dari Open-Meteo), web_search (pencarian web live lewat Tavily), dan get_trending_coins (koin trending + top gainer 24 jam live dari CoinGecko)
+- Kamu PUNYA AKSES ke data real-time lewat tools: get_crypto_price (harga kripto live dari CoinGecko), get_metal_price (harga emas/perak/platina/palladium live dari Gold-API.com), get_weather (cuaca live dari Open-Meteo), web_search (pencarian web live lewat Tavily), dan get_trending_coins (koin trending + top gainer 24 jam live dari CoinGecko)
 - KOIN NAIK/PUMP/REKOMENDASI: kalau user tanya "koin apa yang lagi naik/hot/trending", "top gainer", atau minta rekomendasi/koin yang "berpotensi pump", panggil get_trending_coins lalu tampilkan datanya apa adanya. TAPI JANGAN PERNAH menjanjikan atau memastikan sebuah koin akan naik/pump. Selalu sertakan disclaimer bahwa ini DATA pasar, bukan jaminan dan bukan saran investasi (DYOR). Jujur bahwa tidak ada yang bisa memprediksi pump dengan pasti.
 - BATASAN TOOL (PENTING): get_crypto_price HANYA untuk cryptocurrency/token yang benar-benar ada (bitcoin, ethereum, dst). Kalau user menanyakan SIAPA/APA seseorang, tempat, istilah, atau hal apapun yang BUKAN nama coin kripto yang jelas — JANGAN coba get_crypto_price. Gunakan web_search untuk itu.
+- LOGAM MULIA (PENTING): kalau user tanya harga emas, perak, platina, atau palladium (bukan koin kripto), panggil get_metal_price — JANGAN pakai web_search untuk ini, karena get_metal_price memberi angka live yang akurat langsung, sementara web_search cuma cari cuplikan artikel yang bisa saja sudah basi
 - Kalau kamu ragu apakah sesuatu itu nama koin kripto atau bukan, gunakan web_search dulu untuk memastikan, jangan asumsikan itu koin
 - ATURAN WAJIB: kamu HARUS memanggil tool lewat mekanisme function-call yang sebenarnya (bukan menulis teks seperti kode/JSON di jawabanmu). JANGAN PERNAH menulis sesuatu seperti "(function=...)" atau menampilkan format JSON mentah ke user — itu salah. Panggil tool secara nyata, lalu jawab dengan kalimat natural berdasarkan hasilnya
 - ATURAN WAJIB: kalau user menanyakan apapun yang butuh info terkini/aktual (harga, cuaca, berita, hasil pertandingan, siapa pemenang/juara, peringkat, status terbaru sesuatu, siapa/apa itu X yang tidak kamu kenal, dll), kamu HARUS memanggil tool yang sesuai dulu — JANGAN PERNAH hanya menyebutkan "aku bisa cari pakai web_search" tanpa benar-benar memanggilnya. Langsung panggil tool-nya.
 - Kalau pertanyaannya tentang prediksi/opini pribadi (misal "siapa MENURUTMU akan menang"), tetap panggil web_search dulu untuk dapat konteks terkini (misal odds, ranking, berita terbaru), baru beri jawaban berdasarkan data itu sambil tetap jujur bahwa itu prediksi bukan kepastian
+- JAWABAN DARI web_search HARUS SPESIFIK: kalau hasil tool punya field "answer" atau angka/fakta jelas di "results", SEBUTKAN LANGSUNG angka/faktanya di kalimat pertama (misal "Harga emas saat ini sekitar $X per troy ons, menurut [sumber]"). JANGAN jawab mengambang seperti "harganya berfluktuasi dan berbeda-beda tergantung sumber" — itu tidak berguna buat user. Kalau angka pasti memang tidak ketemu di hasil pencarian, baru jujur bilang tidak dapat angka pasti, dan sebutkan sumber mana yang bisa dicek user.
 - Kalau tool mengembalikan error (misal koin tidak ditemukan), sampaikan dengan jujur ke user dan coba tanya ulang nama/symbol yang benar
 - Menjelaskan konsep DeFi, Web3, smart contract dengan bahasa mudah dipahami
 - Memberikan informasi tentang ARCENTIC, ARC Testnet, token: USDC, EURC, CENTIC
@@ -4718,7 +4720,7 @@ Kemampuanmu:
 - PELAJARAN & SOAL: kamu bisa membantu SEMUA jenis pertanyaan pelajaran/akademik — matematika, fisika, kimia, biologi, sejarah, bahasa, soal ujian, sampai rumus yang sulit. Kerjakan LANGKAH DEMI LANGKAH sampai dapat jawaban akhir yang jelas. Kalau butuh fakta terbaru, pakai web_search dulu.
 - FORMAT MATEMATIKA: tulis rumus & perhitungan dalam teks biasa yang mudah dibaca (pakai simbol seperti ×, ÷, ^, √, π, ≤, ≥, dan pecahan bentuk a/b). JANGAN pakai LaTeX atau format kode ($...$, \\frac, dll) karena tidak ter-render dan malah membingungkan user.
 - MEMBUAT PPT/PRESENTASI: kalau user minta dibuatkan PPT/slide/presentasi, susun sendiri isinya (5-10 slide, tiap slide judul + 3-6 poin ringkas) lalu PANGGIL tool create_presentation. Setelah tool sukses, beri tahu user bahwa file .pptx sudah otomatis ter-download (cek folder Download) dan sebutkan singkat isi slide-nya.
-- ALAT FILE (tombol di panel chat ini, BUKAN tool AI): ada tombol kamera 📷 untuk "Perbaiki Foto / Scan Dokumen", dan tombol 🔄 untuk "Konversi File" (gambar JPG/PNG/WEBP, serta video/audio → MP3/WAV termasuk MP4→MP3). Kalau user tanya cara memperbaiki foto, scan dokumen, atau mengubah/convert file (mis. MP4 ke MP3), arahkan mereka klik tombol 📷 atau 🔄 di kolom ketik chat ini. Semua diproses gratis di perangkat mereka.
+- ALAT FILE (tombol di panel chat ini, BUKAN tool AI): ada tombol kamera 📷 untuk "Perbaiki Foto / Scan Dokumen", dan tombol 🔄 untuk "Konversi File" (gambar JPG/PNG/WEBP/PDF, serta video/audio → MP3/WAV termasuk MP4→MP3). Kalau user tanya cara memperbaiki foto, scan dokumen, atau mengubah/convert file (mis. gambar ke PDF, MP4 ke MP3), arahkan mereka klik tombol 📷 atau 🔄 di kolom ketik chat ini — jelaskan bahwa kamu (Eiji) belum bisa melihat/memproses gambar langsung di chat, jadi mereka perlu pakai tombol itu. Semua diproses gratis di perangkat mereka.
 - LOKASI/TEMPAT: kalau user menanyakan tempat/alamat/lokasi (pabrik, kantor, toko, resto, wisata, dll), setelah cari infonya lewat web_search, SELALU sertakan link Google Maps yang bisa langsung diklik dengan format PERSIS: https://www.google.com/maps/search/?api=1&query=NAMA_ATAU_ALAMAT_TEMPAT (ganti spasi dengan +, mis. https://www.google.com/maps/search/?api=1&query=Pabrik+Yakult+Sukabumi). Kalau ada beberapa lokasi, beri satu link Maps untuk tiap lokasi.
 - FORMAT LINK (PENTING): tulis URL LENGKAP apa adanya (diawali https://). JANGAN pakai format markdown [teks](url) dan JANGAN singkat/potong URL-nya — cukup tempel URL utuh, nanti otomatis jadi tautan yang bisa diklik.
 
@@ -4750,6 +4752,23 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
                         }
                     },
                     required: ['coin_id']
+                }
+            }
+        },
+        {
+            type: 'function',
+            function: {
+                name: 'get_metal_price',
+                description: 'Mengambil harga real-time logam mulia (emas, perak, platina, palladium, tembaga) dalam USD per troy ons, langsung dari Gold-API.com (live spot price). Panggil ini — BUKAN web_search — setiap kali user menanyakan harga emas/perak/platina/palladium/tembaga.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        metal: {
+                            type: 'string',
+                            description: "Nama logam dalam Bahasa Indonesia/Inggris atau simbol standarnya, contoh: emas, gold, XAU, perak, silver, XAG, platina, platinum, XPT, palladium, XPD, tembaga, copper, HG."
+                        }
+                    },
+                    required: ['metal']
                 }
             }
         },
@@ -4840,6 +4859,36 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
             });
         } catch (e) {
             return JSON.stringify({ error: 'Gagal mengambil data harga: ' + e.message });
+        }
+    }
+
+    async function tool_get_metal_price(metalRaw) {
+        try {
+            const aliasMap = {
+                emas: 'XAU', gold: 'XAU', xau: 'XAU',
+                perak: 'XAG', silver: 'XAG', xag: 'XAG',
+                platina: 'XPT', platinum: 'XPT', xpt: 'XPT',
+                palladium: 'XPD', paladium: 'XPD', xpd: 'XPD',
+                tembaga: 'HG', copper: 'HG', hg: 'HG'
+            };
+            const raw = (metalRaw || '').toLowerCase().trim();
+            const symbol = aliasMap[raw] || raw.toUpperCase();
+            const res = await eijiFetchWithTimeout(`https://api.gold-api.com/price/${encodeURIComponent(symbol)}`, {}, 12000);
+            if (!res.ok) return JSON.stringify({ error: `Logam '${metalRaw}' tidak ditemukan. Coba: emas, perak, platina, atau palladium.` });
+            const data = await res.json();
+            if (!data || typeof data.price !== 'number') {
+                return JSON.stringify({ error: `Data harga untuk '${metalRaw}' tidak ditemukan.` });
+            }
+            return JSON.stringify({
+                metal: data.name,
+                symbol: data.symbol,
+                price_usd_per_troy_oz: data.price,
+                currency: data.currency,
+                updated_at: data.updatedAt,
+                source: 'Gold-API.com (live spot price)'
+            });
+        } catch (e) {
+            return JSON.stringify({ error: 'Gagal mengambil data harga logam: ' + e.message });
         }
     }
 
@@ -4958,7 +5007,7 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
                 },
                 body: JSON.stringify({
                     query: query || '',
-                    search_depth: 'basic',
+                    search_depth: 'advanced',
                     max_results: 5,
                     include_answer: true
                 })
@@ -4970,7 +5019,7 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
             const results = (data.results || []).slice(0, 5).map(r => ({
                 title: r.title,
                 url: r.url,
-                snippet: r.content ? r.content.slice(0, 300) : ''
+                snippet: r.content ? r.content.slice(0, 600) : ''
             }));
             return JSON.stringify({
                 query,
@@ -4985,6 +5034,7 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
 
     const EIJI_TOOL_MAP = {
         get_crypto_price: (args) => tool_get_crypto_price(args.coin_id),
+        get_metal_price: (args) => tool_get_metal_price(args.metal),
         get_weather: (args) => tool_get_weather(args.location),
         web_search: (args) => tool_web_search(args.query),
         get_trending_coins: () => tool_get_trending_coins(),
@@ -5908,7 +5958,8 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
     const EIJI_IMG_TARGETS = [
         { label: 'JPG', mime: 'image/jpeg', ext: 'jpg' },
         { label: 'PNG', mime: 'image/png', ext: 'png' },
-        { label: 'WEBP', mime: 'image/webp', ext: 'webp' }
+        { label: 'WEBP', mime: 'image/webp', ext: 'webp' },
+        { label: 'PDF', mime: 'application/pdf', ext: 'pdf' }
     ];
     const EIJI_AUDIO_TARGETS = [
         { label: 'MP3', mime: 'audio/mpeg', ext: 'mp3' },
@@ -6034,6 +6085,7 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
     }
 
     function eijiConvertImage(file, mime) {
+        if (mime === 'application/pdf') return eijiConvertImageToPdf(file);
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.onload = () => {
@@ -6043,6 +6095,49 @@ Selalu jawab singkat, padat, dan natural. Saat menyebutkan angka harga/cuaca dar
                 if (mime === 'image/jpeg') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); }
                 ctx.drawImage(img, 0, 0);
                 c.toBlob(b => b ? resolve(b) : reject(new Error('format tidak didukung')), mime, 0.92);
+            };
+            img.onerror = () => reject(new Error('gagal membuka gambar'));
+            const r = new FileReader();
+            r.onload = e => { img.src = e.target.result; };
+            r.onerror = () => reject(new Error('gagal membaca file'));
+            r.readAsDataURL(file);
+        });
+    }
+
+    function eijiConvertImageToPdf(file) {
+        return new Promise((resolve, reject) => {
+            const jsPDFCtor = window.jspdf && window.jspdf.jsPDF;
+            if (!jsPDFCtor) { reject(new Error('encoder PDF belum termuat, refresh halaman')); return; }
+            const img = new Image();
+            img.onload = () => {
+                try {
+                    // Gambar dulu ke canvas (background putih, biar PNG transparan tidak jadi hitam di PDF)
+                    const c = document.createElement('canvas');
+                    c.width = img.naturalWidth; c.height = img.naturalHeight;
+                    const ctx = c.getContext('2d');
+                    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+                    ctx.drawImage(img, 0, 0);
+                    const jpegDataUrl = c.toDataURL('image/jpeg', 0.92);
+
+                    // Halaman PDF menyesuaikan orientasi & rasio gambar, margin tipis
+                    const isLandscape = c.width >= c.height;
+                    const pdf = new jsPDFCtor({
+                        orientation: isLandscape ? 'landscape' : 'portrait',
+                        unit: 'pt',
+                        format: 'a4'
+                    });
+                    const pageW = pdf.internal.pageSize.getWidth();
+                    const pageH = pdf.internal.pageSize.getHeight();
+                    const margin = 24;
+                    const maxW = pageW - margin * 2, maxH = pageH - margin * 2;
+                    const scale = Math.min(maxW / c.width, maxH / c.height);
+                    const drawW = c.width * scale, drawH = c.height * scale;
+                    const x = (pageW - drawW) / 2, y = (pageH - drawH) / 2;
+                    pdf.addImage(jpegDataUrl, 'JPEG', x, y, drawW, drawH);
+                    resolve(pdf.output('blob'));
+                } catch (e) {
+                    reject(e);
+                }
             };
             img.onerror = () => reject(new Error('gagal membuka gambar'));
             const r = new FileReader();
