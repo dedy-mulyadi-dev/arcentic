@@ -31,6 +31,9 @@
         blockExplorerUrls: ['https://testnet.arcscan.app/']
     };
 
+    // WalletConnect butuh chain id dalam bentuk desimal (bukan hex seperti ARC_CHAIN.chainId)
+    const ARC_CHAIN_ID_DEC = parseInt(ARC_CHAIN.chainId, 16);
+
     const ETHEREUM_SEPOLIA_CHAIN = {
         chainId: '0xaa36a7',
         chainName: 'Ethereum Sepolia',
@@ -273,6 +276,16 @@
     let currentAccount = null;
     let currentBalance = '0';
 
+    /* ── Active EIP-1193 provider ──
+       Bisa berupa window.ethereum (extension MetaMask dkk) ATAU instance
+       WalletConnect (dipakai lewat scan QR / deep-link ke app wallet di HP).
+       Semua kode di bawah yang butuh baca/tulis on-chain harus lewat
+       getActiveProvider(), BUKAN window.ethereum langsung — supaya tetap
+       berfungsi walau user connect via WalletConnect, bukan extension. */
+    let activeProvider = null;
+    let wcProvider      = null; // instance WalletConnect, dibuat sekali (lazy)
+    function getActiveProvider() { return activeProvider; }
+
     /* ── Admin gating ──
        IMPORTANT: this only controls whether the Admin nav item/panel is
        *shown* in this browser tab. It is a UI convenience, not real access
@@ -351,7 +364,7 @@
     }
 
     async function fetchBalance(account) {
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const provider = new ethers.providers.Web3Provider(getActiveProvider());
         const raw = await provider.getBalance(account);
         return ethers.utils.formatEther(raw);
     }
@@ -648,7 +661,7 @@
 
         let toast = showToast('pending', successTitle || fnName, 'Waiting for wallet confirmation…');
         try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const provider = new ethers.providers.Web3Provider(getActiveProvider());
             const signer = provider.getSigner();
             const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, signer);
             const onRpcRetry = (n, max) => updateToast(toast, 'pending', successTitle || fnName, `RPC hiccup — retrying (${n}/${max})…`);
@@ -808,7 +821,7 @@
         // which felt like the click did nothing. Now a toast tracks every step.
         let toast = showToast('pending', 'Funding Rewards', 'Checking token allowance…');
         try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const provider = new ethers.providers.Web3Provider(getActiveProvider());
             const signer = provider.getSigner();
             const amtWei = ethers.utils.parseUnits(parseFloat(amtStr).toFixed(decimals), decimals);
             const onRpcRetry = (n, max) => updateToast(toast, 'pending', 'Funding Rewards', `RPC hiccup — retrying (${n}/${max})…`);
@@ -857,7 +870,7 @@
 
         let toast = showToast('pending','Funding Pool','Waiting for wallet confirmation…');
         try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const provider = new ethers.providers.Web3Provider(getActiveProvider());
             const signer = provider.getSigner();
             const amtWei = ethers.utils.parseUnits(parseFloat(amtStr).toFixed(USDC_DECIMALS), USDC_DECIMALS);
             const onRpcRetry = (n, max) => updateToast(toast, 'pending', 'Funding Pool', `RPC hiccup — retrying (${n}/${max})…`);
@@ -1316,7 +1329,7 @@
     /* Load every token the owner has whitelisted (and still has staking enabled) */
     async function loadStakeTokens() {
         try {
-            const provider = readOnlyProvider() || (window.ethereum ? new ethers.providers.Web3Provider(window.ethereum) : null);
+            const provider = readOnlyProvider() || (getActiveProvider() ? new ethers.providers.Web3Provider(getActiveProvider()) : null);
             if (!provider) throw new Error('No RPC provider available');
             const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, provider);
             const onRpcRetry = (n, max) => {
@@ -1401,7 +1414,7 @@
             return;
         }
         try {
-            const provider = readOnlyProvider() || (window.ethereum ? new ethers.providers.Web3Provider(window.ethereum) : null);
+            const provider = readOnlyProvider() || (getActiveProvider() ? new ethers.providers.Web3Provider(getActiveProvider()) : null);
             if (!provider) throw new Error('No RPC provider available');
             const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, provider);
             const onRpcRetry = (n, max) => {
@@ -1469,7 +1482,7 @@
             document.querySelectorAll('.stake-token-unit').forEach(el => el.innerText = meta.sym || '—');
             document.getElementById('stakeAmountLabel').innerText = (meta.sym || 'Token') + ' Amount';
 
-            const provider = readOnlyProvider() || (window.ethereum ? new ethers.providers.Web3Provider(window.ethereum) : null);
+            const provider = readOnlyProvider() || (getActiveProvider() ? new ethers.providers.Web3Provider(getActiveProvider()) : null);
             if (!provider) return;
             const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, provider);
             const total = await staking.totalStakedOf(selectedStakeToken);
@@ -1523,7 +1536,7 @@
     }
 
     async function doStake() {
-        if (!window.ethereum) { alert('Install a wallet like MetaMask first.'); return; }
+        if (!getActiveProvider()) { alert('Install a wallet like MetaMask first.'); return; }
         if (!isConnected) { await connectWallet(); updateStakeButtonLabel(); return; }
         if (!stakingConfigured()) return;
 
@@ -1542,7 +1555,7 @@
         btn.style.opacity = '.6';
         let toast = null;
         try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const provider = new ethers.providers.Web3Provider(getActiveProvider());
             const signer = provider.getSigner();
             const amtWei = ethers.utils.parseUnits(parseFloat(amtStr).toFixed(meta.decimals), meta.decimals);
             const onRpcRetry = (n, max) => setStatus(`⏳ RPC hiccup — retrying (${n}/${max})…`);
@@ -1599,7 +1612,7 @@
         }
         list.innerHTML = '<p class="text-gray-500 text-sm text-center py-6">Loading…</p>';
         try {
-            const provider = readOnlyProvider() || new ethers.providers.Web3Provider(window.ethereum);
+            const provider = readOnlyProvider() || new ethers.providers.Web3Provider(getActiveProvider());
             const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, provider);
             const count = (await staking.stakeCountOf(currentAccount)).toNumber();
 
@@ -1696,10 +1709,10 @@
     }
 
     async function runStakeAction(txFn, pendingLabel, successLabel) {
-        if (!window.ethereum || !isConnected) { alert('Connect your wallet first.'); return; }
+        if (!getActiveProvider() || !isConnected) { alert('Connect your wallet first.'); return; }
         let toast = showToast('pending', pendingLabel, 'Sending transaction…');
         try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const provider = new ethers.providers.Web3Provider(getActiveProvider());
             const signer = provider.getSigner();
             const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, signer);
             const onRpcRetry = (n, max) => updateToast(toast, 'pending', pendingLabel, `RPC hiccup — retrying (${n}/${max})…`);
@@ -1751,7 +1764,7 @@
     async function getDecimals(tok) {
         if (resolvedDecimals[tok.addr] !== undefined) return resolvedDecimals[tok.addr];
         try {
-            const provider = readOnlyProvider() || new ethers.providers.Web3Provider(window.ethereum);
+            const provider = readOnlyProvider() || new ethers.providers.Web3Provider(getActiveProvider());
             const erc20 = new ethers.Contract(tok.addr, ERC20_ABI, provider);
             const dec = await erc20.decimals();
             resolvedDecimals[tok.addr] = dec;
@@ -1765,7 +1778,7 @@
     /* fetch on-chain ERC-20 balance */
     async function fetchTokenBalance(tok, account) {
         try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const provider = new ethers.providers.Web3Provider(getActiveProvider());
             const erc20 = new ethers.Contract(tok.addr, ERC20_ABI, provider);
             const dec = await getDecimals(tok);
             const raw = await erc20.balanceOf(account);
@@ -1813,9 +1826,9 @@
 
         // Use reserves to compute price: amountOut = amountIn * reserveOut / reserveIn
         // (constant-product approximation, good for small amounts relative to pool size)
-        if (isConnected && window.ethereum) {
+        if (isConnected && getActiveProvider()) {
             try {
-                const provider = new ethers.providers.Web3Provider(window.ethereum);
+                const provider = new ethers.providers.Web3Provider(getActiveProvider());
                 const pool = new ethers.Contract(CONTRACT_ADDRS.ArcenticMultiPool, POOL_ABI, provider);
                 const decFrom = await getDecimals(fromTok);
                 const decTo   = await getDecimals(toTok);
@@ -2142,7 +2155,7 @@
         if (!el) return;
         if (!isConnected || !currentAccount) { el.innerText = 'Gas: —'; return; }
         try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const provider = new ethers.providers.Web3Provider(getActiveProvider());
             const gasPrice = await provider.getGasPrice();
             const gasPriceGwei = parseFloat(ethers.utils.formatUnits(gasPrice, 'gwei'));
             const estimatedGas = 150000; // Typical swap gas limit
@@ -2155,7 +2168,7 @@
     async function fetchSpotMidPrice() {
         const p = spotPair();
         try {
-            const provider = readOnlyProvider() || (window.ethereum && new ethers.providers.Web3Provider(window.ethereum));
+            const provider = readOnlyProvider() || (getActiveProvider() && new ethers.providers.Web3Provider(getActiveProvider()));
             if (!provider) return null;
             const pool = new ethers.Contract(CONTRACT_ADDRS.ArcenticMultiPool, POOL_ABI, provider);
             const decBase  = await getDecimals(p.base);
@@ -2634,7 +2647,7 @@
         const importArea = document.getElementById('tokenImportArea');
         importArea.innerHTML = `<p class="text-xs text-gray-400 px-1">⏳ Reading token contract…</p>`;
         try {
-            const provider = readOnlyProvider() || (window.ethereum ? new ethers.providers.Web3Provider(window.ethereum) : null);
+            const provider = readOnlyProvider() || (getActiveProvider() ? new ethers.providers.Web3Provider(getActiveProvider()) : null);
             if (!provider) throw new Error('No wallet provider available to read token data. Connect a wallet or install one to import custom tokens.');
             const erc20 = new ethers.Contract(address, [
                 'function name() view returns (string)',
@@ -2698,7 +2711,7 @@
 
         let swapToast = null;
         try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const provider = new ethers.providers.Web3Provider(getActiveProvider());
             const signer   = provider.getSigner();
             const decFrom   = await getDecimals(fromTok);
             const decTo     = await getDecimals(toTok);
@@ -2783,7 +2796,7 @@
         const rpcUrls = getChainRpcUrls(chainName);
         if (!rpcUrls) {
             // Unknown chain name — fall back to the wallet's injected provider
-            return await callFn(new ethers.providers.Web3Provider(window.ethereum));
+            return await callFn(new ethers.providers.Web3Provider(getActiveProvider()));
         }
 
         const startIdx = _lastGoodRpcIndex[chainName] || 0;
@@ -3086,13 +3099,13 @@
     async function switchToChain(targetChainId, chainConfig) {
         programmaticChainSwitch = true;
         try {
-            await window.ethereum.request({
+            await getActiveProvider().request({
                 method: 'wallet_switchEthereumChain',
                 params: [{ chainId: targetChainId }]
             });
         } catch (switchErr) {
             if (switchErr.code === 4902 || switchErr.code === -32603) {
-                await window.ethereum.request({
+                await getActiveProvider().request({
                     method: 'wallet_addEthereumChain',
                     params: [chainConfig]
                 });
@@ -3117,18 +3130,18 @@
     // force a page reload mid-flow). Returns true only if the wallet ends
     // up on Arc Testnet; callers should abort their transaction otherwise.
     async function ensureArcNetwork() {
-        if (!window.ethereum) {
+        if (!getActiveProvider()) {
             showToast('error','No Wallet Detected','Please install MetaMask or a compatible browser wallet.');
             return false;
         }
         try {
-            const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
+            const currentChainId = await getActiveProvider().request({ method: 'eth_chainId' });
             if (currentChainId.toLowerCase() === ARC_CHAIN.chainId.toLowerCase()) return true;
 
             showToast('warning','Wrong Network','You\'re not on Arc Testnet — requesting your wallet to switch…');
             await switchToChain(ARC_CHAIN.chainId, ARC_CHAIN);
 
-            const confirmedChainId = await window.ethereum.request({ method: 'eth_chainId' });
+            const confirmedChainId = await getActiveProvider().request({ method: 'eth_chainId' });
             if (confirmedChainId.toLowerCase() !== ARC_CHAIN.chainId.toLowerCase()) {
                 showToast('error','Still on Wrong Network','Please switch to Arc Testnet manually in your wallet, then try again.');
                 return false;
@@ -3231,7 +3244,7 @@
                 );
                 await new Promise(r => setTimeout(r, 400)); // let the wallet settle on the new network
 
-                const provider = new ethers.providers.Web3Provider(window.ethereum);
+                const provider = new ethers.providers.Web3Provider(getActiveProvider());
                 const signer = provider.getSigner();
 
                 const sourceConfig = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
@@ -3412,7 +3425,7 @@
             );
             await new Promise(r => setTimeout(r, 400));
 
-            const destProvider = new ethers.providers.Web3Provider(window.ethereum);
+            const destProvider = new ethers.providers.Web3Provider(getActiveProvider());
             const destSigner = destProvider.getSigner();
 
             const messageTransmitter = new ethers.Contract(destConfig.messageTransmitter, MESSAGE_TRANSMITTER_ABI, destSigner);
@@ -3575,7 +3588,8 @@
         }
     });
 
-    async function connectWallet() {
+    /* ── Jalur 1: Browser extension (MetaMask dkk via window.ethereum) ── */
+    async function connectInjectedWallet() {
         if (!window.ethereum) {
             showToast('error','No Wallet Detected','Please install MetaMask or a compatible browser wallet.');
             return;
@@ -3584,6 +3598,8 @@
         try {
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             if (!accounts || accounts.length === 0) throw new Error('No accounts returned');
+
+            activeProvider = window.ethereum;
 
             // Switch to ARC Testnet; add it first if missing (error 4902)
             try {
@@ -3618,25 +3634,129 @@
         }
     }
 
+    /* ── Jalur 2: WalletConnect (scan QR di desktop / deep-link ke app wallet di HP) ──
+       WC_PROJECT_ID WAJIB diisi dengan Project ID dari https://cloud.reown.com
+       (gratis, tinggal daftar). Tanpa ini WalletConnect tidak akan jalan. */
+    const WC_PROJECT_ID = '0e388e662ac77c1e68c23278592bbe47';
+
+    async function initWalletConnectProvider() {
+        if (wcProvider) return wcProvider;
+        if (typeof window.EthereumProvider === 'undefined') {
+            throw new Error('Modul WalletConnect belum termuat. Cek koneksi internet lalu coba lagi.');
+        }
+        if (!WC_PROJECT_ID || WC_PROJECT_ID === 'GANTI_DENGAN_PROJECT_ID_ANDA') {
+            throw new Error('WalletConnect belum dikonfigurasi: isi WC_PROJECT_ID di app.js dengan Project ID dari cloud.reown.com.');
+        }
+        wcProvider = await window.EthereumProvider.init({
+            projectId: WC_PROJECT_ID,
+            chains: [ARC_CHAIN_ID_DEC],
+            optionalChains: [ARC_CHAIN_ID_DEC],
+            showQrModal: true,     // otomatis: QR code di desktop, daftar app + deep-link di HP
+            rpcMap: { [ARC_CHAIN_ID_DEC]: ARC_CHAIN.rpcUrls[0] },
+            metadata: {
+                name: 'ARCENTIC',
+                description: 'ARCENTIC — DeFi di ARC Testnet',
+                url: window.location.origin,
+                icons: [window.location.origin + '/favicon.ico']
+            }
+        });
+
+        wcProvider.on('accountsChanged', accounts => {
+            if (!accounts || accounts.length === 0) setDisconnectedUI();
+            else refreshWcAccount();
+        });
+        wcProvider.on('chainChanged', () => {
+            if (programmaticChainSwitch) return;
+            window.location.reload();
+        });
+        wcProvider.on('disconnect', () => setDisconnectedUI());
+
+        return wcProvider;
+    }
+
+    async function refreshWcAccount() {
+        try {
+            const accounts = await wcProvider.request({ method: 'eth_accounts' });
+            if (!accounts || accounts.length === 0) { setDisconnectedUI(); return; }
+            const bal = await fetchBalance(accounts[0]);
+            setConnectedUI(accounts[0], bal);
+            document.dispatchEvent(new Event('walletConnected'));
+        } catch (err) {
+            console.error('WalletConnect refresh error:', err);
+        }
+    }
+
+    async function connectWalletConnect() {
+        setLoading(true);
+        try {
+            const provider = await initWalletConnectProvider();
+            // Ini yang memunculkan modal QR (desktop) / deep-link ke app wallet (HP).
+            await provider.enable();
+            activeProvider = provider;
+
+            const accounts = provider.accounts && provider.accounts.length
+                ? provider.accounts
+                : await provider.request({ method: 'eth_requestAccounts' });
+            if (!accounts || accounts.length === 0) throw new Error('Tidak ada akun yang dikembalikan wallet.');
+
+            // WalletConnect connect langsung ke chain yang diminta (ARC_CHAIN_ID_DEC di atas),
+            // jadi biasanya tidak perlu wallet_switchEthereumChain lagi seperti jalur extension.
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            const bal = await fetchBalance(accounts[0]);
+            setConnectedUI(accounts[0], bal);
+            document.dispatchEvent(new Event('walletConnected'));
+        } catch (err) {
+            console.error('WalletConnect connect error:', err);
+            if (err.message && /rejected|closed/i.test(err.message)) {
+                showToast('warning','Connection Cancelled','Kamu menutup jendela WalletConnect sebelum selesai connect.');
+            } else {
+                showToast('error','WalletConnect Failed', err.message || String(err));
+            }
+            setDisconnectedUI();
+        }
+    }
+
+    /* ── Modal pemilihan cara connect ── */
+    function openWalletChooser() {
+        const el = document.getElementById('walletChooserModal');
+        if (el) el.classList.add('open');
+    }
+    function closeWalletChooser() {
+        const el = document.getElementById('walletChooserModal');
+        if (el) el.classList.remove('open');
+    }
+    function chooseInjectedWallet() { closeWalletChooser(); connectInjectedWallet(); }
+    function chooseWalletConnect()  { closeWalletChooser(); connectWalletConnect(); }
+
     function openModal() {
         modalAddr.innerText = shortAddr(currentAccount);
         modalBal.innerText  = fmtBal(currentBalance) + ' USDC';
         modal.classList.add('open');
     }
     function closeModal()       { modal.classList.remove('open'); }
-    function disconnectWallet() { setDisconnectedUI(); closeModal(); }
+    async function disconnectWallet() {
+        if (wcProvider && activeProvider === wcProvider) {
+            try { await wcProvider.disconnect(); } catch (err) { console.warn('WC disconnect error:', err); }
+        }
+        activeProvider = null;
+        setDisconnectedUI();
+        closeModal();
+    }
 
     function handleWallet() {
         if (isConnected) openModal();
-        else connectWallet();
+        else openWalletChooser();
     }
 
     modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+    const walletChooserEl = document.getElementById('walletChooserModal');
+    if (walletChooserEl) walletChooserEl.addEventListener('click', e => { if (e.target === walletChooserEl) closeWalletChooser(); });
 
     if (window.ethereum) {
         window.ethereum.on('accountsChanged', accounts => {
             if (accounts.length === 0) setDisconnectedUI();
-            else connectWallet();
+            else connectInjectedWallet();
         });
         window.ethereum.on('chainChanged', () => {
             // If this fired because our own code called switchToChain (e.g.
@@ -3660,6 +3780,7 @@
         try {
             const accounts = await window.ethereum.request({ method: 'eth_accounts' });
             if (accounts && accounts.length > 0) {
+                activeProvider = window.ethereum;
                 const bal = await fetchBalance(accounts[0]);
                 setConnectedUI(accounts[0], bal);
                 // Sama seperti connectWallet(): tanpa event ini, halaman yang
@@ -3707,7 +3828,7 @@
         // Map sym → TOKENS entry
         const tokA = TOKENS.find(t => t.sym === symA);
         const tokB = TOKENS.find(t => t.sym === symB);
-        if (!tokA || !tokB || !window.ethereum) return;
+        if (!tokA || !tokB || !getActiveProvider()) return;
 
         const idMapA = { 'usdc-centic':'reserve-usdc-centic-usdc', 'usdc-eurc':'reserve-usdc-eurc-usdc', 'eurc-centic':'reserve-eurc-centic-eurc' };
         const idMapB = { 'usdc-centic':'reserve-usdc-centic-centic', 'usdc-eurc':'reserve-usdc-eurc-eurc', 'eurc-centic':'reserve-eurc-centic-centic' };
@@ -3718,7 +3839,7 @@
         if (elB) elB.innerText = '…';
 
         try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const provider = new ethers.providers.Web3Provider(getActiveProvider());
             const pool = new ethers.Contract(CONTRACT_ADDRS.ArcenticMultiPool, POOL_ABI, provider);
             const [rawA, rawB, decA, decB] = await Promise.all([
                 pool.reserves(tokA.addr),
@@ -3811,7 +3932,7 @@
         if (btn) { btn.disabled = true; btn.style.opacity = '.6'; btn.innerText = 'Processing…'; }
 
         try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const provider = new ethers.providers.Web3Provider(getActiveProvider());
             const signer = provider.getSigner();
             const pool = new ethers.Contract(CONTRACT_ADDRS.ArcenticMultiPool, POOL_ABI, signer);
 
@@ -3923,7 +4044,7 @@
         if (btn) { btn.disabled = true; btn.style.opacity = '.6'; btn.innerText = 'Processing…'; }
 
         try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const provider = new ethers.providers.Web3Provider(getActiveProvider());
             const signer = provider.getSigner();
             const pool = new ethers.Contract(CONTRACT_ADDRS.ArcenticMultiPool, POOL_ABI, signer);
 
@@ -4060,7 +4181,7 @@
 
         let addTokToast = null;
         try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const provider = new ethers.providers.Web3Provider(getActiveProvider());
             const signer = provider.getSigner();
             const dec = await getDecimals(tok);
             const amtWei = ethers.utils.parseUnits(amt.toFixed(dec), dec);
@@ -4169,10 +4290,10 @@
                 _readOnlyProvider.pollingInterval = 60000;
             } else if (jsonRpcProviders.length === 1) {
                 _readOnlyProvider = jsonRpcProviders[0];
-            } else if (typeof window.ethereum !== 'undefined') {
+            } else if (typeof window.ethereum !== 'undefined' || getActiveProvider()) {
                 // No dedicated RPC configured — fall back to the wallet's own
                 // provider like before, rather than failing outright.
-                _readOnlyProvider = new ethers.providers.Web3Provider(window.ethereum);
+                _readOnlyProvider = new ethers.providers.Web3Provider(getActiveProvider() || window.ethereum);
             }
         } catch (err) {
             console.error('readOnlyProvider setup failed:', err);
@@ -4276,7 +4397,7 @@
             // menampilkan angka.
             if (tvlEl) tvlEl.innerText = '—';
             if (tvlChangeEl) {
-                tvlChangeEl.innerText = typeof window.ethereum === 'undefined'
+                tvlChangeEl.innerText = (typeof window.ethereum === 'undefined' && !getActiveProvider())
                     ? 'Connect a wallet to view TVL'
                     : 'On-chain data unavailable';
                 tvlChangeEl.className = 'text-gray-400 text-sm';
@@ -4483,7 +4604,7 @@
     async function refreshLendData() {
         if (!currentAccount) return;
         try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const provider = new ethers.providers.Web3Provider(getActiveProvider());
             const lend = new ethers.Contract(CONTRACT_ADDRS.LendingBorrowing, LEND_ABI, provider);
             const cirBTC = new ethers.Contract(CONTRACT_ADDRS.cirBTC, CIRBTC_ABI, provider);
 
@@ -4622,7 +4743,7 @@
         btn.disabled = true;
         const toast = showToast('pending', 'Depositing', 'Sending transaction...', 0);
         try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const provider = new ethers.providers.Web3Provider(getActiveProvider());
             const signer = provider.getSigner();
             const amtBig = ethers.utils.parseUnits(amt.toFixed(CIRBTC_DECIMALS), CIRBTC_DECIMALS);
             const onRpcRetry = (n, max) => updateToast(toast, 'pending', 'Depositing', `RPC hiccup — retrying (${n}/${max})…`);
@@ -4651,7 +4772,7 @@
         btn.disabled = true;
         const toast = showToast('pending', 'Borrowing', 'Sending transaction...', 0);
         try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const provider = new ethers.providers.Web3Provider(getActiveProvider());
             const signer = provider.getSigner();
             const amtBig = ethers.utils.parseUnits(amt.toFixed(USDC_DECIMALS), USDC_DECIMALS);
             const onRpcRetry = (n, max) => updateToast(toast, 'pending', 'Borrowing', `RPC hiccup — retrying (${n}/${max})…`);
@@ -4678,7 +4799,7 @@
         btn.disabled = true;
         const toast = showToast('pending', 'Repaying', 'Sending transaction...', 0);
         try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const provider = new ethers.providers.Web3Provider(getActiveProvider());
             const signer = provider.getSigner();
             const amtBig = ethers.utils.parseUnits(amt.toFixed(USDC_DECIMALS), USDC_DECIMALS);
             const onRpcRetry = (n, max) => updateToast(toast, 'pending', 'Repaying', `RPC hiccup — retrying (${n}/${max})…`);
@@ -4707,7 +4828,7 @@
         btn.disabled = true;
         const toast = showToast('pending', 'Withdrawing', 'Sending transaction...', 0);
         try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const provider = new ethers.providers.Web3Provider(getActiveProvider());
             const signer = provider.getSigner();
             const amtBig = ethers.utils.parseUnits(amt.toFixed(CIRBTC_DECIMALS), CIRBTC_DECIMALS);
             const onRpcRetry = (n, max) => updateToast(toast, 'pending', 'Withdrawing', `RPC hiccup — retrying (${n}/${max})…`);
@@ -5565,7 +5686,7 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
             const nonceRes = await eijiFetchWithTimeout('/api/eiji-code?action=nonce', {}, 15000);
             const { nonceToken, nonceHash } = await nonceRes.json();
             const message = `Eiji Coding Session\nwallet:${currentAccount}\nnonce:${nonceHash}`;
-            const signature = await window.ethereum.request({
+            const signature = await getActiveProvider().request({
                 method: 'personal_sign',
                 params: [message, currentAccount]
             });
@@ -5719,7 +5840,7 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
             const { nonceToken, nonceHash } = await nonceRes.json();
             const payloadHash = await eijiShortHash(JSON.stringify({ path: edit.path, newText: edit.newText, startLine: edit.startLine, endLine: edit.endLine, sha: edit.sha }));
             const message = `Eiji Admin Commit\nwallet:${currentAccount}\npath:${edit.path}\nlines:${edit.startLine}-${edit.endLine}\npayloadHash:${payloadHash}\nnonce:${nonceHash}`;
-            const signature = await window.ethereum.request({
+            const signature = await getActiveProvider().request({
                 method: 'personal_sign',
                 params: [message, currentAccount]
             });
