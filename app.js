@@ -3744,9 +3744,23 @@
         closeModal();
     }
 
+    function isMobileDevice() {
+        return /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent || '');
+    }
+
     function handleWallet() {
-        if (isConnected) openModal();
-        else openWalletChooser();
+        if (isConnected) { openModal(); return; }
+        if (isMobileDevice()) {
+            // Di HP: kalau browsernya sudah punya provider (dibuka dari dalam
+            // app MetaMask/Trust Wallet), connect langsung ke situ. Kalau
+            // browser biasa (Chrome/Samsung Internet dsb, tanpa window.ethereum),
+            // langsung ke WalletConnect — otomatis membuka daftar app wallet
+            // yang terpasang di HP untuk deep-link, tanpa perlu modal pilihan.
+            if (window.ethereum) connectInjectedWallet();
+            else connectWalletConnect();
+            return;
+        }
+        openWalletChooser();
     }
 
     modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
