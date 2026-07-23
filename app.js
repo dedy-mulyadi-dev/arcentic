@@ -2190,6 +2190,10 @@
     }
 
     async function pollSpotMarket() {
+        // Skip kalau tab sedang tidak aktif/ke-background (mis. user pindah
+        // app lain di HP) — tidak ada gunanya poll RPC untuk UI yang tidak
+        // sedang dilihat, dan ini yang bikin app terasa berat saat pindah app.
+        if (document.hidden) return;
         const data = await fetchSpotMidPrice();
         const p = spotPair();
         if (!data) {
@@ -3642,6 +3646,12 @@
     async function initWalletConnectProvider() {
         if (wcProvider) return wcProvider;
         if (typeof window.EthereumProvider === 'undefined') {
+            if (typeof window.loadWalletConnectProvider !== 'function') {
+                throw new Error('Modul WalletConnect belum termuat. Cek koneksi internet lalu coba lagi.');
+            }
+            await window.loadWalletConnectProvider();
+        }
+        if (typeof window.EthereumProvider === 'undefined') {
             throw new Error('Modul WalletConnect belum termuat. Cek koneksi internet lalu coba lagi.');
         }
         if (!WC_PROJECT_ID || WC_PROJECT_ID === 'GANTI_DENGAN_PROJECT_ID_ANDA') {
@@ -3733,6 +3743,37 @@
         modalAddr.innerText = shortAddr(currentAccount);
         modalBal.innerText  = fmtBal(currentBalance) + ' USDC';
         modal.classList.add('open');
+    }
+
+    /* Salin alamat wallet PENUH (bukan yang dipendekkan) ke clipboard. */
+    async function copyWalletAddress() {
+        if (!currentAccount) return;
+        const btn = document.getElementById('copyAddrBtn');
+        try {
+            await navigator.clipboard.writeText(currentAccount);
+            if (btn) {
+                const original = btn.textContent;
+                btn.textContent = '✅';
+                setTimeout(() => { btn.textContent = original; }, 1500);
+            }
+            showToast('success', 'Disalin', 'Alamat wallet disalin ke clipboard.');
+        } catch (err) {
+            // Fallback untuk browser/HP lawas yang tidak dukung Clipboard API
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = currentAccount;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                showToast('success', 'Disalin', 'Alamat wallet disalin ke clipboard.');
+            } catch (fallbackErr) {
+                console.error('Copy address failed:', fallbackErr);
+                showToast('error', 'Gagal Menyalin', 'Salin manual: ' + currentAccount);
+            }
+        }
     }
     function closeModal()       { modal.classList.remove('open'); }
     async function disconnectWallet() {
@@ -4363,6 +4404,7 @@
     }
 
     async function refreshLiveStats() {
+        if (document.hidden) return; // tab di-background, hemat RPC/CPU/baterai
         const tvlEl       = document.getElementById('heroTVL');
         const tvlChangeEl = document.getElementById('heroTVLChange');
         const poolsEl     = document.getElementById('heroPools');
@@ -4442,6 +4484,15 @@
     // kick off immediately, then keep polling every 4s for a "live" feel
     refreshLiveStats();
     setInterval(refreshLiveStats, 12000);
+
+    // Saat user balik lagi ke tab ini (setelah pindah app/tab lain di HP),
+    // langsung refresh sekali supaya datanya tidak nunggu interval berikutnya.
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            refreshLiveStats();
+            if (spotPollTimer) pollSpotMarket();
+        }
+    });
 
     // Boot nav state
     setNavActive('navHome');
@@ -5163,6 +5214,9 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
             if (typeof slides === 'string') { try { slides = JSON.parse(slides); } catch (e) {} }
             if (!Array.isArray(slides) || !slides.length) {
                 return JSON.stringify({ error: 'Butuh minimal 1 slide (judul + poin) untuk membuat PPT.' });
+            }
+            if (typeof PptxGenJS === 'undefined') {
+                try { await window.loadPptxGenJS(); } catch (e) {}
             }
             if (typeof PptxGenJS === 'undefined') {
                 return JSON.stringify({ error: 'Library pembuat PPT belum termuat. Refresh halaman lalu coba lagi.' });
@@ -6623,7 +6677,10 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
         });
     }
 
-    function eijiConvertImageToPdf(file) {
+    async function eijiConvertImageToPdf(file) {
+        if (!(window.jspdf && window.jspdf.jsPDF)) {
+            try { await window.loadJsPDF(); } catch (e) {}
+        }
         return new Promise((resolve, reject) => {
             const jsPDFCtor = window.jspdf && window.jspdf.jsPDF;
             if (!jsPDFCtor) { reject(new Error('encoder PDF belum termuat, refresh halaman')); return; }
@@ -6678,6 +6735,9 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
             try { ac.close(); } catch (e) {}
         }
         if (ext === 'wav') return eijiAudioBufToWav(audioBuf);
+        if (typeof lamejs === 'undefined') {
+            try { await window.loadLameJS(); } catch (e) {}
+        }
         if (typeof lamejs === 'undefined') throw new Error('encoder MP3 belum termuat, refresh halaman');
         return eijiAudioBufToMp3(audioBuf);
     }
