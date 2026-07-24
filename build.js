@@ -32,6 +32,7 @@ function main() {
 
   const targets = [
     { file: 'app.js', ext: '.js' },
+    { file: 'vault.js', ext: '.js' },
     { file: 'styles.css', ext: '.css' },
   ];
 
