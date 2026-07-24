@@ -866,8 +866,6 @@
 
     async function adminFundRewards() {
         const token = adminTokenAddrInput('adminFundTokenAddr');
-        const meta  = stakeTokenMetaCache[token.toLowerCase()];
-        const decimals = meta ? meta.decimals : 18;
         const amtStr = document.getElementById('adminFundAmount').value;
         if (!ethers.utils.isAddress(token)) { showToast('error','Invalid Address','Enter a valid token contract address.'); return; }
         if (!amtStr || parseFloat(amtStr) <= 0) { showToast('error','Invalid Amount','Enter an amount to fund.'); return; }
@@ -878,6 +876,7 @@
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
             provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
+            const decimals = await resolveTokenDecimals(token, provider);
             const signer = provider.getSigner();
             const amtWei = ethers.utils.parseUnits(parseFloat(amtStr).toFixed(decimals), decimals);
             const onRpcRetry = (n, max) => updateToast(toast, 'pending', 'Funding Rewards', `RPC hiccup — retrying (${n}/${max})…`);
@@ -899,11 +898,16 @@
 
     async function adminWithdrawUnreserved() {
         const token = adminTokenAddrInput('adminWithdrawTokenAddr');
-        const meta  = stakeTokenMetaCache[token.toLowerCase()];
-        const decimals = meta ? meta.decimals : 18;
         const amtStr = document.getElementById('adminWithdrawAmount').value;
         if (!ethers.utils.isAddress(token)) { showToast('error','Invalid Address','Enter a valid token contract address.'); return; }
         if (!amtStr || parseFloat(amtStr) <= 0) { showToast('error','Invalid Amount','Enter an amount to withdraw.'); return; }
+        let decimals;
+        try {
+            decimals = await resolveTokenDecimals(token, readOnlyProvider() || (getActiveProvider() ? new ethers.providers.Web3Provider(getActiveProvider()) : null));
+        } catch (err) {
+            showToast('error', 'Invalid Token', err.message);
+            return;
+        }
         const amtWei = ethers.utils.parseUnits(parseFloat(amtStr).toFixed(decimals), decimals);
         await adminSendTx('withdrawUnreservedRewards', [token, amtWei],
             { successTitle: 'Withdrawn', successMsg: `Withdrew ${amtStr} unreserved reward tokens.`,
@@ -1045,10 +1049,32 @@
         await adminVaultSendTx('setTier', [token, tierId, bps, active], { successTitle: 'Vault Tier Updated', successMsg: `Tier #${tierId} for ${token} updated on the Vault.` });
     }
 
+    async function resolveTokenDecimals(token, provider) {
+        // stakeTokenMetaCache is only ever populated by the Stake page's own
+        // token loader — if the admin opens Admin -> Vault directly in a
+        // fresh session without visiting Stake first, this cache is empty
+        // and used to silently fall back to 18 decimals. USDC/EURC/USDT here
+        // are actually 6-decimal tokens, so that fallback overstated any
+        // amount by a factor of 10^12 — e.g. "5000" got sent on-chain as
+        // 5000 * 10^18 base units instead of 5000 * 10^6, which is why it
+        // reverted with "ERC20: transfer amount exceeds balance" even though
+        // the wallet clearly held more than enough USDC. Look it up for real
+        // instead of guessing.
+        const key = token.toLowerCase();
+        if (stakeTokenMetaCache[key]) return stakeTokenMetaCache[key].decimals;
+        const local = TOKENS.find(t => t.addr && t.addr.toLowerCase() === key);
+        if (local) return local.decimals;
+        try {
+            const erc20 = new ethers.Contract(token, ['function decimals() view returns (uint8)'], provider);
+            return await erc20.decimals();
+        } catch (e) {
+            console.error('resolveTokenDecimals: could not read decimals() for', token, e);
+            throw new Error('Could not determine this token\'s decimals — enter the address of a known/whitelisted token.');
+        }
+    }
+
     async function adminVaultFundRewards() {
         const token = adminTokenAddrInput('adminVaultFundTokenAddr');
-        const meta  = stakeTokenMetaCache[token.toLowerCase()];
-        const decimals = meta ? meta.decimals : 18;
         const amtStr = document.getElementById('adminVaultFundAmount').value;
         if (!ethers.utils.isAddress(token)) { showToast('error','Invalid Address','Enter a valid token contract address.'); return; }
         if (!amtStr || parseFloat(amtStr) <= 0) { showToast('error','Invalid Amount','Enter an amount to fund.'); return; }
@@ -1056,6 +1082,7 @@
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
             provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
+            const decimals = await resolveTokenDecimals(token, provider);
             const signer = provider.getSigner();
             const amtWei = ethers.utils.parseUnits(parseFloat(amtStr).toFixed(decimals), decimals);
             const onRpcRetry = (n, max) => updateToast(toast, 'pending', 'Funding Vault Rewards', `RPC hiccup — retrying (${n}/${max})…`);
@@ -1077,11 +1104,16 @@
 
     async function adminVaultWithdrawUnreserved() {
         const token = adminTokenAddrInput('adminVaultWithdrawTokenAddr');
-        const meta  = stakeTokenMetaCache[token.toLowerCase()];
-        const decimals = meta ? meta.decimals : 18;
         const amtStr = document.getElementById('adminVaultWithdrawAmount').value;
         if (!ethers.utils.isAddress(token)) { showToast('error','Invalid Address','Enter a valid token contract address.'); return; }
         if (!amtStr || parseFloat(amtStr) <= 0) { showToast('error','Invalid Amount','Enter an amount to withdraw.'); return; }
+        let decimals;
+        try {
+            decimals = await resolveTokenDecimals(token, readOnlyProvider() || (getActiveProvider() ? new ethers.providers.Web3Provider(getActiveProvider()) : null));
+        } catch (err) {
+            showToast('error', 'Invalid Token', err.message);
+            return;
+        }
         const amtWei = ethers.utils.parseUnits(parseFloat(amtStr).toFixed(decimals), decimals);
         await adminVaultSendTx('withdrawUnreservedRewards', [token, amtWei],
             { successTitle: 'Withdrawn (Vault)', successMsg: `Withdrew ${amtStr} unreserved reward tokens from the Vault.`,
