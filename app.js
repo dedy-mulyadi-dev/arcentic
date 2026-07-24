@@ -3187,6 +3187,20 @@
         return null;
     }
 
+    // Ethers normally auto-detects the network by firing an eth_chainId
+    // request the first time a provider is used, then MEMOIZES that promise
+    // forever — so if that one detection call happens to land during a 429
+    // window, the provider is permanently wedged ("could not detect network",
+    // code=NETWORK_ERROR) and every future call on it rejects instantly with
+    // no further HTTP request, even after the RPC recovers. We already know
+    // both chain IDs statically, so pass them in explicitly and skip that
+    // auto-detect call (and its failure mode) entirely.
+    function getChainIdDec(chainName) {
+        if (chainName === 'ethereumSepolia') return parseInt(ETHEREUM_SEPOLIA_CHAIN.chainId, 16);
+        if (chainName === 'arcTestnet') return ARC_CHAIN_ID_DEC;
+        return undefined;
+    }
+
     // Runs callFn(provider) against each configured RPC URL in turn, moving to
     // the next URL only if the REAL call fails (no separate health-check ping,
     // so this adds zero extra requests when the first URL just works).
@@ -3208,7 +3222,7 @@
                 // loop over `order` (multi-endpoint) and callers already wrap
                 // this in withRpcRetry, so leaving ethers' internal retry on
                 // stacks a third retry layer on top and multiplies 429s.
-                const provider = new ethers.providers.JsonRpcProvider({ url, throttleLimit: 1 });
+                const provider = new ethers.providers.JsonRpcProvider({ url, throttleLimit: 1 }, getChainIdDec(chainName));
                 const result = await callFn(provider);
                 _lastGoodRpcIndex[chainName] = rpcUrls.indexOf(url);
                 return result;
@@ -4736,7 +4750,7 @@
                 // FallbackProvider's multi-endpoint fallback — three retry
                 // layers compounding is what was flooding the console with
                 // 429s and making everything feel stuck on "Loading…".
-                const p = new ethers.providers.JsonRpcProvider({ url, throttleLimit: 1 });
+                const p = new ethers.providers.JsonRpcProvider({ url, throttleLimit: 1 }, ARC_CHAIN_ID_DEC);
                 // Slowing pollingInterval to 60s (previous fix) was not enough:
                 // under sustained 429s, ethers' internal poll loop can
                 // reschedule itself almost immediately instead of honoring

@@ -293,8 +293,15 @@
         // throttleLimit: 1 turns off ethers' own hidden retry-on-429 for each
         // endpoint (default is up to 12 silent retries per call) — we handle
         // retries ourselves once, below, instead of two retry layers stacking.
-        const alchemyProvider = new ethers.providers.JsonRpcProvider({ url: VAULT_CONFIG.rpcUrl, throttleLimit: 1 });
-        const publicProvider = new ethers.providers.JsonRpcProvider({ url: VAULT_CONFIG.rpcUrlFallback, throttleLimit: 1 });
+        // Passing VAULT_CONFIG.chainIdDec explicitly as the network tells
+        // ethers to skip its own eth_chainId auto-detect call. Without this,
+        // ethers memoizes that ONE detection call's result forever — if it
+        // happened to hit a 429, the provider got permanently stuck throwing
+        // "could not detect network" (NETWORK_ERROR) on every future call,
+        // even after the RPC recovered. This is what "Loading tiers…" /
+        // repeated NETWORK_ERROR in the console was.
+        const alchemyProvider = new ethers.providers.JsonRpcProvider({ url: VAULT_CONFIG.rpcUrl, throttleLimit: 1 }, VAULT_CONFIG.chainIdDec);
+        const publicProvider = new ethers.providers.JsonRpcProvider({ url: VAULT_CONFIG.rpcUrlFallback, throttleLimit: 1 }, VAULT_CONFIG.chainIdDec);
         alchemyProvider.polling = false;
         publicProvider.polling = false;
         readProvider = new ethers.providers.FallbackProvider([
