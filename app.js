@@ -3203,7 +3203,12 @@
         let lastErr;
         for (const url of order) {
             try {
-                const provider = new ethers.providers.JsonRpcProvider(url);
+                // throttleLimit: 1 disables ethers' own hidden retry-on-429
+                // (default up to 12 silent retries per endpoint) — we already
+                // loop over `order` (multi-endpoint) and callers already wrap
+                // this in withRpcRetry, so leaving ethers' internal retry on
+                // stacks a third retry layer on top and multiplies 429s.
+                const provider = new ethers.providers.JsonRpcProvider({ url, throttleLimit: 1 });
                 const result = await callFn(provider);
                 _lastGoodRpcIndex[chainName] = rpcUrls.indexOf(url);
                 return result;
@@ -4725,7 +4730,13 @@
         try {
             const urls = (ARC_CHAIN && ARC_CHAIN.rpcUrls) || [];
             const jsonRpcProviders = urls.map(url => {
-                const p = new ethers.providers.JsonRpcProvider(url);
+                // throttleLimit: 1 disables ethers' own hidden retry-on-429
+                // (default up to 12 silent retries per endpoint) so it can't
+                // stack with withRpcRetry()'s own retry loop and the
+                // FallbackProvider's multi-endpoint fallback — three retry
+                // layers compounding is what was flooding the console with
+                // 429s and making everything feel stuck on "Loading…".
+                const p = new ethers.providers.JsonRpcProvider({ url, throttleLimit: 1 });
                 // Slowing pollingInterval to 60s (previous fix) was not enough:
                 // under sustained 429s, ethers' internal poll loop can
                 // reschedule itself almost immediately instead of honoring

@@ -57,6 +57,71 @@
         'function approve(address spender, uint256 amount) returns (bool)'
     ];
 
+    // ── RPC retry / concurrency helpers ────────────────────────────────
+    // ethers' own fetchJson() ALREADY retries HTTP 429 internally (up to
+    // 12x, with backoff) before it ever throws — completely invisible to
+    // this file. That built-in retry was firing on top of two FallbackProvider
+    // backends AND a long sequential for-loop of RPC calls (one per token,
+    // one per tier, one per stake), so a single "load tokens" pass could
+    // multiply into dozens/hundreds of underlying HTTP requests the moment
+    // one public RPC got slow — which is exactly the storm of 429s in the
+    // console and "Loading tiers…" hanging forever. Fix: disable ethers'
+    // hidden retry per-provider (throttleLimit: 1, set in bootstrap()) and
+    // do exactly ONE controlled retry loop ourselves, with capped
+    // concurrency instead of blasting every call at once.
+    function isTransientRpcError(err) {
+        const msg = ((err && err.message) || '').toLowerCase();
+        return msg.includes('429') || msg.includes('rate limit') ||
+               msg.includes('timeout') || msg.includes('econnreset') ||
+               msg.includes('network') || (err && err.code) === 'NETWORK_ERROR' ||
+               (err && err.code) === 'TIMEOUT' || (err && err.code) === -32005 ||
+               (err && err.code) === -32603 || (err && err.code) === -32000;
+    }
+
+    async function withRpcRetry(fn, retries, delayMs) {
+        retries = retries == null ? 4 : retries;
+        delayMs = delayMs == null ? 800 : delayMs;
+        let lastErr;
+        for (let attempt = 0; attempt <= retries; attempt++) {
+            try { return await fn(); }
+            catch (err) {
+                lastErr = err;
+                if (!isTransientRpcError(err) || attempt === retries) throw err;
+                await new Promise(function (r) { setTimeout(r, delayMs * (attempt + 1)); });
+            }
+        }
+        throw lastErr;
+    }
+
+    // Runs `fn` over `items` with at most `limit` in flight at once instead
+    // of firing every call simultaneously (which is what triggers 429s on
+    // public RPCs in the first place).
+    async function mapWithConcurrency(items, limit, fn) {
+        const results = new Array(items.length);
+        let nextIndex = 0;
+        async function worker() {
+            while (nextIndex < items.length) {
+                const i = nextIndex++;
+                results[i] = await fn(items[i], i);
+            }
+        }
+        const workers = Array.from({ length: Math.min(limit, items.length) }, worker);
+        await Promise.all(workers);
+        return results;
+    }
+
+    // Short-lived cache so flipping between tokens/tabs doesn't re-hit the
+    // RPC for data that was just fetched a few seconds ago.
+    const _cache = {}; // key -> { value, ts }
+    const CACHE_TTL_MS = 20000;
+    async function cached(key, fn) {
+        const hit = _cache[key];
+        if (hit && (Date.now() - hit.ts) < CACHE_TTL_MS) return hit.value;
+        const value = await fn();
+        _cache[key] = { value: value, ts: Date.now() };
+        return value;
+    }
+
     // ── State ───────────────────────────────────────────────────────────
     let readProvider = null;   // JsonRpcProvider — works without a wallet
     let webProvider = null;    // Web3Provider — only once wallet is connected
@@ -225,8 +290,11 @@
         // here listens for 'block' events, so we don't need block-polling at
         // all — fully disabling it (provider.polling = false) removes this
         // whole class of background traffic instead of just slowing it down.
-        const alchemyProvider = new ethers.providers.JsonRpcProvider(VAULT_CONFIG.rpcUrl);
-        const publicProvider = new ethers.providers.JsonRpcProvider(VAULT_CONFIG.rpcUrlFallback);
+        // throttleLimit: 1 turns off ethers' own hidden retry-on-429 for each
+        // endpoint (default is up to 12 silent retries per call) — we handle
+        // retries ourselves once, below, instead of two retry layers stacking.
+        const alchemyProvider = new ethers.providers.JsonRpcProvider({ url: VAULT_CONFIG.rpcUrl, throttleLimit: 1 });
+        const publicProvider = new ethers.providers.JsonRpcProvider({ url: VAULT_CONFIG.rpcUrlFallback, throttleLimit: 1 });
         alchemyProvider.polling = false;
         publicProvider.polling = false;
         readProvider = new ethers.providers.FallbackProvider([
@@ -259,19 +327,30 @@
         const picker = document.getElementById('vaultTokenPicker');
         try {
             const c = getReadContract();
-            const n = (await c.supportedTokensLength()).toNumber();
+            const n = (await withRpcRetry(function () { return c.supportedTokensLength(); })).toNumber();
+
+            // Fetch each token's address + symbol/decimals with limited
+            // concurrency instead of one-at-a-time — this used to be a fully
+            // sequential for-loop (3 RPC round-trips per token, back to back),
+            // which is slow AND, when a call failed, retried with no cap.
+            const indices = Array.from({ length: n }, function (_, i) { return i; });
+            const fetched = await mapWithConcurrency(indices, 3, async function (i) {
+                const addr = await withRpcRetry(function () { return c.supportedTokenAt(i); });
+                return cached('tokenmeta:' + addr.toLowerCase(), async function () {
+                    const erc20 = new ethers.Contract(addr, ERC20_ABI, readProvider);
+                    let symbol = '???', decimals = 18;
+                    try { symbol = await withRpcRetry(function () { return erc20.symbol(); }); } catch (e) {}
+                    try { decimals = await withRpcRetry(function () { return erc20.decimals(); }); } catch (e) {}
+                    return { address: addr, symbol: symbol, decimals: decimals };
+                });
+            });
+
             tokens = [];
             tokenByAddr = {};
-            for (let i = 0; i < n; i++) {
-                const addr = await c.supportedTokenAt(i);
-                const erc20 = new ethers.Contract(addr, ERC20_ABI, readProvider);
-                let symbol = '???', decimals = 18;
-                try { symbol = await erc20.symbol(); } catch (e) {}
-                try { decimals = await erc20.decimals(); } catch (e) {}
-                const meta = { address: addr, symbol: symbol, decimals: decimals };
+            fetched.forEach(function (meta) {
                 tokens.push(meta);
-                tokenByAddr[addr.toLowerCase()] = meta;
-            }
+                tokenByAddr[meta.address.toLowerCase()] = meta;
+            });
 
             if (!tokens.length) {
                 picker.innerHTML = '<option value="">No tokens whitelisted yet</option>';
@@ -309,12 +388,14 @@
         grid.innerHTML = '<div class="tier-card text-center text-gray-500 text-sm col-span-3">Loading tiers…</div>';
         try {
             const c = getReadContract();
-            const n = (await c.tiersLength(tokenAddr)).toNumber();
-            tiers = [];
-            for (let i = 0; i < n; i++) {
-                const t = await c.tierAt(tokenAddr, i);
-                tiers.push({ id: i, lockDuration: t.lockDuration.toNumber(), aprBps: t.aprBps.toNumber(), active: t.active });
-            }
+            tiers = await cached('tiers:' + tokenAddr.toLowerCase(), async function () {
+                const n = (await withRpcRetry(function () { return c.tiersLength(tokenAddr); })).toNumber();
+                const indices = Array.from({ length: n }, function (_, i) { return i; });
+                return mapWithConcurrency(indices, 3, async function (i) {
+                    const t = await withRpcRetry(function () { return c.tierAt(tokenAddr, i); });
+                    return { id: i, lockDuration: t.lockDuration.toNumber(), aprBps: t.aprBps.toNumber(), active: t.active };
+                });
+            });
             if (!tiers.length) {
                 grid.innerHTML = '<div class="tier-card text-center text-gray-500 text-sm col-span-3">No lock tiers yet for this token.</div>';
                 return;
@@ -347,16 +428,18 @@
         const c = getReadContract();
         try {
             const [totalStaked, penaltyBps] = await Promise.all([
-                c.totalStakedOf(selectedToken),
-                c.earlyExitPenaltyBps()
+                withRpcRetry(function () { return c.totalStakedOf(selectedToken); }),
+                withRpcRetry(function () { return c.earlyExitPenaltyBps(); })
             ]);
             document.getElementById('vaultTotalStaked').textContent = fmtUnits(totalStaked, meta.decimals);
             document.getElementById('vaultPenaltyDisplay').textContent = fmtApr(penaltyBps.toNumber());
         } catch (err) { console.error(err); }
 
         try {
-            const liq = await c.vaultLiquidityInPool(selectedToken);
-            const staked = await c.totalStakedOf(selectedToken);
+            const [liq, staked] = await Promise.all([
+                withRpcRetry(function () { return c.vaultLiquidityInPool(selectedToken); }),
+                withRpcRetry(function () { return c.totalStakedOf(selectedToken); })
+            ]);
             const mismatchEl = document.getElementById('vaultPoolMismatch');
             if (!liq.eq(staked)) {
                 mismatchEl.textContent = '⚠ Vault liquidity in the pool (' + fmtUnits(liq, meta.decimals) + ' ' + meta.symbol +
@@ -383,7 +466,7 @@
         if (!selectedToken || !userAddress) { toast('Connect your wallet first.', true); return; }
         const meta = tokenByAddr[selectedToken.toLowerCase()];
         const erc20 = new ethers.Contract(selectedToken, ERC20_ABI, readProvider);
-        const bal = await erc20.balanceOf(userAddress);
+        const bal = await withRpcRetry(function () { return erc20.balanceOf(userAddress); });
         document.getElementById('vaultAmount').value = ethers.utils.formatUnits(bal, meta.decimals);
         updateVaultPreview();
     };
@@ -464,22 +547,32 @@
         list.innerHTML = '<p class="text-gray-500 text-sm text-center py-6">Loading your stakes…</p>';
         try {
             const c = getReadContract();
-            const count = (await c.stakeCountOf(userAddress)).toNumber();
+            const count = (await withRpcRetry(function () { return c.stakeCountOf(userAddress); })).toNumber();
             if (!count) {
                 list.innerHTML = '<p class="text-gray-500 text-sm text-center py-6">No stakes yet.</p>';
                 return;
             }
+            // Fetch each stake's details with limited concurrency instead of
+            // fully sequential (3 RPC calls per stake, one stake at a time).
+            const indices = Array.from({ length: count }, function (_, i) { return i; });
+            const stakeData = await mapWithConcurrency(indices, 3, async function (i) {
+                const s = await withRpcRetry(function () { return c.stakesOf(userAddress, i); });
+                const unlocked = await withRpcRetry(function () { return c.isUnlocked(userAddress, i); });
+                const pending = s.withdrawn ? ethers.BigNumber.from(0) : await withRpcRetry(function () { return c.pendingReward(userAddress, i); });
+                return { i: i, s: s, unlocked: unlocked, pending: pending };
+            });
+
             const rows = [];
-            for (let i = 0; i < count; i++) {
-                const s = await c.stakesOf(userAddress, i);
-                const unlocked = await c.isUnlocked(userAddress, i);
-                const pending = s.withdrawn ? ethers.BigNumber.from(0) : await c.pendingReward(userAddress, i);
+            for (const entry of stakeData) {
+                const i = entry.i, s = entry.s, unlocked = entry.unlocked, pending = entry.pending;
                 let meta = tokenByAddr[s.token.toLowerCase()];
                 if (!meta) {
-                    const erc20 = new ethers.Contract(s.token, ERC20_ABI, readProvider);
-                    let symbol = '???', decimals = 18;
-                    try { symbol = await erc20.symbol(); decimals = await erc20.decimals(); } catch (e) {}
-                    meta = { address: s.token, symbol: symbol, decimals: decimals };
+                    meta = await cached('tokenmeta:' + s.token.toLowerCase(), async function () {
+                        const erc20 = new ethers.Contract(s.token, ERC20_ABI, readProvider);
+                        let symbol = '???', decimals = 18;
+                        try { symbol = await withRpcRetry(function () { return erc20.symbol(); }); decimals = await withRpcRetry(function () { return erc20.decimals(); }); } catch (e) {}
+                        return { address: s.token, symbol: symbol, decimals: decimals };
+                    });
                     tokenByAddr[s.token.toLowerCase()] = meta;
                 }
 
