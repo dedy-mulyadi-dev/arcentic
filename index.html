@@ -1072,6 +1072,30 @@ nav button.glass:hover {
     animation: fadeInUp 0.24s cubic-bezier(0.16, 1, 0.3, 1) 0.03s both;
 }
 
+/* -- Vault overlay (cinematic fade-scale-blur), mirrors #stakeView -- */
+#vaultView {
+    position: fixed; inset: 0; z-index: 200;
+    background: #040816;
+    transform: scale(0.985);
+    opacity: 0;
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+    overflow-y: auto;
+    will-change: transform, opacity;
+    -webkit-overflow-scrolling: touch;
+    pointer-events: none;
+}
+#vaultView.open {
+    transform: scale(1);
+    opacity: 1;
+    pointer-events: auto;
+}
+.vault-header {
+    animation: slideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1) 0s both;
+}
+.vault-content {
+    animation: fadeInUp 0.24s cubic-bezier(0.16, 1, 0.3, 1) 0.03s both;
+}
+
 .tier-card {
     background: rgba(255,255,255,.04);
     border: 1px solid rgba(92,120,255,.2);
@@ -1230,6 +1254,7 @@ nav button.glass:hover {
         <button id="navTrading" onclick="showTradingHub()" class="px-6 py-3 rounded-xl">Trading</button>
         <button id="navLend" onclick="showLend()" class="px-6 py-3 rounded-xl">Lend & Borrow</button>
         <button id="navStake" onclick="showStake()" class="px-6 py-3 rounded-xl">Stake</button>
+        <button id="navVault" data-no-i18n onclick="showVault()" class="px-6 py-3 rounded-xl">Vault</button>
         <button id="navAdmin" onclick="showAdmin()" class="px-6 py-3 rounded-xl" style="display:none;">🔒 Admin</button>
     </nav>
     <div class="flex gap-2 sm:gap-3 items-center flex-shrink-0">
@@ -1246,6 +1271,7 @@ nav button.glass:hover {
     <button onclick="showTradingHub(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Trading</button>
     <button onclick="showLend(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Lend &amp; Borrow</button>
 <button onclick="showStake(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Stake</button>
+<button data-no-i18n onclick="showVault(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition">Vault</button>
 <button id="navAdminMobile" onclick="showAdmin(); toggleMobileNav()" class="text-left px-4 py-3 rounded-xl hover:bg-white/5 transition" style="display:none;">🔒 Admin</button>
 </div>
 </header>
@@ -2647,6 +2673,191 @@ nav button.glass:hover {
     </div>
 </div>
 
+<!-- ═══════════════════════════ VAULT VIEW ═══════════════════════════
+     Reads/writes ArcenticVault.sol directly. Self-contained module (vault.js) —
+     does not share wallet state with the rest of the site (see comment at the
+     top of vault.js for why). Marked data-no-i18n: this view's text is not
+     wired into the EN/ID toggle used elsewhere on the site. -->
+<div id="vaultView" class="gridbg" data-no-i18n>
+    <div class="orb1"></div><div class="orb2"></div>
+
+    <div class="pf-header vault-header">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+                <button class="vault-back-btn glass w-10 h-10 rounded-xl flex items-center justify-center text-lg hover:border-white/30 transition flex-shrink-0">&#8592;</button>
+                <div class="min-w-0">
+                    <h2 class="text-lg sm:text-2xl font-black leading-tight">Vault</h2>
+                    <p class="text-gray-400 text-xs hidden sm:block">ARC Testnet &middot; Stake into ArcenticVault — principal is forwarded into ArcenticMultiPool as real liquidity while locked</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 sm:gap-3">
+                <div class="glass px-2.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap"><span class="sm:hidden">🟢</span><span class="hidden sm:inline">🟢 ARC TESTNET</span></div>
+                <button id="btnVaultConnect" onclick="connectVaultWallet()" class="gradient px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold glow text-xs sm:text-sm whitespace-nowrap">Connect Wallet</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 vault-content">
+
+        <p id="vaultPoolMismatch" class="hidden" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#fca5a5;border-radius:14px;padding:12px 16px;font-size:.8rem;margin-bottom:20px;"></p>
+
+        <!-- Stats bar -->
+        <div class="grid grid-cols-2 gap-2 sm:gap-4 mb-10">
+            <div class="pool-stat-pill">
+                <div class="text-gray-400 text-xs mb-1">Total Staked (this token)</div>
+                <div class="text-lg sm:text-2xl font-black" id="vaultTotalStaked">—</div>
+                <div class="text-gray-500 text-xs mt-0.5 vault-token-unit">—</div>
+            </div>
+            <div class="pool-stat-pill">
+                <div class="text-gray-400 text-xs mb-1">Early-Exit Penalty</div>
+                <div class="text-lg sm:text-2xl font-black" id="vaultAdminPenalty">—</div>
+                <div class="text-gray-500 text-xs mt-0.5">on principal, pre-unlock</div>
+            </div>
+        </div>
+
+        <!-- New stake panel -->
+        <div class="glass rounded-3xl p-5 sm:p-8 mb-10">
+            <h3 class="text-xl font-black mb-4">New Stake</h3>
+            <p class="text-gray-400 text-sm mb-4">Pick a whitelisted token, then a lock tier. While locked, your principal sits as real liquidity in ArcenticMultiPool; rewards are paid separately, in the same token, from the vault's own reward pool.</p>
+
+            <div class="mb-5">
+                <p class="text-xs text-gray-400 mb-2">Token</p>
+                <select id="vaultTokenPicker" class="stake-token-select" onchange="selectVaultToken(this.value)" disabled>
+                    <option value="">Loading tokens…</option>
+                </select>
+            </div>
+
+            <div id="vaultTierGrid" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+                <div class="tier-card text-center text-gray-500 text-sm col-span-3">Loading tiers…</div>
+            </div>
+
+            <div class="liq-input-wrap mb-4">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs text-gray-400">Amount</span>
+                    <span class="text-xs text-gray-400">Balance: <span id="vaultTokenBal">—</span> &nbsp;<button onclick="setVaultMax()" class="text-blue-400 hover:text-blue-300">MAX</button></span>
+                </div>
+                <input id="vaultAmount" type="number" placeholder="0.00" min="0" step="0.0001" oninput="updateVaultPreview()">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 mb-6 text-sm">
+                <div class="pool-stat-pill" style="text-align:left; padding:10px 14px;">
+                    <div class="text-gray-400 text-xs">Lock ends</div>
+                    <div class="font-bold mt-1" id="vaultPreviewUnlock">—</div>
+                </div>
+                <div class="pool-stat-pill" style="text-align:left; padding:10px 14px;">
+                    <div class="text-gray-400 text-xs">Est. reward at maturity</div>
+                    <div class="font-bold mt-1 text-green-400" id="vaultPreviewReward">—</div>
+                </div>
+            </div>
+
+            <button class="lend-main-btn" id="btnVaultStake" onclick="doVaultStake()">Stake</button>
+            <p id="vaultStatus" class="text-center text-xs text-gray-500 mt-3 hidden"></p>
+        </div>
+
+        <!-- My stakes -->
+        <div class="glass rounded-3xl p-5 sm:p-8 mb-10">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-black">My Vault Stakes</h3>
+                <button onclick="loadMyVaultStakes()" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">⟳ Refresh</button>
+            </div>
+            <div id="myVaultStakesList">
+                <p class="text-gray-500 text-sm text-center py-6">Connect your wallet to see your stakes.</p>
+            </div>
+        </div>
+
+        <!-- Owner-only admin mini panel -->
+        <div id="vaultAdminPanel" class="glass rounded-3xl p-5 sm:p-8" style="display:none;">
+            <h3 class="text-xl font-black mb-1">🔒 Vault Admin</h3>
+            <p class="text-gray-400 text-xs mb-6">Visible because your connected wallet matches the vault's on-chain owner(). Every action below is a real transaction.</p>
+
+            <div class="grid sm:grid-cols-2 gap-3 mb-6 text-sm">
+                <div class="pool-stat-pill" style="text-align:left;"><div class="text-gray-400 text-xs">Pool contract</div><div class="font-bold mt-1 truncate" id="vaultAdminPool">—</div></div>
+                <div class="pool-stat-pill" style="text-align:left;"><div class="text-gray-400 text-xs">Treasury</div><div class="font-bold mt-1 truncate" id="vaultAdminTreasury">—</div></div>
+                <div class="pool-stat-pill" style="text-align:left;"><div class="text-gray-400 text-xs">Status</div><div class="font-bold mt-1" id="vaultAdminPaused">—</div></div>
+            </div>
+
+            <div class="mb-6">
+                <p class="text-xs text-gray-400 mb-2">Whitelist a new token</p>
+                <div class="flex gap-2 flex-wrap">
+                    <input id="vaultAdminNewTokenAddr" type="text" placeholder="0x… token address" class="liq-input-wrap" style="flex:1;min-width:220px;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);border-radius:12px;color:#fff;">
+                    <button onclick="vaultAdminAddToken()" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">Add Token</button>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <p class="text-xs text-gray-400 mb-2">Enable / disable selected token (<span class="vault-token-unit">—</span>)</p>
+                <div class="flex gap-2 flex-wrap">
+                    <input id="vaultAdminTokenAddr" type="text" placeholder="0x… token address" style="flex:1;min-width:220px;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);border-radius:12px;color:#fff;">
+                    <button onclick="vaultAdminSetSupported(true)" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">Enable</button>
+                    <button onclick="vaultAdminSetSupported(false)" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">Disable</button>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <p class="text-xs text-gray-400 mb-2">Add a lock tier to the token selected above in "New Stake"</p>
+                <div class="flex gap-2 flex-wrap">
+                    <input id="vaultAdminTierDays" type="number" placeholder="Lock days" style="width:120px;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);border-radius:12px;color:#fff;">
+                    <input id="vaultAdminTierApr" type="number" placeholder="APR %" style="width:120px;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);border-radius:12px;color:#fff;">
+                    <button onclick="vaultAdminAddTier()" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">Add Tier</button>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <p class="text-xs text-gray-400 mb-2">Edit an existing tier (by ID) on the token selected above</p>
+                <div class="flex gap-2 flex-wrap">
+                    <input id="vaultAdminTierId" type="number" placeholder="Tier ID" style="width:100px;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);border-radius:12px;color:#fff;">
+                    <input id="vaultAdminTierNewApr" type="number" placeholder="New APR %" style="width:120px;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);border-radius:12px;color:#fff;">
+                    <button onclick="vaultAdminSetTier(true)" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">Save (Active)</button>
+                    <button onclick="vaultAdminSetTier(false)" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">Save (Inactive)</button>
+                </div>
+            </div>
+
+            <div class="grid sm:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <p class="text-xs text-gray-400 mb-2">Fund reward pool (token selected above)</p>
+                    <div class="flex gap-2">
+                        <input id="vaultAdminFundAmt" type="number" placeholder="Amount" style="flex:1;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);border-radius:12px;color:#fff;">
+                        <button onclick="vaultAdminFundRewards()" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">Fund</button>
+                    </div>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 mb-2">Withdraw unreserved rewards</p>
+                    <div class="flex gap-2">
+                        <input id="vaultAdminWithdrawAmt" type="number" placeholder="Amount" style="flex:1;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);border-radius:12px;color:#fff;">
+                        <button onclick="vaultAdminWithdrawUnreserved()" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">Withdraw</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid sm:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <p class="text-xs text-gray-400 mb-2">Update treasury address</p>
+                    <div class="flex gap-2">
+                        <input id="vaultAdminTreasuryAddr" type="text" placeholder="0x… new treasury" style="flex:1;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);border-radius:12px;color:#fff;">
+                        <button onclick="vaultAdminSetTreasury()" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">Update</button>
+                    </div>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 mb-2">Update early-exit penalty (0–30%)</p>
+                    <div class="flex gap-2">
+                        <input id="vaultAdminPenaltyInput" type="number" placeholder="Penalty %" style="flex:1;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);border-radius:12px;color:#fff;">
+                        <button onclick="vaultAdminSetPenalty()" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">Update</button>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <p class="text-xs text-gray-400 mb-2">⚠ Danger zone — pausing blocks new stakes vault-wide. Existing stakes remain claimable/unstakeable.</p>
+                <div class="flex gap-2">
+                    <button onclick="vaultAdminTogglePause(true)" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">⏸ Pause</button>
+                    <button onclick="vaultAdminTogglePause(false)" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">▶ Unpause</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
 <!-- ============ ADMIN PANEL ============
      Note: hiding this section in the UI is only half the story — the real
      protection has to live on-chain. See the JS below (isAdminWallet /
@@ -2798,6 +3009,7 @@ nav button.glass:hover {
 </div>
 
 <script src="app.js" defer></script>
+<script src="vault.js" defer></script>
 
 <!-- ═══════════════════════ i18n: Pilihan Bahasa (ID / EN) ═══════════════════════ -->
 <script>
