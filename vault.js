@@ -157,9 +157,19 @@
     }
 
     function parseErr(err) {
-        if (err && err.error && err.error.message) return err.error.message;
+        // Walk through the various shapes MetaMask/ethers wrap revert reasons in
+        // — a plain "Internal JSON-RPC error" with no message is usually just
+        // the outermost layer; the real reason is often one level deeper.
+        if (err && err.error && err.error.data && err.error.data.message) return err.error.data.message;
+        if (err && err.error && err.error.message && err.error.message !== 'Internal JSON-RPC error.') return err.error.message;
         if (err && err.reason) return err.reason;
         if (err && err.data && err.data.message) return err.data.message;
+        if (err && err.error && err.error.body) {
+            try {
+                const body = JSON.parse(err.error.body);
+                if (body && body.error && body.error.message) return body.error.message;
+            } catch (e) { /* not JSON, ignore */ }
+        }
         if (err && err.message) return err.message.split('(')[0].trim();
         return 'Transaction failed.';
     }
@@ -539,6 +549,11 @@
             }
 
             setStatus('Staking…');
+            // Simulate first via callStatic: this surfaces the contract's actual
+            // revert reason (e.g. "insufficient reward pool") instead of the
+            // generic "Internal JSON-RPC error" MetaMask shows when it can't
+            // decode revert data from the real transaction attempt.
+            await vaultRW.callStatic.stake(selectedToken, selectedTierId, amountWei);
             const tx = await vaultRW.stake(selectedToken, selectedTierId, amountWei);
             await tx.wait();
 
