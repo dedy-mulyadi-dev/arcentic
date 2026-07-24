@@ -4709,23 +4709,22 @@
             const urls = (ARC_CHAIN && ARC_CHAIN.rpcUrls) || [];
             const jsonRpcProviders = urls.map(url => {
                 const p = new ethers.providers.JsonRpcProvider(url);
-                // ethers polls each provider for new blocks every 4s by
-                // default (regardless of whether anything listens for
-                // 'block' events), forever, for as long as the tab is open.
-                // With 3 endpoints that's constant background traffic that
-                // has nothing to do with actual user actions, and it's what
-                // was tripping the public RPCs' 429 rate limit. We already
-                // refresh on-chain data ourselves via refreshLiveStats /
-                // pollSpotMarket every 8-12s, so there's no need for ethers'
-                // own polling to run anywhere near that fast.
-                p.pollingInterval = 60000; // 60s instead of the 4s default
+                // Slowing pollingInterval to 60s (previous fix) was not enough:
+                // under sustained 429s, ethers' internal poll loop can
+                // reschedule itself almost immediately instead of honoring
+                // the interval, producing a tight retry storm against
+                // whichever public RPC is still up. Nothing here listens for
+                // 'block' events — all reads are on-demand contract calls —
+                // so disabling polling entirely removes this background
+                // traffic instead of just slowing it down.
+                p.polling = false;
                 return p;
             });
             if (jsonRpcProviders.length > 1) {
                 // quorum 1: any single healthy endpoint answering is enough,
                 // we don't need multiple endpoints to agree for read-only UI data
                 _readOnlyProvider = new ethers.providers.FallbackProvider(jsonRpcProviders, 1);
-                _readOnlyProvider.pollingInterval = 60000;
+                _readOnlyProvider.polling = false;
             } else if (jsonRpcProviders.length === 1) {
                 _readOnlyProvider = jsonRpcProviders[0];
             } else if (typeof window.ethereum !== 'undefined' || getActiveProvider()) {
