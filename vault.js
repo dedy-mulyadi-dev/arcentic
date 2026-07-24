@@ -300,8 +300,14 @@
         // "could not detect network" (NETWORK_ERROR) on every future call,
         // even after the RPC recovered. This is what "Loading tiers…" /
         // repeated NETWORK_ERROR in the console was.
-        const alchemyProvider = new ethers.providers.JsonRpcProvider({ url: VAULT_CONFIG.rpcUrl, throttleLimit: 1 }, VAULT_CONFIG.chainIdDec);
-        const publicProvider = new ethers.providers.JsonRpcProvider({ url: VAULT_CONFIG.rpcUrlFallback, throttleLimit: 1 }, VAULT_CONFIG.chainIdDec);
+        // StaticJsonRpcProvider (not plain JsonRpcProvider) locks the network
+        // in permanently — regular JsonRpcProvider can still re-run its
+        // internal "is this network still the same?" check under certain
+        // conditions even after you pass a network in, and if THAT check
+        // lands during a 429 it re-triggers the same "could not detect
+        // network" wedge. Static skips that check entirely.
+        const alchemyProvider = new ethers.providers.StaticJsonRpcProvider({ url: VAULT_CONFIG.rpcUrl, throttleLimit: 1 }, VAULT_CONFIG.chainIdDec);
+        const publicProvider = new ethers.providers.StaticJsonRpcProvider({ url: VAULT_CONFIG.rpcUrlFallback, throttleLimit: 1 }, VAULT_CONFIG.chainIdDec);
         alchemyProvider.polling = false;
         publicProvider.polling = false;
         readProvider = new ethers.providers.FallbackProvider([
@@ -318,15 +324,24 @@
 
         document.getElementById('myVaultStakesList').addEventListener('click', onStakeListClick);
 
-        await loadTokenList();
-
-        // Silent reconnect if this site already has permission (no popup).
-        if (window.ethereum) {
-            try {
-                const accts = await window.ethereum.request({ method: 'eth_accounts' });
-                if (accts && accts.length) await window.connectVaultWallet();
-            } catch (e) { /* ignore — user can click Connect manually */ }
-        }
+        // These two used to run one-after-another — loadTokenList() (which
+        // can take a while under RPC rate-limiting, with several retries)
+        // was blocking the silent wallet reconnect check behind it. That's
+        // why the "Connect Wallet" button kept showing even though the
+        // wallet was already connected on the Home page — it wasn't
+        // disconnected, it was just queued behind the slow token load.
+        // Running them together means a slow/failing RPC no longer delays
+        // reflecting the wallet's already-connected state.
+        await Promise.all([
+            loadTokenList(),
+            (async function () {
+                if (!window.ethereum) return;
+                try {
+                    const accts = await window.ethereum.request({ method: 'eth_accounts' });
+                    if (accts && accts.length) await window.connectVaultWallet();
+                } catch (e) { /* ignore — user can click Connect manually */ }
+            })()
+        ]);
     }
 
     // ── Tokens & tiers ──────────────────────────────────────────────────

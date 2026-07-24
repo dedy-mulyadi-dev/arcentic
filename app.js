@@ -3222,7 +3222,12 @@
                 // loop over `order` (multi-endpoint) and callers already wrap
                 // this in withRpcRetry, so leaving ethers' internal retry on
                 // stacks a third retry layer on top and multiplies 429s.
-                const provider = new ethers.providers.JsonRpcProvider({ url, throttleLimit: 1 }, getChainIdDec(chainName));
+                // StaticJsonRpcProvider locks the network in permanently —
+                // plain JsonRpcProvider can still re-run its "is this network
+                // still the same?" check even after a network is passed in,
+                // and if that check lands during a 429 it re-triggers the
+                // "could not detect network" wedge. Static skips that check.
+                const provider = new ethers.providers.StaticJsonRpcProvider({ url, throttleLimit: 1 }, getChainIdDec(chainName));
                 const result = await callFn(provider);
                 _lastGoodRpcIndex[chainName] = rpcUrls.indexOf(url);
                 return result;
@@ -4750,7 +4755,9 @@
                 // FallbackProvider's multi-endpoint fallback — three retry
                 // layers compounding is what was flooding the console with
                 // 429s and making everything feel stuck on "Loading…".
-                const p = new ethers.providers.JsonRpcProvider({ url, throttleLimit: 1 }, ARC_CHAIN_ID_DEC);
+                // StaticJsonRpcProvider — see callWithChainFallback() above
+                // for why this needs to be Static, not plain JsonRpcProvider.
+                const p = new ethers.providers.StaticJsonRpcProvider({ url, throttleLimit: 1 }, ARC_CHAIN_ID_DEC);
                 // Slowing pollingInterval to 60s (previous fix) was not enough:
                 // under sustained 429s, ethers' internal poll loop can
                 // reschedule itself almost immediately instead of honoring
