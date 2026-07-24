@@ -215,10 +215,23 @@
         // Two independent RPCs, quorum 1: if the Alchemy endpoint (priority 1)
         // is slow or 429s, ethers automatically retries the same call against
         // the public Arc testnet RPC (priority 2) instead of the read failing.
+        //
+        // IMPORTANT: ethers polls each JsonRpcProvider for new blocks every 4s
+        // by default, forever, for as long as this tab has the Vault view open
+        // once — regardless of whether anything listens for 'block' events.
+        // That background polling (not the explicit UI refreshes) is what was
+        // tripping the public RPC's 429 rate limit (see the same fix already
+        // applied to readOnlyProvider() in app.js). We don't need block-level
+        // freshness here, so slow the polling down to 60s.
+        const alchemyProvider = new ethers.providers.JsonRpcProvider(VAULT_CONFIG.rpcUrl);
+        const publicProvider = new ethers.providers.JsonRpcProvider(VAULT_CONFIG.rpcUrlFallback);
+        alchemyProvider.pollingInterval = 60000;
+        publicProvider.pollingInterval = 60000;
         readProvider = new ethers.providers.FallbackProvider([
-            { provider: new ethers.providers.JsonRpcProvider(VAULT_CONFIG.rpcUrl), priority: 1, weight: 1, stallTimeout: 2500 },
-            { provider: new ethers.providers.JsonRpcProvider(VAULT_CONFIG.rpcUrlFallback), priority: 2, weight: 1, stallTimeout: 2500 }
+            { provider: alchemyProvider, priority: 1, weight: 1, stallTimeout: 2500 },
+            { provider: publicProvider, priority: 2, weight: 1, stallTimeout: 2500 }
         ], 1);
+        readProvider.pollingInterval = 60000;
         vaultRO = new ethers.Contract(VAULT_CONFIG.address, VAULT_ABI, readProvider);
 
         const backBtn = document.querySelector('.vault-back-btn');
