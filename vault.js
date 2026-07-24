@@ -124,7 +124,7 @@
         el.textContent = msg;
     }
 
-    function getReadContract() { return vaultRW || vaultRO; }
+    function getReadContract() { return vaultRO || vaultRW; }
 
     // ── Networking: connect / switch chain ─────────────────────────────
     async function ensureCorrectChain() {
@@ -153,6 +153,7 @@
         }
         // MetaMask needs a moment to swap networks before we re-read it.
         webProvider = new ethers.providers.Web3Provider(window.ethereum, 'any');
+        webProvider.polling = false; // reads go through vaultRO, not this — no need for MetaMask block-polling either
     }
 
     window.connectVaultWallet = async function () {
@@ -167,6 +168,7 @@
         try {
             await window.ethereum.request({ method: 'eth_requestAccounts' });
             webProvider = new ethers.providers.Web3Provider(window.ethereum, 'any');
+            webProvider.polling = false; // reads go through vaultRO, not this — no need for MetaMask block-polling either
             await ensureCorrectChain();
             signer = webProvider.getSigner();
             userAddress = await signer.getAddress();

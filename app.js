@@ -365,6 +365,7 @@
 
     async function fetchBalance(account) {
         const provider = new ethers.providers.Web3Provider(getActiveProvider());
+        provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
         const raw = await provider.getBalance(account);
         return ethers.utils.formatEther(raw);
     }
@@ -689,6 +690,7 @@
         let toast = showToast('pending', successTitle || fnName, 'Waiting for wallet confirmation…');
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
+            provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
             const signer = provider.getSigner();
             const contract = new ethers.Contract(contractAddr, abi, signer);
             const onRpcRetry = (n, max) => updateToast(toast, 'pending', successTitle || fnName, `RPC hiccup — retrying (${n}/${max})…`);
@@ -861,6 +863,7 @@
         let toast = showToast('pending', 'Funding Rewards', 'Checking token allowance…');
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
+            provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
             const signer = provider.getSigner();
             const amtWei = ethers.utils.parseUnits(parseFloat(amtStr).toFixed(decimals), decimals);
             const onRpcRetry = (n, max) => updateToast(toast, 'pending', 'Funding Rewards', `RPC hiccup — retrying (${n}/${max})…`);
@@ -910,6 +913,7 @@
         let toast = showToast('pending','Funding Pool','Waiting for wallet confirmation…');
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
+            provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
             const signer = provider.getSigner();
             const amtWei = ethers.utils.parseUnits(parseFloat(amtStr).toFixed(USDC_DECIMALS), USDC_DECIMALS);
             const onRpcRetry = (n, max) => updateToast(toast, 'pending', 'Funding Pool', `RPC hiccup — retrying (${n}/${max})…`);
@@ -1037,6 +1041,7 @@
         let toast = showToast('pending', 'Funding Vault Rewards', 'Checking token allowance…');
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
+            provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
             const signer = provider.getSigner();
             const amtWei = ethers.utils.parseUnits(parseFloat(amtStr).toFixed(decimals), decimals);
             const onRpcRetry = (n, max) => updateToast(toast, 'pending', 'Funding Vault Rewards', `RPC hiccup — retrying (${n}/${max})…`);
@@ -1939,6 +1944,7 @@
         let toast = null;
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
+            provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
             const signer = provider.getSigner();
             const amtWei = ethers.utils.parseUnits(parseFloat(amtStr).toFixed(meta.decimals), meta.decimals);
             const onRpcRetry = (n, max) => setStatus(`⏳ RPC hiccup — retrying (${n}/${max})…`);
@@ -2096,6 +2102,7 @@
         let toast = showToast('pending', pendingLabel, 'Sending transaction…');
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
+            provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
             const signer = provider.getSigner();
             const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, signer);
             const onRpcRetry = (n, max) => updateToast(toast, 'pending', pendingLabel, `RPC hiccup — retrying (${n}/${max})…`);
@@ -2162,6 +2169,7 @@
     async function fetchTokenBalance(tok, account) {
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
+            provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
             const erc20 = new ethers.Contract(tok.addr, ERC20_ABI, provider);
             const dec = await getDecimals(tok);
             const raw = await erc20.balanceOf(account);
@@ -2212,6 +2220,7 @@
         if (isConnected && getActiveProvider()) {
             try {
                 const provider = new ethers.providers.Web3Provider(getActiveProvider());
+                provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
                 const pool = new ethers.Contract(CONTRACT_ADDRS.ArcenticMultiPool, POOL_ABI, provider);
                 const decFrom = await getDecimals(fromTok);
                 const decTo   = await getDecimals(toTok);
@@ -2539,6 +2548,7 @@
         if (!isConnected || !currentAccount) { el.innerText = 'Gas: —'; return; }
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
+            provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
             const gasPrice = await provider.getGasPrice();
             const gasPriceGwei = parseFloat(ethers.utils.formatUnits(gasPrice, 'gwei'));
             const estimatedGas = 150000; // Typical swap gas limit
@@ -3099,6 +3109,7 @@
         let swapToast = null;
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
+            provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
             const signer   = provider.getSigner();
             const decFrom   = await getDecimals(fromTok);
             const decTo     = await getDecimals(toTok);
@@ -3632,6 +3643,7 @@
                 await new Promise(r => setTimeout(r, 400)); // let the wallet settle on the new network
 
                 const provider = new ethers.providers.Web3Provider(getActiveProvider());
+                provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
                 const signer = provider.getSigner();
 
                 const sourceConfig = sourceChain === 'ethereumSepolia' ? CCTP_CONFIG.ethereumSepolia : CCTP_CONFIG.arcTestnet;
@@ -3813,6 +3825,7 @@
             await new Promise(r => setTimeout(r, 400));
 
             const destProvider = new ethers.providers.Web3Provider(getActiveProvider());
+            destProvider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
             const destSigner = destProvider.getSigner();
 
             const messageTransmitter = new ethers.Contract(destConfig.messageTransmitter, MESSAGE_TRANSMITTER_ABI, destSigner);
@@ -4278,6 +4291,7 @@
 
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
+            provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
             const pool = new ethers.Contract(CONTRACT_ADDRS.ArcenticMultiPool, POOL_ABI, provider);
             const [rawA, rawB, decA, decB] = await Promise.all([
                 pool.reserves(tokA.addr),
@@ -4371,6 +4385,7 @@
 
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
+            provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
             const signer = provider.getSigner();
             const pool = new ethers.Contract(CONTRACT_ADDRS.ArcenticMultiPool, POOL_ABI, signer);
 
@@ -4483,6 +4498,7 @@
 
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
+            provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
             const signer = provider.getSigner();
             const pool = new ethers.Contract(CONTRACT_ADDRS.ArcenticMultiPool, POOL_ABI, signer);
 
@@ -4620,6 +4636,7 @@
         let addTokToast = null;
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
+            provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
             const signer = provider.getSigner();
             const dec = await getDecimals(tok);
             const amtWei = ethers.utils.parseUnits(amt.toFixed(dec), dec);
@@ -5052,6 +5069,7 @@
         if (!currentAccount) return;
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
+            provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
             const lend = new ethers.Contract(CONTRACT_ADDRS.LendingBorrowing, LEND_ABI, provider);
             const cirBTC = new ethers.Contract(CONTRACT_ADDRS.cirBTC, CIRBTC_ABI, provider);
 
@@ -5191,6 +5209,7 @@
         const toast = showToast('pending', 'Depositing', 'Sending transaction...', 0);
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
+            provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
             const signer = provider.getSigner();
             const amtBig = ethers.utils.parseUnits(amt.toFixed(CIRBTC_DECIMALS), CIRBTC_DECIMALS);
             const onRpcRetry = (n, max) => updateToast(toast, 'pending', 'Depositing', `RPC hiccup — retrying (${n}/${max})…`);
@@ -5220,6 +5239,7 @@
         const toast = showToast('pending', 'Borrowing', 'Sending transaction...', 0);
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
+            provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
             const signer = provider.getSigner();
             const amtBig = ethers.utils.parseUnits(amt.toFixed(USDC_DECIMALS), USDC_DECIMALS);
             const onRpcRetry = (n, max) => updateToast(toast, 'pending', 'Borrowing', `RPC hiccup — retrying (${n}/${max})…`);
@@ -5247,6 +5267,7 @@
         const toast = showToast('pending', 'Repaying', 'Sending transaction...', 0);
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
+            provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
             const signer = provider.getSigner();
             const amtBig = ethers.utils.parseUnits(amt.toFixed(USDC_DECIMALS), USDC_DECIMALS);
             const onRpcRetry = (n, max) => updateToast(toast, 'pending', 'Repaying', `RPC hiccup — retrying (${n}/${max})…`);
@@ -5276,6 +5297,7 @@
         const toast = showToast('pending', 'Withdrawing', 'Sending transaction...', 0);
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
+            provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
             const signer = provider.getSigner();
             const amtBig = ethers.utils.parseUnits(amt.toFixed(CIRBTC_DECIMALS), CIRBTC_DECIMALS);
             const onRpcRetry = (n, max) => updateToast(toast, 'pending', 'Withdrawing', `RPC hiccup — retrying (${n}/${max})…`);
