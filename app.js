@@ -286,6 +286,20 @@
     let wcProvider      = null; // instance WalletConnect, dibuat sekali (lazy)
     function getActiveProvider() { return activeProvider; }
 
+    /* ── Shared wallet state, exposed for other self-contained modules ──
+       vault.js used to keep its own separate wallet connection (its own
+       "Connect Wallet" button + eth_requestAccounts flow). That meant two
+       different "connected" states could disagree on the same page. Instead
+       of duplicating the whole WalletConnect/injected-wallet flow, vault.js
+       now just reads the wallet that's already connected here, and listens
+       for the same 'walletConnected' event that stakeView/lendView already
+       use below. */
+    window.arcenticWallet = {
+        getProvider: function () { return activeProvider; },
+        getAccount: function () { return currentAccount; },
+        isConnected: function () { return isConnected; }
+    };
+
     /* ── Admin gating ──
        IMPORTANT: this only controls whether the Admin nav item/panel is
        *shown* in this browser tab. It is a UI convenience, not real access
@@ -4000,6 +4014,7 @@
         updateSwapBalances();
         updateBridgeBalances();
         updateAdminVisibility();
+        document.dispatchEvent(new Event('walletDisconnected'));
     }
 
     document.addEventListener('walletConnected', () => {

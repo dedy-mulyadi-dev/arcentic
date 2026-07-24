@@ -201,7 +201,11 @@
 
     function getReadContract() { return vaultRO || vaultRW; }
 
-    // ── Networking: connect / switch chain ─────────────────────────────
+    // ── Networking: pick up the shared wallet from app.js ───────────────
+    // vault.js no longer connects its own wallet. It reads whatever is
+    // already connected via the site's main "Connect Wallet" button
+    // (exposed on window.arcenticWallet by app.js) and reacts to the same
+    // 'walletConnected' / disconnect signals the rest of the dashboard uses.
     async function ensureCorrectChain() {
         const net = await webProvider.getNetwork();
         if (net.chainId === VAULT_CONFIG.chainIdDec) return;
@@ -226,58 +230,55 @@
                 throw switchErr;
             }
         }
-        // MetaMask needs a moment to swap networks before we re-read it.
         webProvider = new ethers.providers.Web3Provider(window.ethereum, 'any');
-        webProvider.polling = false; // reads go through vaultRO, not this — no need for MetaMask block-polling either
+        webProvider.polling = false;
     }
 
-    window.connectVaultWallet = async function () {
-        if (!window.ethereum) {
-            toast('Install a wallet like MetaMask first.', true);
+    function updateVaultWalletBadge() {
+        const badge = document.getElementById('vaultWalletBadge');
+        if (!badge) return;
+        badge.textContent = userAddress ? shortAddr(userAddress) : 'Wallet not connected';
+    }
+
+    // Pulls in whatever wallet is currently connected on the main page
+    // (window.arcenticWallet, set up by app.js). Safe to call repeatedly —
+    // it's a no-op if nothing is connected yet, and cleans up state if the
+    // wallet disconnects.
+    async function syncWalletFromHome() {
+        const shared = window.arcenticWallet;
+        if (!shared || !shared.isConnected() || !shared.getProvider()) {
+            webProvider = null; signer = null; userAddress = null; vaultRW = null;
+            updateVaultWalletBadge();
             return;
         }
-        const btn = document.getElementById('btnVaultConnect');
-        const prevLabel = btn.textContent;
-        btn.textContent = 'Connecting…';
-        btn.disabled = true;
         try {
-            await window.ethereum.request({ method: 'eth_requestAccounts' });
-            webProvider = new ethers.providers.Web3Provider(window.ethereum, 'any');
-            webProvider.polling = false; // reads go through vaultRO, not this — no need for MetaMask block-polling either
+            webProvider = new ethers.providers.Web3Provider(shared.getProvider(), 'any');
+            webProvider.polling = false;
             await ensureCorrectChain();
             signer = webProvider.getSigner();
-            userAddress = await signer.getAddress();
+            userAddress = shared.getAccount() || await signer.getAddress();
             vaultRW = new ethers.Contract(VAULT_CONFIG.address, VAULT_ABI, signer);
-
-            btn.textContent = shortAddr(userAddress);
-            btn.disabled = false;
-
-            if (!window.__vaultListenersBound) {
-                window.__vaultListenersBound = true;
-                window.ethereum.on('accountsChanged', function (accts) {
-                    if (!accts || !accts.length) {
-                        userAddress = null; signer = null; vaultRW = null;
-                        document.getElementById('btnVaultConnect').textContent = 'Connect Wallet';
-                        document.getElementById('btnVaultConnect').disabled = false;
-                        document.getElementById('myVaultStakesList').innerHTML =
-                            '<p class="text-gray-500 text-sm text-center py-6">Connect your wallet to see your stakes.</p>';
-                        refreshTokenDependentUI();
-                    } else {
-                        window.connectVaultWallet();
-                    }
-                });
-                window.ethereum.on('chainChanged', function () { window.location.reload(); });
-            }
-
-            await refreshTokenDependentUI();
-            await loadMyVaultStakesInternal();
+            updateVaultWalletBadge();
         } catch (err) {
             console.error(err);
             toast(parseErr(err), true);
-            btn.textContent = prevLabel;
-            btn.disabled = false;
         }
-    };
+    }
+
+    document.addEventListener('walletConnected', function () {
+        syncWalletFromHome().then(function () {
+            refreshTokenDependentUI();
+            loadMyVaultStakesInternal();
+        });
+    });
+
+    document.addEventListener('walletDisconnected', function () {
+        webProvider = null; signer = null; userAddress = null; vaultRW = null;
+        updateVaultWalletBadge();
+        document.getElementById('myVaultStakesList').innerHTML =
+            '<p class="text-gray-500 text-sm text-center py-6">Connect your wallet from the home page to see your stakes.</p>';
+        refreshTokenDependentUI();
+    });
 
     // ── Init / open view ────────────────────────────────────────────────
     window.showVault = function () {
@@ -334,23 +335,12 @@
 
         document.getElementById('myVaultStakesList').addEventListener('click', onStakeListClick);
 
-        // These two used to run one-after-another — loadTokenList() (which
-        // can take a while under RPC rate-limiting, with several retries)
-        // was blocking the silent wallet reconnect check behind it. That's
-        // why the "Connect Wallet" button kept showing even though the
-        // wallet was already connected on the Home page — it wasn't
-        // disconnected, it was just queued behind the slow token load.
-        // Running them together means a slow/failing RPC no longer delays
-        // reflecting the wallet's already-connected state.
+        // Pick up whatever wallet is already connected on the Home page
+        // (or leave the vault in "not connected" state if none is) instead
+        // of re-running our own eth_accounts/eth_requestAccounts flow.
         await Promise.all([
             loadTokenList(),
-            (async function () {
-                if (!window.ethereum) return;
-                try {
-                    const accts = await window.ethereum.request({ method: 'eth_accounts' });
-                    if (accts && accts.length) await window.connectVaultWallet();
-                } catch (e) { /* ignore — user can click Connect manually */ }
-            })()
+            syncWalletFromHome().then(function () { return loadMyVaultStakesInternal(); })
         ]);
     }
 
@@ -495,7 +485,7 @@
     }
 
     window.setVaultMax = async function () {
-        if (!selectedToken || !userAddress) { toast('Connect your wallet first.', true); return; }
+        if (!selectedToken || !userAddress) { toast('Connect your wallet from the home page first.', true); return; }
         const meta = tokenByAddr[selectedToken.toLowerCase()];
         const erc20 = new ethers.Contract(selectedToken, ERC20_ABI, readProvider);
         const bal = await withRpcRetry(function () { return erc20.balanceOf(userAddress); });
@@ -527,7 +517,7 @@
 
     // ── Stake ───────────────────────────────────────────────────────────
     window.doVaultStake = async function () {
-        if (!userAddress) { toast('Connect your wallet first.', true); return; }
+        if (!userAddress) { toast('Connect your wallet from the home page first.', true); return; }
         if (!selectedToken) { toast('Pick a token first.', true); return; }
         if (selectedTierId === null) { toast('Pick a lock tier first.', true); return; }
         const amountStr = document.getElementById('vaultAmount').value;
@@ -578,7 +568,7 @@
     async function loadMyVaultStakesInternal() {
         const list = document.getElementById('myVaultStakesList');
         if (!userAddress) {
-            list.innerHTML = '<p class="text-gray-500 text-sm text-center py-6">Connect your wallet to see your stakes.</p>';
+            list.innerHTML = '<p class="text-gray-500 text-sm text-center py-6">Connect your wallet from the home page to see your stakes.</p>';
             return;
         }
         list.innerHTML = '<p class="text-gray-500 text-sm text-center py-6">Loading your stakes…</p>';
@@ -650,7 +640,7 @@
         if (!btn) return;
         const id = Number(btn.getAttribute('data-id'));
         const action = btn.getAttribute('data-action');
-        if (!userAddress) { toast('Connect your wallet first.', true); return; }
+        if (!userAddress) { toast('Connect your wallet from the home page first.', true); return; }
 
         if (action === 'emergency') {
             const ok = window.confirm('Exit before unlock? You will forfeit accrued/reserved reward for this stake and may pay an early-exit penalty.');
