@@ -501,6 +501,10 @@
         // TODO: fill in after running scripts/deploy.js from the
         // arcentic-staking project (ArcenticStakingMultiToken.sol)
         ArcenticStaking   : '0x473d6b0a414d6E72Cc40A040dC38d9d0AC635D5d',
+        // ArcenticVault.sol — locks principal into ArcenticMultiPool as real
+        // liquidity while staked. Separate contract/ABI from ArcenticStaking
+        // above; managed from the "🏛️ Vault" admin tab.
+        ArcenticVault     : '0xf3b0798A5363eEDDd2aB5ED23A023621a4d63621',
     };
 
     /* ArcenticStakingMultiToken ABI — true multi-token staking: any whitelisted
@@ -530,16 +534,39 @@
         'function reservedRewardsOf(address token) view returns (uint256)',
         'function MAX_APR_BPS() view returns (uint256)',
         'function MAX_PENALTY_BPS() view returns (uint256)',
+    ];
+
+    /* ArcenticVault ABI — same tier/reward mechanics as ArcenticStakingMultiToken
+       above, but principal is forwarded into ArcenticMultiPool as real liquidity
+       for as long as it stays locked. Separate contract, separate onlyOwner
+       surface — see ArcenticVault.sol. */
+    const VAULT_ABI = [
+        'function owner() view returns (address)',
+        'function pool() view returns (address)',
+        'function treasury() view returns (address)',
+        'function earlyExitPenaltyBps() view returns (uint256)',
+        'function paused() view returns (bool)',
+        'function supportedTokensLength() view returns (uint256)',
+        'function supportedTokenAt(uint256) view returns (address)',
+        'function tokenSupported(address) view returns (bool)',
+        'function tiersLength(address) view returns (uint256)',
+        'function tierAt(address,uint256) view returns (uint256 lockDuration, uint256 aprBps, bool active)',
+        'function rewardPoolBalanceOf(address) view returns (uint256)',
+        'function reservedRewardsOf(address) view returns (uint256)',
+        'function totalStakedOf(address) view returns (uint256)',
+        'function vaultLiquidityInPool(address) view returns (uint256)',
         'function addToken(address token)',
-        'function setTokenSupported(address token, bool supported)',
-        'function addTier(address token, uint256 lockDuration, uint256 aprBps)',
-        'function setTier(address token, uint256 tierId, uint256 aprBps, bool active)',
+        'function setTokenSupported(address token,bool supported)',
+        'function addTier(address token,uint256 lockDuration,uint256 aprBps)',
+        'function setTier(address token,uint256 tierId,uint256 aprBps,bool active)',
+        'function fundRewards(address token,uint256 amount)',
+        'function withdrawUnreservedRewards(address token,uint256 amount)',
         'function setTreasury(address _treasury)',
         'function setEarlyExitPenaltyBps(uint256 _penaltyBps)',
         'function pause()',
         'function unpause()',
-        'function fundRewards(address token, uint256 amount)',
-        'function withdrawUnreservedRewards(address token, uint256 amount)',
+        'function MAX_APR_BPS() view returns (uint256)',
+        'function MAX_PENALTY_BPS() view returns (uint256)',
     ];
 
     /* ══════════════════════════════════════════════════
@@ -652,7 +679,7 @@
        "OwnableUnauthorizedAccount" — regardless of what ADMIN_WALLET says in
        this file. The isAdminWallet() check here is just to avoid wasting the
        user's gas on a doomed tx / show a clearer error before they even sign. */
-    async function adminSendTx(fnName, args, { successTitle, successMsg, confirmMsg } = {}) {
+    async function adminSendTxTo(contractAddr, abi, fnName, args, { successTitle, successMsg, confirmMsg } = {}) {
         if (!isAdminWallet(currentAccount)) {
             showToast('error','Access Denied','This wallet is not authorized to send admin transactions.');
             return false;
@@ -663,10 +690,10 @@
         try {
             const provider = new ethers.providers.Web3Provider(getActiveProvider());
             const signer = provider.getSigner();
-            const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, signer);
+            const contract = new ethers.Contract(contractAddr, abi, signer);
             const onRpcRetry = (n, max) => updateToast(toast, 'pending', successTitle || fnName, `RPC hiccup — retrying (${n}/${max})…`);
 
-            const tx = await withRpcRetry(() => staking[fnName](...args), { onRetry: onRpcRetry });
+            const tx = await withRpcRetry(() => contract[fnName](...args), { onRetry: onRpcRetry });
             updateToast(toast, 'pending', successTitle || fnName, 'Confirming on-chain…');
             await withRpcRetry(() => tx.wait(), { onRetry: onRpcRetry });
 
@@ -674,10 +701,22 @@
             await loadAdminOverview();
             return true;
         } catch (err) {
-            console.error(`adminSendTx(${fnName}) error:`, err);
+            console.error(`adminSendTxTo(${fnName}) error:`, err);
             updateToast(toast, 'error', 'Transaction Failed', friendlyTxError(err), 8000);
             return false;
         }
+    }
+
+    // Existing ArcenticStaking admin calls — unchanged behavior, now backed by
+    // the generic adminSendTxTo() above.
+    async function adminSendTx(fnName, args, opts) {
+        return adminSendTxTo(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, fnName, args, opts);
+    }
+
+    // ArcenticVault admin calls — same pattern, targets the Vault contract/ABI
+    // instead. Real protection is still onlyOwner on-chain; see ArcenticVault.sol.
+    async function adminVaultSendTx(fnName, args, opts) {
+        return adminSendTxTo(CONTRACT_ADDRS.ArcenticVault, VAULT_ABI, fnName, args, opts);
     }
 
     // Small helpers for the admin form inputs
@@ -917,6 +956,138 @@
               confirmMsg: pause ? 'Pause all new staking? Existing stakes remain claimable/unstakeable.' : null });
     }
 
+    /* ═══════════════════════════════════════════════════════════════════
+       ArcenticVault admin actions — same shape as the ArcenticStaking ones
+       above, but sent to CONTRACT_ADDRS.ArcenticVault via adminVaultSendTx().
+       A token stays invisible/unusable in the public Vault picker (see
+       vault.js's supportedTokensLength()/supportedTokenAt()) until
+       adminVaultAddToken() below has been sent for it at least once.
+       ═══════════════════════════════════════════════════════════════════ */
+
+    async function adminVaultAddToken() {
+        const token = adminTokenAddrInput('adminVaultTokenAddr');
+        if (!ethers.utils.isAddress(token)) { showToast('error','Invalid Address','Enter a valid token contract address.'); return; }
+        await adminVaultSendTx('addToken', [token], { successTitle: 'Vault Token Whitelisted', successMsg: token + ' can now be configured for vault staking.' });
+    }
+
+    async function adminVaultSetTokenSupported(supported) {
+        const token = adminTokenAddrInput('adminVaultSupportTokenAddr');
+        if (!ethers.utils.isAddress(token)) { showToast('error','Invalid Address','Enter a valid token contract address.'); return; }
+        await adminVaultSendTx('setTokenSupported', [token, supported],
+            { successTitle: supported ? 'Vault Token Enabled' : 'Vault Token Disabled',
+              successMsg: `${token} ${supported ? 'now accepts' : 'no longer accepts'} new vault stakes/funding.` });
+    }
+
+    /* Quick setup: whitelist + enable a known token on the Vault in two real
+       txs, same shortcut as adminQuickWhitelistEnable() does for Staking. */
+    async function adminVaultQuickWhitelistEnable() {
+        const sel = document.getElementById('adminVaultQuickToken');
+        const token = sel.value;
+        const sym = sel.options[sel.selectedIndex].text;
+        if (!ethers.utils.isAddress(token)) { showToast('error','Invalid Token','Pick a token first.'); return; }
+        if (!window.confirm(`Send 2 transactions to whitelist and enable ${sym} on the Vault?`)) return;
+
+        await adminVaultSendTx('addToken', [token], { successTitle: `${sym} Whitelisted (Vault)`, successMsg: `${sym} added to the Vault's supported tokens (or already was — check the toast).` });
+        await adminVaultSendTx('setTokenSupported', [token, true], { successTitle: `${sym} Enabled (Vault)`, successMsg: `${sym} now accepts new vault stakes/funding.` });
+    }
+
+    let cachedVaultMaxAprBps = null;
+    async function getVaultMaxAprBps() {
+        if (cachedVaultMaxAprBps !== null) return cachedVaultMaxAprBps;
+        try {
+            const vault = new ethers.Contract(CONTRACT_ADDRS.ArcenticVault, VAULT_ABI, readOnlyProvider());
+            cachedVaultMaxAprBps = (await vault.MAX_APR_BPS()).toNumber();
+        } catch (e) {
+            console.error('getVaultMaxAprBps error (skipping client-side upper-bound check):', e);
+        }
+        return cachedVaultMaxAprBps;
+    }
+
+    async function adminVaultAddTier() {
+        const token = adminTokenAddrInput('adminVaultTierTokenAddr');
+        const days  = adminDaysToSeconds('adminVaultTierDays');
+        const bps   = adminPercentToBps('adminVaultTierApr');
+        if (!ethers.utils.isAddress(token)) { showToast('error','Invalid Address','Enter a valid token contract address.'); return; }
+        if (days <= 0) { showToast('error','Invalid Duration','Lock duration must be greater than 0.'); return; }
+        if (bps <= 0)  { showToast('error','Invalid APR','APR must be greater than 0%.'); return; }
+        const maxBps = await getVaultMaxAprBps();
+        if (maxBps !== null && bps > maxBps) { showToast('error','APR Too High',`APR must be ${(maxBps/100).toFixed(0)}% or less.`); return; }
+        await adminVaultSendTx('addTier', [token, days, bps], { successTitle: 'Vault Tier Added', successMsg: `New lock tier added for ${token} on the Vault.` });
+    }
+
+    async function adminVaultSetTier(active) {
+        const token  = adminTokenAddrInput('adminVaultEditTierTokenAddr');
+        const tierId = parseInt(document.getElementById('adminVaultEditTierId').value || '-1', 10);
+        const bps    = adminPercentToBps('adminVaultEditTierApr');
+        if (!ethers.utils.isAddress(token)) { showToast('error','Invalid Address','Enter a valid token contract address.'); return; }
+        if (isNaN(tierId) || tierId < 0) { showToast('error','Invalid Tier ID','Enter the tier index to edit.'); return; }
+        if (bps <= 0) { showToast('error','Invalid APR','APR must be greater than 0%.'); return; }
+        const maxBps = await getVaultMaxAprBps();
+        if (maxBps !== null && bps > maxBps) { showToast('error','APR Too High',`APR must be ${(maxBps/100).toFixed(0)}% or less.`); return; }
+        await adminVaultSendTx('setTier', [token, tierId, bps, active], { successTitle: 'Vault Tier Updated', successMsg: `Tier #${tierId} for ${token} updated on the Vault.` });
+    }
+
+    async function adminVaultFundRewards() {
+        const token = adminTokenAddrInput('adminVaultFundTokenAddr');
+        const meta  = stakeTokenMetaCache[token.toLowerCase()];
+        const decimals = meta ? meta.decimals : 18;
+        const amtStr = document.getElementById('adminVaultFundAmount').value;
+        if (!ethers.utils.isAddress(token)) { showToast('error','Invalid Address','Enter a valid token contract address.'); return; }
+        if (!amtStr || parseFloat(amtStr) <= 0) { showToast('error','Invalid Amount','Enter an amount to fund.'); return; }
+        let toast = showToast('pending', 'Funding Vault Rewards', 'Checking token allowance…');
+        try {
+            const provider = new ethers.providers.Web3Provider(getActiveProvider());
+            const signer = provider.getSigner();
+            const amtWei = ethers.utils.parseUnits(parseFloat(amtStr).toFixed(decimals), decimals);
+            const onRpcRetry = (n, max) => updateToast(toast, 'pending', 'Funding Vault Rewards', `RPC hiccup — retrying (${n}/${max})…`);
+            const tokenContract = new ethers.Contract(token, ERC20_ABI, signer);
+            const allowance = await withRpcRetry(() => tokenContract.allowance(currentAccount, CONTRACT_ADDRS.ArcenticVault), { onRetry: onRpcRetry });
+            if (allowance.lt(amtWei)) {
+                updateToast(toast, 'pending', 'Funding Vault Rewards', 'Requesting spend approval…');
+                const approveTx = await withRpcRetry(() => tokenContract.approve(CONTRACT_ADDRS.ArcenticVault, ethers.constants.MaxUint256), { onRetry: onRpcRetry });
+                updateToast(toast, 'pending', 'Funding Vault Rewards', 'Confirming approval on-chain…');
+                await withRpcRetry(() => approveTx.wait(), { onRetry: onRpcRetry });
+            }
+            removeToast(toast); // adminVaultSendTx() below creates its own pending toast for the fundRewards call itself
+            await adminVaultSendTx('fundRewards', [token, amtWei], { successTitle: 'Vault Reward Pool Funded', successMsg: `Funded ${amtStr} tokens into the Vault's reward pool.` });
+        } catch (err) {
+            console.error('adminVaultFundRewards error:', err);
+            updateToast(toast, 'error', 'Funding Failed', friendlyTxError(err), 8000);
+        }
+    }
+
+    async function adminVaultWithdrawUnreserved() {
+        const token = adminTokenAddrInput('adminVaultWithdrawTokenAddr');
+        const meta  = stakeTokenMetaCache[token.toLowerCase()];
+        const decimals = meta ? meta.decimals : 18;
+        const amtStr = document.getElementById('adminVaultWithdrawAmount').value;
+        if (!ethers.utils.isAddress(token)) { showToast('error','Invalid Address','Enter a valid token contract address.'); return; }
+        if (!amtStr || parseFloat(amtStr) <= 0) { showToast('error','Invalid Amount','Enter an amount to withdraw.'); return; }
+        const amtWei = ethers.utils.parseUnits(parseFloat(amtStr).toFixed(decimals), decimals);
+        await adminVaultSendTx('withdrawUnreservedRewards', [token, amtWei],
+            { successTitle: 'Withdrawn (Vault)', successMsg: `Withdrew ${amtStr} unreserved reward tokens from the Vault.`,
+              confirmMsg: 'Withdraw unreserved reward tokens to your wallet? This never touches staker principal or already-reserved rewards.' });
+    }
+
+    async function adminVaultSetTreasury() {
+        const addr = adminTokenAddrInput('adminVaultTreasuryAddr');
+        if (!ethers.utils.isAddress(addr)) { showToast('error','Invalid Address','Enter a valid wallet address.'); return; }
+        await adminVaultSendTx('setTreasury', [addr], { successTitle: 'Vault Treasury Updated', successMsg: `Vault early-exit penalties now go to ${addr}.` });
+    }
+
+    async function adminVaultSetPenalty() {
+        const bps = adminPercentToBps('adminVaultPenaltyPct');
+        if (bps < 0 || bps > 3000) { showToast('error','Out of Range','Penalty must be between 0% and 30%.'); return; }
+        await adminVaultSendTx('setEarlyExitPenaltyBps', [bps], { successTitle: 'Vault Penalty Updated', successMsg: `Vault early-exit penalty set to ${(bps/100).toFixed(2)}%.` });
+    }
+
+    async function adminVaultTogglePause(pause) {
+        await adminVaultSendTx(pause ? 'pause' : 'unpause', [],
+            { successTitle: pause ? 'Vault Paused' : 'Vault Unpaused',
+              successMsg: pause ? 'New vault stakes are now blocked.' : 'New vault stakes are open again.',
+              confirmMsg: pause ? 'Pause all new Vault staking? Existing stakes remain claimable/unstakeable.' : null });
+    }
+
     let adminActiveTab = 'status';
 
     function adminShowTab(tab) {
@@ -955,12 +1126,14 @@
 
         let tvl = null, tokenRows = '', onChainOwner = null, isPaused = null, treasuryAddr = null, penaltyBps = null;
         let lendOwner = null, lendCollFactor = null, lendPrice = null, lendPoolUsdc = null;
+        let vaultOwner = null, vaultPaused = null, vaultTreasury = null, vaultPenaltyBps = null, vaultPoolAddr = null, vaultTokenRows = '';
 
-        // Status on-chain, TVL, LendingBorrowing status, dan status per-token
-        // (whitelisted/enabled/tier count) semuanya independen satu sama lain —
-        // jalankan bersamaan (Promise.allSettled) alih-alih berurutan supaya
-        // panel admin tidak menunggu berkali-kali lipat waktu round-trip RPC.
-        const [statusResult, tvlResult, lendResult, tokenStatusResult] = await Promise.allSettled([
+        // Status on-chain, TVL, LendingBorrowing status, status Vault, dan status
+        // per-token (whitelisted/enabled/tier count) semuanya independen satu
+        // sama lain — jalankan bersamaan (Promise.allSettled) alih-alih
+        // berurutan supaya panel admin tidak menunggu berkali-kali lipat waktu
+        // round-trip RPC.
+        const [statusResult, tvlResult, lendResult, tokenStatusResult, vaultStatusResult, vaultTokenStatusResult] = await Promise.allSettled([
             (async () => {
                 const provider = readOnlyProvider();
                 const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, provider);
@@ -991,6 +1164,28 @@
                         const [supported, tierCount] = await Promise.all([
                             staking.tokenSupported(t.addr),
                             staking.tiersLength(t.addr)
+                        ]);
+                        return { ...t, supported, tierCount: tierCount.toNumber() };
+                    } catch (err) {
+                        return { ...t, supported: null, tierCount: null };
+                    }
+                });
+            })(),
+            (async () => {
+                const provider = readOnlyProvider();
+                const vault = new ethers.Contract(CONTRACT_ADDRS.ArcenticVault, VAULT_ABI, provider);
+                const [owner, paused, treasury, penalty, poolAddr] = await Promise.all([
+                    vault.owner(), vault.paused(), vault.treasury(), vault.earlyExitPenaltyBps(), vault.pool()
+                ]);
+                return { owner, paused, treasury, penalty, poolAddr };
+            })(),
+            (async () => {
+                const vault = new ethers.Contract(CONTRACT_ADDRS.ArcenticVault, VAULT_ABI, readOnlyProvider());
+                return mapWithConcurrency(TOKENS, 4, async (t) => {
+                    try {
+                        const [supported, tierCount] = await Promise.all([
+                            vault.tokenSupported(t.addr),
+                            vault.tiersLength(t.addr)
                         ]);
                         return { ...t, supported, tierCount: tierCount.toNumber() };
                     } catch (err) {
@@ -1050,6 +1245,46 @@
                 </div>`).join('');
         }
 
+        if (vaultStatusResult.status === 'fulfilled') {
+            vaultOwner = vaultStatusResult.value.owner;
+            vaultPaused = vaultStatusResult.value.paused;
+            vaultTreasury = vaultStatusResult.value.treasury;
+            vaultPenaltyBps = vaultStatusResult.value.penalty;
+            vaultPoolAddr = vaultStatusResult.value.poolAddr;
+        } else {
+            console.error('admin vault status error:', vaultStatusResult.reason);
+        }
+
+        // Same live on-chain status pattern as tokenRows above, but read from
+        // ArcenticVault instead of ArcenticStaking — this is what tells the
+        // admin whether the Vault picker in vault.js will actually show a
+        // given token yet (i.e. whether it's "activated").
+        if (vaultTokenStatusResult.status === 'fulfilled') {
+            vaultTokenRows = vaultTokenStatusResult.value.map(t => {
+                const statusBadge = t.supported === null
+                    ? '<span class="text-gray-500 text-xs">status unavailable</span>'
+                    : t.supported
+                        ? '<span class="text-xs" style="color:#4ade80;">● whitelisted &amp; enabled</span>'
+                        : '<span class="text-xs" style="color:#f59e0b;">○ not enabled yet</span>';
+                const tierBadge = t.tierCount === null ? '' : `<span class="text-gray-500 text-xs">${t.tierCount} tier${t.tierCount === 1 ? '' : 's'}</span>`;
+                return `
+                <div class="token-row">
+                    <span>${t.sym}${t.name ? ' — ' + t.name : ''}</span>
+                    <span class="flex items-center gap-3 flex-wrap justify-end">
+                        ${statusBadge}${tierBadge}
+                        <span class="text-gray-500 text-xs font-mono">${t.addr}</span>
+                    </span>
+                </div>`;
+            }).join('');
+        } else {
+            console.error('admin vault token list error:', vaultTokenStatusResult.reason);
+            vaultTokenRows = TOKENS.map(t => `
+                <div class="token-row">
+                    <span>${t.sym}${t.name ? ' — ' + t.name : ''}</span>
+                    <span class="text-gray-500 text-xs font-mono">${t.addr}</span>
+                </div>`).join('');
+        }
+
         const contractRows = Object.entries(CONTRACT_ADDRS).map(([name, addr]) => `
             <div class="token-row">
                 <span>${name}</span>
@@ -1071,6 +1306,13 @@
                  Admin transactions will revert unless sent from the real owner wallet.
                </div>` : '';
 
+        const vaultOwnerMatches = vaultOwner && isAdminWallet(vaultOwner);
+        const vaultOwnerWarning = vaultOwner && !vaultOwnerMatches
+            ? `<div class="mt-3 text-xs px-3 py-2 rounded-lg" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#fca5a5;">
+                 ⚠ ArcenticVault's on-chain owner() is <span class="font-mono">${vaultOwner}</span> — this does NOT match the ADMIN_WALLET configured in this page.
+                 Vault admin transactions will revert unless sent from the real owner wallet.
+               </div>` : '';
+
         el.innerHTML = `
             <div class="flex gap-2 overflow-x-auto pb-1 mb-6 admin-tabs-nav" id="adminTabsNav">
                 <button id="adminTabBtn-status" onclick="adminShowTab('status')" class="admin-tab-btn">📊 Status</button>
@@ -1080,6 +1322,7 @@
                 <button id="adminTabBtn-lending" onclick="adminShowTab('lending')" class="admin-tab-btn">🏦 Lending</button>
                 <button id="adminTabBtn-settings" onclick="adminShowTab('settings')" class="admin-tab-btn">⚙️ Settings</button>
                 <button id="adminTabBtn-danger" onclick="adminShowTab('danger')" class="admin-tab-btn admin-tab-danger">⚠️ Danger Zone</button>
+                <button id="adminTabBtn-vault" onclick="adminShowTab('vault')" class="admin-tab-btn">🏛️ Vault</button>
             </div>
 
             <div id="adminTab-status" class="admin-tab-panel">
@@ -1284,6 +1527,146 @@
                     <div class="flex gap-2">
                         <button onclick="adminTogglePause(true)" class="token-select-btn flex-1">⏸ Pause Staking</button>
                         <button onclick="adminTogglePause(false)" class="token-select-btn flex-1">▶ Unpause Staking</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ══════════════════════════════════════════════════════════
+                 ArcenticVault admin — separate contract from ArcenticStaking
+                 above. A token only shows up / works in the public Vault
+                 page (vault.js) once "Whitelist a new token" below has been
+                 sent for it — that's what "activates" it on-chain. Every
+                 button here calls a real onlyOwner function via
+                 adminVaultSendTx(); it reverts on-chain for any wallet that
+                 isn't the Vault's actual owner(), regardless of this UI. ══ -->
+            <div id="adminTab-vault" class="admin-tab-panel">
+                <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
+                    <div class="flex items-center gap-3 mb-1">
+                        <span style="width:10px;height:10px;border-radius:50%;background:${vaultOwnerMatches ? '#22c55e' : (vaultOwner ? '#ef4444' : '#eab308')};display:inline-block;"></span>
+                        <h3 class="text-lg font-black">${vaultOwnerMatches ? 'Vault admin wallet verified on-chain' : 'Vault on-chain owner check'}</h3>
+                    </div>
+                    <p class="text-gray-500 text-xs font-mono">Connected: ${currentAccount}</p>
+                    <p class="text-gray-500 text-xs font-mono">Vault owner(): ${vaultOwner || '—'}</p>
+                    <p class="text-gray-500 text-xs font-mono">Vault pool(): ${vaultPoolAddr || '—'}</p>
+                    ${vaultOwnerWarning}
+                    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                        <div class="stat-chip">
+                            <div class="text-gray-400 text-xs mb-1">Vault status</div>
+                            <div class="text-xl font-black">${vaultPaused === null ? '—' : (vaultPaused ? '⏸ Paused' : '▶ Live')}</div>
+                        </div>
+                        <div class="stat-chip">
+                            <div class="text-gray-400 text-xs mb-1">Early-exit penalty</div>
+                            <div class="text-xl font-black">${vaultPenaltyBps === null ? '—' : (vaultPenaltyBps.toNumber()/100).toFixed(2) + '%'}</div>
+                        </div>
+                        <div class="stat-chip">
+                            <div class="text-gray-400 text-xs mb-1">Treasury</div>
+                            <div class="text-xs font-mono break-all">${vaultTreasury || '—'}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
+                    <h3 class="text-lg font-black mb-2">Vault Token Config (known tokens)</h3>
+                    <p class="text-gray-400 text-xs mb-4">"○ not enabled yet" means <code>stake()</code> on the Vault will revert for that token until it's whitelisted below — this is why it doesn't show up in vault.js's token picker.</p>
+                    <div>${vaultTokenRows || '<p class="text-gray-500 text-sm">No tokens configured.</p>'}</div>
+                </div>
+
+                <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
+                    <h3 class="text-lg font-black mb-4">Activate a Token on the Vault</h3>
+                    <div class="grid sm:grid-cols-2 gap-6">
+                        <div>
+                            <p class="text-xs text-gray-400 mb-2">Whitelist a new token</p>
+                            <input id="adminVaultTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <button onclick="adminVaultAddToken()" class="token-select-btn tok-active w-full">Add Token</button>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 mb-2">Enable / disable a token</p>
+                            <input id="adminVaultSupportTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <div class="flex gap-2">
+                                <button onclick="adminVaultSetTokenSupported(true)" class="token-select-btn flex-1">Enable</button>
+                                <button onclick="adminVaultSetTokenSupported(false)" class="token-select-btn flex-1">Disable</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-6 pt-6" style="border-top:1px solid rgba(255,255,255,.08);">
+                        <p class="text-xs text-gray-400 mb-2">Quick setup from a known token — sends addToken() then setTokenSupported(token, true) on the Vault as two real transactions.</p>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <select id="adminVaultQuickToken" class="admin-select w-full sm:flex-1 px-3 py-2 rounded-lg text-sm">
+                                ${TOKENS.map(t => `<option value="${t.addr}">${t.sym}${t.name ? ' — ' + t.name : ''}</option>`).join('')}
+                            </select>
+                            <button onclick="adminVaultQuickWhitelistEnable()" class="token-select-btn tok-active sm:w-56">Whitelist + Enable</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
+                    <h3 class="text-lg font-black mb-4">Vault Lock Tiers</h3>
+                    <p class="text-gray-400 text-xs mb-4">A token also needs at least one active tier here before users can actually stake() into it, even after it's whitelisted above.</p>
+                    <div class="grid sm:grid-cols-2 gap-6">
+                        <div>
+                            <p class="text-xs text-gray-400 mb-2">Add a new tier</p>
+                            <input id="adminVaultTierTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <div class="flex gap-2 mb-2">
+                                <input id="adminVaultTierDays" type="number" placeholder="Lock days" class="w-1/2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                                <input id="adminVaultTierApr" type="number" placeholder="APR %" class="w-1/2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            </div>
+                            <button onclick="adminVaultAddTier()" class="token-select-btn tok-active w-full">Add Tier</button>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 mb-2">Edit an existing tier</p>
+                            <input id="adminVaultEditTierTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <div class="flex gap-2 mb-2">
+                                <input id="adminVaultEditTierId" type="number" placeholder="Tier ID" class="w-1/2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                                <input id="adminVaultEditTierApr" type="number" placeholder="New APR %" class="w-1/2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="adminVaultSetTier(true)" class="token-select-btn flex-1">Save (Active)</button>
+                                <button onclick="adminVaultSetTier(false)" class="token-select-btn flex-1">Save (Inactive)</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
+                    <h3 class="text-lg font-black mb-4">Vault Reward Pool</h3>
+                    <div class="grid sm:grid-cols-2 gap-6">
+                        <div>
+                            <p class="text-xs text-gray-400 mb-2">Fund reward pool</p>
+                            <input id="adminVaultFundTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <input id="adminVaultFundAmount" type="number" placeholder="Amount" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <button onclick="adminVaultFundRewards()" class="token-select-btn tok-active w-full">Fund</button>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 mb-2">Withdraw unreserved rewards</p>
+                            <input id="adminVaultWithdrawTokenAddr" type="text" placeholder="0x… token address" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <input id="adminVaultWithdrawAmount" type="number" placeholder="Amount" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <button onclick="adminVaultWithdrawUnreserved()" class="token-select-btn w-full">Withdraw</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
+                    <h3 class="text-lg font-black mb-4">Vault Settings</h3>
+                    <div class="grid sm:grid-cols-2 gap-6">
+                        <div>
+                            <p class="text-xs text-gray-400 mb-2">Treasury address</p>
+                            <input id="adminVaultTreasuryAddr" type="text" placeholder="0x… new treasury" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <button onclick="adminVaultSetTreasury()" class="token-select-btn w-full">Update Treasury</button>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 mb-2">Early-exit penalty (0–30%)</p>
+                            <input id="adminVaultPenaltyPct" type="number" placeholder="Penalty %" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                            <button onclick="adminVaultSetPenalty()" class="token-select-btn w-full">Update Penalty</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass rounded-3xl p-5 sm:p-8" style="border-color:rgba(239,68,68,.3);">
+                    <h3 class="text-lg font-black mb-2" style="color:#fca5a5;">⚠ Vault Danger Zone</h3>
+                    <p class="text-gray-400 text-xs mb-4">Pausing blocks new Vault stakes only — ArcenticStaking (the other tab) is unaffected, and vice versa. Existing Vault stakes remain claimable/unstakeable.</p>
+                    <div class="flex gap-2">
+                        <button onclick="adminVaultTogglePause(true)" class="token-select-btn flex-1">⏸ Pause Vault</button>
+                        <button onclick="adminVaultTogglePause(false)" class="token-select-btn flex-1">▶ Unpause Vault</button>
                     </div>
                 </div>
             </div>

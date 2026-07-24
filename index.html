@@ -2710,7 +2710,7 @@ nav button.glass:hover {
             </div>
             <div class="pool-stat-pill">
                 <div class="text-gray-400 text-xs mb-1">Early-Exit Penalty</div>
-                <div class="text-lg sm:text-2xl font-black" id="vaultAdminPenalty">—</div>
+                <div class="text-lg sm:text-2xl font-black" id="vaultPenaltyDisplay">—</div>
                 <div class="text-gray-500 text-xs mt-0.5">on principal, pre-unlock</div>
             </div>
         </div>
@@ -2765,95 +2765,6 @@ nav button.glass:hover {
             </div>
         </div>
 
-        <!-- Owner-only admin mini panel -->
-        <div id="vaultAdminPanel" class="glass rounded-3xl p-5 sm:p-8" style="display:none;">
-            <h3 class="text-xl font-black mb-1">🔒 Vault Admin</h3>
-            <p class="text-gray-400 text-xs mb-6">Visible because your connected wallet matches the vault's on-chain owner(). Every action below is a real transaction.</p>
-
-            <div class="grid sm:grid-cols-2 gap-3 mb-6 text-sm">
-                <div class="pool-stat-pill" style="text-align:left;"><div class="text-gray-400 text-xs">Pool contract</div><div class="font-bold mt-1 truncate" id="vaultAdminPool">—</div></div>
-                <div class="pool-stat-pill" style="text-align:left;"><div class="text-gray-400 text-xs">Treasury</div><div class="font-bold mt-1 truncate" id="vaultAdminTreasury">—</div></div>
-                <div class="pool-stat-pill" style="text-align:left;"><div class="text-gray-400 text-xs">Status</div><div class="font-bold mt-1" id="vaultAdminPaused">—</div></div>
-            </div>
-
-            <div class="mb-6">
-                <p class="text-xs text-gray-400 mb-2">Whitelist a new token</p>
-                <div class="flex gap-2 flex-wrap">
-                    <input id="vaultAdminNewTokenAddr" type="text" placeholder="0x… token address" class="liq-input-wrap" style="flex:1;min-width:220px;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);border-radius:12px;color:#fff;">
-                    <button onclick="vaultAdminAddToken()" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">Add Token</button>
-                </div>
-            </div>
-
-            <div class="mb-6">
-                <p class="text-xs text-gray-400 mb-2">Enable / disable selected token (<span class="vault-token-unit">—</span>)</p>
-                <div class="flex gap-2 flex-wrap">
-                    <input id="vaultAdminTokenAddr" type="text" placeholder="0x… token address" style="flex:1;min-width:220px;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);border-radius:12px;color:#fff;">
-                    <button onclick="vaultAdminSetSupported(true)" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">Enable</button>
-                    <button onclick="vaultAdminSetSupported(false)" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">Disable</button>
-                </div>
-            </div>
-
-            <div class="mb-6">
-                <p class="text-xs text-gray-400 mb-2">Add a lock tier to the token selected above in "New Stake"</p>
-                <div class="flex gap-2 flex-wrap">
-                    <input id="vaultAdminTierDays" type="number" placeholder="Lock days" style="width:120px;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);border-radius:12px;color:#fff;">
-                    <input id="vaultAdminTierApr" type="number" placeholder="APR %" style="width:120px;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);border-radius:12px;color:#fff;">
-                    <button onclick="vaultAdminAddTier()" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">Add Tier</button>
-                </div>
-            </div>
-
-            <div class="mb-6">
-                <p class="text-xs text-gray-400 mb-2">Edit an existing tier (by ID) on the token selected above</p>
-                <div class="flex gap-2 flex-wrap">
-                    <input id="vaultAdminTierId" type="number" placeholder="Tier ID" style="width:100px;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);border-radius:12px;color:#fff;">
-                    <input id="vaultAdminTierNewApr" type="number" placeholder="New APR %" style="width:120px;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);border-radius:12px;color:#fff;">
-                    <button onclick="vaultAdminSetTier(true)" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">Save (Active)</button>
-                    <button onclick="vaultAdminSetTier(false)" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">Save (Inactive)</button>
-                </div>
-            </div>
-
-            <div class="grid sm:grid-cols-2 gap-6 mb-6">
-                <div>
-                    <p class="text-xs text-gray-400 mb-2">Fund reward pool (token selected above)</p>
-                    <div class="flex gap-2">
-                        <input id="vaultAdminFundAmt" type="number" placeholder="Amount" style="flex:1;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);border-radius:12px;color:#fff;">
-                        <button onclick="vaultAdminFundRewards()" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">Fund</button>
-                    </div>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-400 mb-2">Withdraw unreserved rewards</p>
-                    <div class="flex gap-2">
-                        <input id="vaultAdminWithdrawAmt" type="number" placeholder="Amount" style="flex:1;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);border-radius:12px;color:#fff;">
-                        <button onclick="vaultAdminWithdrawUnreserved()" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">Withdraw</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid sm:grid-cols-2 gap-6 mb-6">
-                <div>
-                    <p class="text-xs text-gray-400 mb-2">Update treasury address</p>
-                    <div class="flex gap-2">
-                        <input id="vaultAdminTreasuryAddr" type="text" placeholder="0x… new treasury" style="flex:1;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);border-radius:12px;color:#fff;">
-                        <button onclick="vaultAdminSetTreasury()" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">Update</button>
-                    </div>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-400 mb-2">Update early-exit penalty (0–30%)</p>
-                    <div class="flex gap-2">
-                        <input id="vaultAdminPenaltyInput" type="number" placeholder="Penalty %" style="flex:1;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);border-radius:12px;color:#fff;">
-                        <button onclick="vaultAdminSetPenalty()" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">Update</button>
-                    </div>
-                </div>
-            </div>
-
-            <div>
-                <p class="text-xs text-gray-400 mb-2">⚠ Danger zone — pausing blocks new stakes vault-wide. Existing stakes remain claimable/unstakeable.</p>
-                <div class="flex gap-2">
-                    <button onclick="vaultAdminTogglePause(true)" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">⏸ Pause</button>
-                    <button onclick="vaultAdminTogglePause(false)" class="glass px-4 py-2 rounded-xl text-sm hover:border-white/30 transition">▶ Unpause</button>
-                </div>
-            </div>
-        </div>
 
     </div>
 </div>
