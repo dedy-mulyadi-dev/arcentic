@@ -18,7 +18,12 @@
         chainIdDec: 5042002,
         chainIdHex: '0x' + (5042002).toString(16), // 0x4cef52
         chainName: 'Arc Network Testnet',
+        // Primary + fallback read RPCs. FallbackProvider below tries rpcUrl
+        // first; if it stalls/errors (e.g. Alchemy free-tier rate limit),
+        // it automatically falls back to rpcUrlFallback instead of the
+        // whole read failing outright.
         rpcUrl: 'https://arc-testnet.g.alchemy.com/v2/ujJWV8UeW1N9-LcH7aXK8',
+        rpcUrlFallback: 'https://rpc.testnet.arc.network',
         nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
         explorerUrl: 'https://testnet.arcscan.app'
     };
@@ -207,7 +212,13 @@
     };
 
     async function bootstrap() {
-        readProvider = new ethers.providers.JsonRpcProvider(VAULT_CONFIG.rpcUrl);
+        // Two independent RPCs, quorum 1: if the Alchemy endpoint (priority 1)
+        // is slow or 429s, ethers automatically retries the same call against
+        // the public Arc testnet RPC (priority 2) instead of the read failing.
+        readProvider = new ethers.providers.FallbackProvider([
+            { provider: new ethers.providers.JsonRpcProvider(VAULT_CONFIG.rpcUrl), priority: 1, weight: 1, stallTimeout: 2500 },
+            { provider: new ethers.providers.JsonRpcProvider(VAULT_CONFIG.rpcUrlFallback), priority: 2, weight: 1, stallTimeout: 2500 }
+        ], 1);
         vaultRO = new ethers.Contract(VAULT_CONFIG.address, VAULT_ABI, readProvider);
 
         const backBtn = document.querySelector('.vault-back-btn');
