@@ -17,13 +17,22 @@
         if (el) el.classList.toggle('hidden');
     }
 
+    // RPC utama sekarang lewat proxy sendiri (/api/rpc) supaya API key Alchemy
+    // tidak pernah nempel di kode frontend. Proxy ini yang nyimpen key di
+    // server (Vercel Environment Variable ALCHEMY_RPC_URL), lihat api/rpc.js.
+    // Pakai origin absolut karena rpcUrls[0] juga dipakai WalletConnect, yang
+    // butuh URL lengkap (bukan path relatif) untuk dipanggil dari wallet lain.
+    const RPC_PROXY_URL = (typeof window !== 'undefined' && window.location && window.location.origin)
+        ? `${window.location.origin}/api/rpc`
+        : '/api/rpc';
+
     const ARC_CHAIN = {
         chainId: '0x4CEF52',
         chainName: 'Arc Testnet',
-        // Dedicated Alchemy endpoint first (faster, less shared congestion),
-        // public endpoints as fallback if Alchemy hiccups or quota runs out.
+        // Proxy sendiri first (key aman di server), public endpoints sebagai
+        // fallback kalau proxy/Alchemy hiccup atau quota habis.
         rpcUrls: [
-            'https://arc-testnet.g.alchemy.com/v2/ujJWV8UeW1N9-LcH7aXK8',
+            RPC_PROXY_URL,
             'https://rpc.testnet.arc.network',
             'https://arc-testnet.drpc.org'
         ],
