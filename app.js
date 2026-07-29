@@ -5881,6 +5881,107 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
             || /<\|python_tag\|>/i.test(text);
     }
 
+    /* STRUCTURAL fix (bukan cuma tambal setelah fakta): kalau pertanyaan user
+       jelas-jelas butuh data real-time, JANGAN andalkan tool_choice:'auto' —
+       model kecil (llama-3.3-70b) sering skip tool sepenuhnya dan langsung
+       mengarang jawaban sambil berlagak sudah mencari ("Saya akan mencari...").
+       Fungsi ini mengklasifikasi query SEBELUM request pertama dikirim, lalu
+       caller memaksa tool_choice ke tool yang sesuai (bukan 'auto') supaya
+       provider (Groq/OpenRouter/Gemini) WAJIB memanggil tool itu di respons
+       pertama — tidak ada celah buat model mengarang jawaban tanpa data asli.
+       Return null artinya biarkan 'auto' seperti biasa (pertanyaan umum/kreatif/
+       kode yang memang tidak butuh data eksternal). */
+    function eijiClassifyForcedTool(text) {
+        if (!text) return null;
+        const t = text.toLowerCase();
+
+        // Harga logam mulia -> get_metal_price (BUKAN web_search, sesuai aturan
+        // di EIJI_SYSTEM: get_metal_price kasih angka live akurat langsung).
+        if (/\b(harga\s+)?(emas|perak|platina|palladium|paladium|logam\s+mulia)\b/.test(t)
+            || /\bgold\s+price\b|\bsilver\s+price\b/.test(t)) {
+            return 'get_metal_price';
+        }
+
+        // Cuaca -> get_weather
+        if (/\bcuaca\b|\bweather\b/.test(t)) {
+            return 'get_weather';
+        }
+
+        // Koin trending / top gainer -> get_trending_coins
+        if (/\btrending\b.*\b(coin|koin|kripto|crypto)\b/.test(t)
+            || /\btop\s+gainer\b/.test(t)) {
+            return 'get_trending_coins';
+        }
+
+        // Harga kripto (BTC/ETH/dst) -> get_crypto_price, BUKAN web_search.
+        // Ini harus dicek SEBELUM aturan umum "hari ini/terkini" di bawah —
+        // tanpa ini, "harga bitcoin hari ini" salah kena web_search (verified
+        // lewat test manual, bukan tebakan).
+        const cryptoNames = 'bitcoin|btc|ethereum|eth|solana|sol|usd-coin|usdc|tether|usdt|binancecoin|bnb|dogecoin|doge|ripple|xrp|cardano|ada';
+        if (new RegExp('\\b(harga|price)\\b.*\\b(' + cryptoNames + ')\\b', 'i').test(t)
+            || new RegExp('\\b(' + cryptoNames + ')\\b.*\\b(harga|price)\\b', 'i').test(t)) {
+            return 'get_crypto_price';
+        }
+
+        // Koreksi/bantahan user terhadap jawaban Eiji sebelumnya ("kamu salah",
+        // "yg bener aja", "ngaco", dst). Ini kasus di screenshot: user membantah,
+        // baru safety-net lapis-2 yang menangkap SETELAH jawaban salah keluar.
+        // Dengan ini, giliran user membantah langsung dipaksa web_search dari
+        // awal. Sengaja pakai frasa multi-kata spesifik (bukan "salah" sendirian)
+        // supaya tidak salah nyeret query coding biasa ("kode ini salah di baris
+        // 10" tidak boleh ikut kepaksa web_search).
+        if (/\bkamu\s+(salah|keliru|ngaco)\b/i.test(t)
+            || /\b(yg|yang)\s+(bener|benar)\s+(aja|dong)\b/i.test(t)
+            || /\bngaco\b/i.test(t)
+            || /\bbukan\s+gitu\b/i.test(t)
+            || /\bitu\s+(salah|keliru|gak\s+benar|tidak\s+benar)\b/i.test(t)
+            || /\bmasa\s+sih\b/i.test(t)
+            || /\byou'?re\s+wrong\b/i.test(t)
+            || /\bthat\s*(?:'s|\s+is|\s+was)\s+(wrong|incorrect)\b/i.test(t)
+            || /\bare\s+you\s+sure\b/i.test(t)) {
+            return 'web_search';
+        }
+
+        // Pertanyaan status generik ("apakah X masih ada/aktif/berlaku") — status
+        // sesuatu bisa berubah kapan saja, jadi jangan biarkan model jawab dari
+        // ingatan lama.
+        if (/\bmasih\s+(ada|berlaku|aktif|beroperasi|jalan|eksis)\b/i.test(t)
+            || /\bstill\s+(exist|around|active|running|alive|operating)\b/i.test(t)) {
+            return 'web_search';
+        }
+
+        // Sinyal umum "butuh info terkini/aktual" -> web_search. Ini yang
+        // menangkap kasus "siapa presiden Indonesia sekarang" dari awal,
+        // bukan setelah model sempat mengarang jawaban duluan.
+        if (/\bsiapa\b.*\b(presiden|menteri|gubernur|walikota|bupati|ceo|direktur|juara|pemenang|perdana\s+menteri|pm)\b/.test(t)
+            || /\b(presiden|menteri|gubernur|walikota|bupati|ceo|direktur)\b.*\b(sekarang|saat\s+ini|terkini|siapa)\b/.test(t)
+            || /\b(sekarang|saat\s+ini|terkini|terbaru|hari\s+ini|tahun\s+ini)\b/.test(t)
+            || /\b(juara|pemenang|peringkat|ranking|hasil\s+pertandingan|skor\s+pertandingan)\b/.test(t)
+            || /\byang\s+menang\b/.test(t)
+            || /\bwho\s+is\s+the\s+(current|new)\b/.test(t)
+            || /\bwho\s+(is|was)\s+the\s+(president|prime\s+minister|ceo|governor|mayor|king|queen|chairman|chancellor)\b/.test(t)
+            || /\bwho\s+won\b/.test(t)
+            || /\b(latest|current)\b/.test(t)) {
+            return 'web_search';
+        }
+
+        return null;
+    }
+
+    /* Penanda skeptis PENDEK (bukan daftar frasa panjang) — sengaja general
+       supaya menangkap variasi bahasa yang tidak mungkin didaftar satu-satu
+       ("hah kok gitu", "yakin?", "beneran nih"). Ini HANYA dipakai sebagai
+       gerbang kedua saat eijiLastTurnGrounded === false (lihat pemanggilnya),
+       jadi tidak akan salah nyeret obrolan/coding biasa yang jawaban
+       sebelumnya sudah didukung tool asli. */
+    function eijiLooksLikeSkepticalFollowup(text) {
+        if (!text) return false;
+        const wordCount = text.trim().split(/\s+/).length;
+        if (wordCount > 12) return false; // balasan panjang = kemungkinan topik baru, bukan reaksi singkat
+        return /\b(kok|masa|yakin|beneran|hah|loh|lho|serius)\b/i.test(text)
+            || /\b(sure|really|seriously)\b/i.test(text);
+    }
+
     /* Safety net #2: the model produced a NORMAL text reply (not even a leaked
        fake tool-call, which eijiExtractFakeToolCall already handles) but the
        prose itself claims to have looked something up — "Saya akan mencari...",
@@ -6021,7 +6122,7 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
         }
     }
 
-    async function eijiCallGroq(messages, useTools) {
+    async function eijiCallGroq(messages, useTools, forcedTool) {
         if (useTools === undefined) useTools = true;
         const body = {
             model: 'llama-3.3-70b-versatile',
@@ -6030,7 +6131,7 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
         };
         if (useTools) {
             body.tools = eijiActiveTools();
-            body.tool_choice = 'auto';
+            body.tool_choice = forcedTool ? { type: 'function', function: { name: forcedTool } } : 'auto';
         }
         const res = await eijiFetchWithTimeout('/api/groq', {
             method: 'POST',
@@ -6050,22 +6151,26 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
     /* Groq sometimes returns a 400 "Failed to call a function" error when its
        strict tool-call validator rejects the model's attempt. Retry once without
        tools so the user still gets an answer instead of a hard error. */
-    async function eijiCallGroqSafe(messages, useTools) {
+    async function eijiCallGroqSafe(messages, useTools, forcedTool) {
         if (useTools === undefined) useTools = true;
         try {
-            return await eijiCallGroq(messages, useTools);
+            return await eijiCallGroq(messages, useTools, forcedTool);
         } catch (err) {
             if (useTools && err && /failed to call a function/i.test(err.message)) {
                 try {
+                    // Retry tanpa tools sama sekali kalau provider menolak forced
+                    // tool_choice-nya (mis. karena tool itu tidak relevan menurut
+                    // validator-nya) — lebih baik jawaban tanpa data live daripada
+                    // error keras ke user.
                     return await eijiCallGroq(messages, false);
                 } catch (err2) {
                     console.warn('Groq (no-tools) juga gagal, fallback ke OpenRouter:', err2.message);
-                    return await eijiCallOpenRouterSafe(messages, useTools);
+                    return await eijiCallOpenRouterSafe(messages, useTools, forcedTool);
                 }
             }
             // Groq down / rate-limited / 5xx / network error -> fallback ke OpenRouter
             console.warn('Groq gagal (' + err.message + '), fallback ke OpenRouter...');
-            return await eijiCallOpenRouterSafe(messages, useTools);
+            return await eijiCallOpenRouterSafe(messages, useTools, forcedTool);
         }
     }
 
@@ -6073,7 +6178,7 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
        Body OpenAI-style yang sama diteruskan apa adanya via /api/openrouter,
        jadi semua logic tool-calling tetap jalan. Kalau OpenRouter juga gagal,
        lanjut fallback terakhir ke Gemini. */
-    async function eijiCallOpenRouter(messages, useTools) {
+    async function eijiCallOpenRouter(messages, useTools, forcedTool) {
         if (useTools === undefined) useTools = true;
         const body = {
             model: 'meta-llama/llama-3.3-70b-instruct',
@@ -6082,7 +6187,7 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
         };
         if (useTools) {
             body.tools = eijiActiveTools();
-            body.tool_choice = 'auto';
+            body.tool_choice = forcedTool ? { type: 'function', function: { name: forcedTool } } : 'auto';
         }
         const res = await eijiFetchWithTimeout('/api/openrouter', {
             method: 'POST',
@@ -6097,21 +6202,21 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
         return json;
     }
 
-    async function eijiCallOpenRouterSafe(messages, useTools) {
+    async function eijiCallOpenRouterSafe(messages, useTools, forcedTool) {
         if (useTools === undefined) useTools = true;
         try {
-            return await eijiCallOpenRouter(messages, useTools);
+            return await eijiCallOpenRouter(messages, useTools, forcedTool);
         } catch (err) {
             if (useTools && err && /failed to call a function/i.test(err.message)) {
                 try {
                     return await eijiCallOpenRouter(messages, false);
                 } catch (err2) {
                     console.warn('OpenRouter (no-tools) juga gagal, fallback ke Gemini:', err2.message);
-                    return await eijiCallGeminiSafe(messages, useTools);
+                    return await eijiCallGeminiSafe(messages, useTools, forcedTool);
                 }
             }
             console.warn('OpenRouter gagal (' + err.message + '), fallback ke Gemini...');
-            return await eijiCallGeminiSafe(messages, useTools);
+            return await eijiCallGeminiSafe(messages, useTools, forcedTool);
         }
     }
 
@@ -6119,7 +6224,7 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
        /api/gemini diharapkan menerima body OpenAI-style yang sama persis dengan
        /api/groq, dan mengembalikan response berformat OpenAI-compatible juga,
        supaya semua logic tool-calling di atas tetap jalan tanpa perubahan. */
-    async function eijiCallGemini(messages, useTools) {
+    async function eijiCallGemini(messages, useTools, forcedTool) {
         if (useTools === undefined) useTools = true;
         const body = {
             model: 'gemini-2.0-flash',
@@ -6128,7 +6233,7 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
         };
         if (useTools) {
             body.tools = eijiActiveTools();
-            body.tool_choice = 'auto';
+            body.tool_choice = forcedTool ? { type: 'function', function: { name: forcedTool } } : 'auto';
         }
         const res = await eijiFetchWithTimeout('/api/gemini', {
             method: 'POST',
@@ -6143,10 +6248,10 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
         return json;
     }
 
-    async function eijiCallGeminiSafe(messages, useTools) {
+    async function eijiCallGeminiSafe(messages, useTools, forcedTool) {
         if (useTools === undefined) useTools = true;
         try {
-            return await eijiCallGemini(messages, useTools);
+            return await eijiCallGemini(messages, useTools, forcedTool);
         } catch (err) {
             if (useTools && err && /failed to call a function/i.test(err.message)) {
                 return await eijiCallGemini(messages, false);
@@ -6156,6 +6261,12 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
     }
 
     let eijiHistory = [];
+    // true = jawaban terakhir Eiji didukung minimal satu tool call sungguhan
+    // (bukan sekadar ingatan model). Dipakai supaya penanda skeptis pendek
+    // ("kok", "masa", "yakin?") HANYA memaksa web_search kalau jawaban
+    // sebelumnya memang rapuh — bukan kata kunci berdiri sendiri yang bisa
+    // salah nyeret obrolan biasa/coding.
+    let eijiLastTurnGrounded = true;
     let eijiIsTyping = false;
     let eijiVoiceActive = false;   // sesi voice chat ON/OFF (ditoggle tombol mic)
     let eijiListening = false;     // sedang aktif merekam suara saat ini (per-giliran)
@@ -6507,7 +6618,20 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
                 ...historyMessages
             ];
 
-            let data = await eijiCallGroqSafe(groqMessages);
+            // Klasifikasi SEBELUM request pertama: kalau query jelas butuh data
+            // real-time, paksa tool_choice ke tool yang sesuai (bukan 'auto').
+            // Ini nutup celah root cause-nya, bukan cuma nambal setelah model
+            // sempat mengarang jawaban duluan seperti safety net di bawah.
+            let forcedTool = eijiClassifyForcedTool(text);
+            // Gerbang kedua: kalau daftar pola di atas tidak cocok TAPI jawaban
+            // GILIRAN SEBELUMNYA tidak didukung tool asli sama sekali, dan user
+            // sekarang membalas singkat dengan nada skeptis apa pun ("kok",
+            // "yakin?", "hah", dst) — paksa web_search juga. Ini menutup variasi
+            // bahasa yang tidak mungkin didaftar satu-satu di eijiClassifyForcedTool.
+            if (!forcedTool && !eijiLastTurnGrounded && eijiLooksLikeSkepticalFollowup(text)) {
+                forcedTool = 'web_search';
+            }
+            let data = await eijiCallGroqSafe(groqMessages, true, forcedTool);
             let msg = data.choices && data.choices[0] && data.choices[0].message;
 
             // Tool-calling loop: let the model fetch realtime data (crypto/weather/search)
@@ -6571,6 +6695,14 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
                 msg = data.choices && data.choices[0] && data.choices[0].message;
                 unverifiedLoops++;
             }
+
+            // Catat apakah giliran ini didukung tool call SUNGGUHAN — dipakai
+            // giliran BERIKUTNYA oleh gerbang skeptis di atas. Dianggap
+            // "grounded" kalau: tool_calls asli sempat jalan, tool leak-palsu
+            // sempat dieksekusi, safety-net #2 sempat mengoreksi, ATAU
+            // tool_choice memang dipaksa dari awal (forcedTool) — keempatnya
+            // berarti ada data nyata di balik jawaban ini, bukan cuma ingatan.
+            eijiLastTurnGrounded = loops > 0 || fakeLoops > 0 || unverifiedLoops > 0 || !!forcedTool;
 
             removeEijiTyping();
 
