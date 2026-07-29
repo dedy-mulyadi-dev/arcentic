@@ -548,7 +548,11 @@
             await tx.wait();
 
             setStatus('');
-            toast('Staked ' + amountStr + ' ' + meta.symbol + ' successfully.', false);
+            if (typeof showSuccessModal === 'function') {
+                showSuccessModal('Staked!', 'Locked ' + amountStr + ' ' + meta.symbol + ' in the vault.');
+            } else {
+                toast('Staked ' + amountStr + ' ' + meta.symbol + ' successfully.', false);
+            }
             document.getElementById('vaultAmount').value = '';
             updateVaultPreview();
             await refreshTokenDependentUI();
@@ -656,7 +660,12 @@
             setStatus('Confirming transaction…');
             await tx.wait();
             setStatus('');
-            toast('Done.', false);
+            const doneTitle = action === 'claim' ? 'Reward Claimed!' : action === 'unstake' ? 'Unstaked!' : 'Exited!';
+            if (typeof showSuccessModal === 'function') {
+                showSuccessModal(doneTitle, 'Transaction confirmed.');
+            } else {
+                toast('Done.', false);
+            }
             await loadMyVaultStakesInternal();
             await refreshTokenDependentUI();
         } catch (err) {

@@ -5033,9 +5033,60 @@
         setTimeout(() => toast.remove(), 300);
     }
 
+    /**
+     * showSuccessModal(title, message, duration)
+     * Full checkmark-draw modal used for confirmed on-chain transactions
+     * (swap, bridge, stake, liquidity, lend/borrow, admin funding, etc).
+     * Auto-dismisses after `duration` ms (default 2200) or on outside click.
+     */
+    function showSuccessModal(title, message, duration) {
+        if (duration === undefined) duration = 2200;
+        let overlay = document.getElementById('successModalOverlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'successModalOverlay';
+            overlay.innerHTML = `
+                <div class="success-modal">
+                    <svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
+                        <circle class="success-check-ring" cx="32" cy="32" r="28" fill="none" stroke="#22c55e" stroke-width="3.5" stroke-linecap="round"/>
+                        <path class="success-check-tick" d="M19 33 L28 42 L45 22" fill="none" stroke="#22c55e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <div class="success-modal-title"></div>
+                    <div class="success-modal-msg"></div>
+                </div>`;
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) hideSuccessModal(); });
+            document.body.appendChild(overlay);
+        }
+        overlay.querySelector('.success-modal-title').innerText = title || 'Success';
+        const msgEl = overlay.querySelector('.success-modal-msg');
+        msgEl.innerText = message || '';
+        msgEl.style.display = message ? '' : 'none';
+
+        // Restart the ring/tick draw animation every time the modal reopens
+        const ring = overlay.querySelector('.success-check-ring');
+        const tick = overlay.querySelector('.success-check-tick');
+        [ring, tick].forEach(el => { el.style.animation = 'none'; });
+        void overlay.offsetWidth;
+        [ring, tick].forEach(el => { el.style.animation = ''; });
+
+        overlay.classList.add('open');
+        clearTimeout(overlay._closeTimer);
+        if (duration > 0) overlay._closeTimer = setTimeout(hideSuccessModal, duration);
+    }
+
+    function hideSuccessModal() {
+        const overlay = document.getElementById('successModalOverlay');
+        if (overlay) overlay.classList.remove('open');
+    }
+
     /* Update an existing pending toast to success/error when tx completes */
     function updateToast(toast, type, title, message, duration) {
         if (!toast) return;
+        if (type === 'success') {
+            removeToast(toast);
+            showSuccessModal(title, message);
+            return;
+        }
         const icons = { success:'✅', error:'❌', info:'ℹ️', warning:'⚠️', pending:'⏳' };
         if (duration === undefined) duration = type === 'error' ? 6000 : 5000;
         toast.className = `toast toast-${type}`;
