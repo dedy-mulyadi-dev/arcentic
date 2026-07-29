@@ -5881,6 +5881,30 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
             || /<\|python_tag\|>/i.test(text);
     }
 
+    /* Safety net #2: the model produced a NORMAL text reply (not even a leaked
+       fake tool-call, which eijiExtractFakeToolCall already handles) but the
+       prose itself claims to have looked something up — "Saya akan mencari...",
+       "Menurut hasil pencarian...", "Let me search..." — while msg.tool_calls
+       was empty the whole time. This is a pure hallucination: Groq/OpenRouter
+       narrated a search it never ran, then answered from stale training data
+       (this is exactly the "presiden Indonesia" bug: it says "akan mencari"
+       then answers Jokowi from memory). Detect that pattern so the caller can
+       force a REAL web_search and make the model redo its answer from the
+       actual result instead of what's in its head. */
+    function eijiLooksLikeUnverifiedRealtimeClaim(text) {
+        if (!text) return false;
+        return /\b(akan|coba|sedang)\s+(saya\s+)?(mencari|cari)(kan)?\b/i.test(text)
+            || /\bmencari(kan)?\s+(informasi|data|kabar|berita)\b/i.test(text)
+            || /\b(berdasarkan|menurut)\s+(hasil\s+)?(pencarian|penelusuran)\b/i.test(text)
+            || /\bhasil\s+(pencarian|penelusuran)(\s+(saya|terbaru|menunjukkan))?\b/i.test(text)
+            || /\b(saya|aku)\s+(sudah|telah)\s+(mencari|memeriksa|mengecek)\b/i.test(text)
+            || /\blet me search\b/i.test(text)
+            || /\bi(?:'ll| will)\s+(search|look\s?up|check)\b/i.test(text)
+            || /\baccording to (my|the) (search|research)\b/i.test(text)
+            || /\bbased on (my|the) (web\s?)?search\b/i.test(text)
+            || /\bsearching the web\b/i.test(text);
+    }
+
     // String-aware balanced-brace slice starting at `start` (index of the opening
     // `{`). A plain char-count of `{`/`}` breaks when JSON string VALUES contain
     // literal braces, so we track whether we're inside a quoted string.
@@ -6521,6 +6545,31 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
                 data = await eijiCallGroqSafe(groqMessages, false);
                 msg = data.choices && data.choices[0] && data.choices[0].message;
                 fakeLoops++;
+            }
+
+            // Safety net #2: no real tool_calls ever fired (checked above) AND no
+            // leaked fake tool-call syntax was found either (checked just above) —
+            // yet the prose ITSELF claims a search happened ("Saya akan mencari...",
+            // "Menurut hasil pencarian...", "Let me search..."). That means the
+            // model is narrating a search it never ran and is about to answer from
+            // stale training data. Force ONE real web_search using the user's own
+            // question, then make the model redo its answer strictly from that
+            // real result. Capped at 1 pass — this is a correction, not a retry loop.
+            let unverifiedLoops = 0;
+            while (msg && (!msg.tool_calls || !msg.tool_calls.length) && msg.content
+                   && !eijiExtractFakeToolCall(msg.content)
+                   && eijiLooksLikeUnverifiedRealtimeClaim(msg.content)
+                   && unverifiedLoops < 1) {
+                const lastUserMsg = [...groqMessages].reverse().find(m => m.role === 'user' && typeof m.content === 'string');
+                const query = lastUserMsg ? lastUserMsg.content : text;
+                const result = await tool_web_search(query);
+                groqMessages.push({ role: 'assistant', content: msg.content });
+                groqMessages.push({ role: 'user', content: `[System note] Kamu tadi mengklaim sudah/akan mencari, tapi belum benar-benar menjalankan pencarian apa pun. Ini hasil web_search SUNGGUHAN untuk "${query}":\n${result}\nJawab ulang pertanyaan saya dengan kalimat natural HANYA berdasarkan data di atas. JANGAN mengulang klaim "akan mencari/menurut hasil pencarian" - langsung beri jawaban finalnya. Kalau data di atas tidak menjawab pertanyaannya, jujur katakan tidak ketemu.` });
+                // Rephrase WITHOUT tools so it can't spiral into another fake
+                // "let me search" claim instead of answering.
+                data = await eijiCallGroqSafe(groqMessages, false);
+                msg = data.choices && data.choices[0] && data.choices[0].message;
+                unverifiedLoops++;
             }
 
             removeEijiTyping();
