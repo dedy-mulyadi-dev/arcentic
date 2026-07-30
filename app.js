@@ -4825,11 +4825,19 @@
                 p.polling = false;
                 return p;
             });
-            if (jsonRpcProviders.length > 1) {
-                // quorum 1: any single healthy endpoint answering is enough,
-                // we don't need multiple endpoints to agree for read-only UI data
-                _readOnlyProvider = new ethers.providers.FallbackProvider(jsonRpcProviders, 1);
-                _readOnlyProvider.polling = false;
+            if (jsonRpcProviders.length >= 1) {
+                // Dulu pakai FallbackProvider dengan beberapa endpoint (proxy
+                // Alchemy + RPC publik) supaya kalau satu gagal, otomatis coba
+                // yang lain. Ternyata di browser, endpoint publik itu SELALU
+                // gagal duluan (satu diblokir CORS, satu selalu kena 429) —
+                // dan kegagalan cepat itu membuat FallbackProvider salah
+                // menyimpulkan seluruh panggilan gagal ("missing revert data"),
+                // padahal proxy Alchemy sendiri (yang responnya lebih lambat
+                // karena lewat server) sebenarnya berhasil kalau ditunggu.
+                // Jadi sekarang read-only calls langsung pakai endpoint
+                // PERTAMA saja (proxy Alchemy kita) — sudah terbukti proxy ini
+                // selalu berhasil lewat tes eth_call manual.
+                _readOnlyProvider = jsonRpcProviders[0];
             } else if (jsonRpcProviders.length === 1) {
                 _readOnlyProvider = jsonRpcProviders[0];
             } else if (typeof window.ethereum !== 'undefined' || getActiveProvider()) {
