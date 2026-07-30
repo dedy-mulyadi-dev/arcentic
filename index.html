@@ -1269,6 +1269,61 @@ nav button.glass:hover {
         bottom: calc(16px + env(safe-area-inset-bottom)) !important;
     }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Tombol aksi utama (Deposit/Borrow/Repay/Withdraw di Lend,
+   Stake di halaman Stake, Stake di Vault) — semuanya pakai class
+   .lend-main-btn ini. Sebelumnya tombol ini terlihat "datar" jadi
+   user ragu itu bisa diklik atau cuma label status. Tambahan di
+   bawah ini memberi 3 sinyal visual bahwa elemen ini interaktif:
+   1) shimmer/kilau halus yang lewat terus-menerus (menarik mata
+      tanpa perlu di-hover dulu),
+   2) efek terangkat + glow saat hover (cursor mouse),
+   3) efek "ditekan" saat diklik (feedback sentuhan/klik),
+   — dan otomatis mati saat tombol disabled (misal pas transaksi
+   sedang diproses), supaya tidak menyesatkan user untuk mengklik
+   lagi.
+───────────────────────────────────────────────────────────── */
+.lend-main-btn {
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .25s ease, filter .2s ease;
+}
+.lend-main-btn:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.015);
+    box-shadow: 0 10px 28px -8px rgba(92,120,255,.6), 0 0 0 1px rgba(139,92,246,.4) inset;
+    filter: brightness(1.08);
+}
+.lend-main-btn:active:not(:disabled) {
+    transform: translateY(0) scale(.97);
+    box-shadow: 0 3px 10px -3px rgba(92,120,255,.45);
+    filter: brightness(.97);
+}
+.lend-main-btn:disabled {
+    cursor: not-allowed;
+    filter: none;
+}
+.lend-main-btn:disabled::after { animation: none; opacity: 0; }
+.lend-main-btn::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -60%;
+    width: 40%; height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(255,255,255,.28), transparent);
+    transform: skewX(-20deg);
+    animation: lendBtnShimmer 3.4s ease-in-out infinite;
+    pointer-events: none;
+}
+@keyframes lendBtnShimmer {
+    0%   { left: -60%; }
+    45%  { left: 130%; }
+    100% { left: 130%; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .lend-main-btn::after { animation: none; display: none; }
+    .lend-main-btn { transition: none; }
+}
 </style>
 
 <!-- ═══════════════════════════ HEADER ═══════════════════════════ -->
