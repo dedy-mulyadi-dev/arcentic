@@ -143,31 +143,3 @@ export default async function handler(req, res) {
         });
     }
 }
-
-    if (!targetUrl) {
-        // Env var belum di-set di Vercel dashboard.
-        res.status(500).json({
-            error: 'Server misconfigured: ALCHEMY_RPC_URL belum di-set di Vercel Environment Variables.'
-        });
-        return;
-    }
-
-    try {
-        // Body dari client (ethers.js / wallet) diteruskan apa adanya
-        // ke Alchemy. req.body sudah otomatis di-parse jadi object oleh Vercel
-        // kalau Content-Type: application/json.
-        const upstreamResponse = await fetch(targetUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(req.body)
-        });
-
-        const data = await upstreamResponse.json();
-        res.status(upstreamResponse.status).json(data);
-    } catch (err) {
-        res.status(502).json({
-            error: 'Gagal menghubungi RPC upstream.',
-            detail: err.message
-        });
-    }
-}
