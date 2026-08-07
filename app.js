@@ -5010,8 +5010,48 @@
         const icons = { success:'✅', error:'❌', info:'ℹ️', warning:'⚠️', pending:'⏳' };
         const container = document.getElementById('toastContainer');
 
+        // Kalau notifikasi dengan tipe & judul yang SAMA PERSIS masih tampil
+        // di layar, jangan tambah baru (numpuk) - cukup segarkan yang sudah
+        // ada (reset progress bar & timernya). Sebelumnya, klik beberapa
+        // tombol yang sama-sama memicu toast identik (mis. tombol timeframe
+        // 5m/15m/1h yang belum berfungsi) dalam waktu singkat akan menumpuk
+        // banyak notifikasi identik di pojok kanan atas.
+        //
+        // Toast tipe 'pending' sengaja DIKECUALIKAN dari dedup ini: itu
+        // dipakai buat status transaksi yang sedang diproses, referensinya
+        // disimpan pemanggil untuk nanti di-update lewat updateToast() saat
+        // transaksi itu (spesifik) selesai - harus tetap unik per-transaksi,
+        // tidak boleh digabung dengan transaksi pending lain yang kebetulan
+        // judulnya sama.
+        if (type !== 'pending') {
+            const existing = Array.from(container.children).find(el =>
+                !el.classList.contains('removing') &&
+                el.dataset.toastType === type &&
+                el.dataset.toastTitle === title
+            );
+            if (existing) {
+                const msgEl = existing.querySelector('.toast-msg');
+                if (msgEl) msgEl.innerText = message || '';
+                const progEl = existing.querySelector('.toast-progress');
+                if (progEl) {
+                    progEl.style.cssText = duration > 0 ? `animation-duration:${duration}ms` : 'display:none';
+                    // restart animation - pola yang sama dipakai updateToast() di bawah
+                    progEl.style.animation = 'none';
+                    void progEl.offsetWidth;
+                    progEl.style.animation = '';
+                }
+                clearTimeout(existing._toastTimer);
+                if (duration > 0) {
+                    existing._toastTimer = setTimeout(() => removeToast(existing), duration);
+                }
+                return existing;
+            }
+        }
+
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
+        toast.dataset.toastType = type;
+        toast.dataset.toastTitle = title;
 
         const progressStyle = duration > 0
             ? `animation-duration:${duration}ms`
@@ -5030,7 +5070,7 @@
         container.appendChild(toast);
 
         if (duration > 0) {
-            setTimeout(() => removeToast(toast), duration);
+            toast._toastTimer = setTimeout(() => removeToast(toast), duration);
         }
         return toast;
     }
