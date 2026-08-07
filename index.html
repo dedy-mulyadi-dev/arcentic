@@ -1649,7 +1649,7 @@ nav button.glass:hover {
             </div>
 
             <div class="bg-slate-800/40 border border-slate-600/30 rounded-lg px-4 py-3 mb-5 text-xs flex justify-between items-center">
-                <span class="text-slate-400">Slippage: ~0.5%</span>
+                <span class="text-slate-400">Slippage: ~3%</span>
                 <span class="text-slate-400" id="spotFeeDisplay">Gas: —</span>
             </div>
 
@@ -1696,7 +1696,7 @@ nav button.glass:hover {
         <div class="glass rounded-[28px] p-7 glow">
             <div class="flex items-center justify-between mb-6">
                 <h3 class="text-xl font-black">Swap Tokens</h3>
-                <button class="glass px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:border-white/20 transition">⚙ Slippage: 0.5%</button>
+                <button class="glass px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:border-white/20 transition">⚙ Slippage: 3%</button>
             </div>
 
             <!-- From -->
@@ -2083,11 +2083,13 @@ nav button.glass:hover {
         <div class="grid grid-cols-3 gap-2 sm:gap-4 mb-10">
             <div class="pool-stat-pill">
                 <div class="text-gray-400 text-xs mb-1">Total Value Locked</div>
-                <div class="text-lg sm:text-2xl font-black">$4.8M</div>
+                <div id="poolsStatTVL" class="text-lg sm:text-2xl font-black">—</div>
+                <div class="text-gray-500 text-xs mt-0.5">Coming soon</div>
             </div>
             <div class="pool-stat-pill">
                 <div class="text-gray-400 text-xs mb-1">24h Volume</div>
-                <div class="text-lg sm:text-2xl font-black">$1.2M</div>
+                <div id="poolsStatVolume" class="text-lg sm:text-2xl font-black">—</div>
+                <div class="text-gray-500 text-xs mt-0.5">Coming soon</div>
             </div>
             <div class="pool-stat-pill">
                 <div class="text-gray-400 text-xs mb-1">Active Pools</div>
@@ -2112,21 +2114,21 @@ nav button.glass:hover {
                     </div>
                     <div class="flex items-center gap-3">
                         <span class="pool-badge text-green-400">🟢 Active</span>
-                        <span class="pool-badge text-purple-400">APR 28.4%</span>
+                        <span id="poolAPR-USDC-CENTIC" class="pool-badge text-purple-400">APR —</span>
                     </div>
                 </div>
                 <div class="grid grid-cols-3 gap-2 sm:gap-4 mb-5">
                     <div class="pool-stat-pill">
                         <div class="text-gray-400 text-xs mb-1">TVL</div>
-                        <div class="font-black text-lg">$1.6M</div>
+                        <div id="poolTVL-USDC-CENTIC" class="font-black text-lg">—</div>
                     </div>
                     <div class="pool-stat-pill">
                         <div class="text-gray-400 text-xs mb-1">24h Volume</div>
-                        <div class="font-black text-lg">$380K</div>
+                        <div id="poolVol-USDC-CENTIC" class="font-black text-lg">—</div>
                     </div>
                     <div class="pool-stat-pill">
                         <div class="text-gray-400 text-xs mb-1">24h Fees</div>
-                        <div class="font-black text-lg">$1,140</div>
+                        <div id="poolFees-USDC-CENTIC" class="font-black text-lg">—</div>
                     </div>
                 </div>
                 <!-- Reserve display -->
@@ -2224,21 +2226,21 @@ nav button.glass:hover {
                     </div>
                     <div class="flex items-center gap-3">
                         <span class="pool-badge text-green-400">🟢 Active</span>
-                        <span class="pool-badge text-cyan-400">APR 14.7%</span>
+                        <span id="poolAPR-USDC-EURC" class="pool-badge text-cyan-400">APR —</span>
                     </div>
                 </div>
                 <div class="grid grid-cols-3 gap-2 sm:gap-4 mb-5">
                     <div class="pool-stat-pill">
                         <div class="text-gray-400 text-xs mb-1">TVL</div>
-                        <div class="font-black text-lg">$2.1M</div>
+                        <div id="poolTVL-USDC-EURC" class="font-black text-lg">—</div>
                     </div>
                     <div class="pool-stat-pill">
                         <div class="text-gray-400 text-xs mb-1">24h Volume</div>
-                        <div class="font-black text-lg">$620K</div>
+                        <div id="poolVol-USDC-EURC" class="font-black text-lg">—</div>
                     </div>
                     <div class="pool-stat-pill">
                         <div class="text-gray-400 text-xs mb-1">24h Fees</div>
-                        <div class="font-black text-lg">$310</div>
+                        <div id="poolFees-USDC-EURC" class="font-black text-lg">—</div>
                     </div>
                 </div>
                 <div class="flex gap-3 mb-5">
@@ -2335,21 +2337,21 @@ nav button.glass:hover {
                     </div>
                     <div class="flex items-center gap-3">
                         <span class="pool-badge text-green-400">🟢 Active</span>
-                        <span class="pool-badge text-purple-400">APR 32.1%</span>
+                        <span id="poolAPR-EURC-CENTIC" class="pool-badge text-purple-400">APR —</span>
                     </div>
                 </div>
                 <div class="grid grid-cols-3 gap-2 sm:gap-4 mb-5">
                     <div class="pool-stat-pill">
                         <div class="text-gray-400 text-xs mb-1">TVL</div>
-                        <div class="font-black text-lg">$1.1M</div>
+                        <div id="poolTVL-EURC-CENTIC" class="font-black text-lg">—</div>
                     </div>
                     <div class="pool-stat-pill">
                         <div class="text-gray-400 text-xs mb-1">24h Volume</div>
-                        <div class="font-black text-lg">$200K</div>
+                        <div id="poolVol-EURC-CENTIC" class="font-black text-lg">—</div>
                     </div>
                     <div class="pool-stat-pill">
                         <div class="text-gray-400 text-xs mb-1">24h Fees</div>
-                        <div class="font-black text-lg">$600</div>
+                        <div id="poolFees-EURC-CENTIC" class="font-black text-lg">—</div>
                     </div>
                 </div>
                 <div class="flex gap-3 mb-5">

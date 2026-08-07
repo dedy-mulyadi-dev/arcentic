@@ -18,13 +18,28 @@
         chainIdDec: 5042002,
         chainIdHex: '0x' + (5042002).toString(16), // 0x4cef52
         chainName: 'Arc Network Testnet',
-        // Primary + fallback read RPCs. FallbackProvider below tries rpcUrl
-        // first; if it stalls/errors (e.g. Alchemy free-tier rate limit),
-        // it automatically falls back to rpcUrlFallback instead of the
-        // whole read failing outright.
-        rpcUrl: 'https://arc-testnet.g.alchemy.com/v2/ujJWV8UeW1N9-LcH7aXK8',
+        // rpcUrl: dipakai untuk PEMBACAAN DATA dari JS halaman ini (lewat
+        // ethers.js, lihat bootstrap() di bawah). Sengaja diarahkan ke
+        // "/api/rpc" (proxy serverless di domain sendiri, lihat api/rpc.js),
+        // BUKAN langsung ke endpoint Alchemy + API key. Sebelumnya key
+        // Alchemy tertulis langsung di sini dan otomatis terkirim ke
+        // browser SIAPA PUN yang buka halaman ini (bisa dilihat lewat View
+        // Source) — itu API key kamu sendiri yang bisa dipakai/disalahgunakan
+        // orang lain secara gratis. api/rpc.js sudah dibuat khusus untuk
+        // menyembunyikan key ini di server, tapi vault.js ini modul
+        // terpisah yang belum ikut memakainya — sekarang disamakan.
+        //
+        // rpcUrlFallback: RPC publik TANPA API key, jadi aman dipanggil
+        // langsung dari mana saja. Dipakai untuk 2 hal: (1) fallback kalau
+        // "/api/rpc" lambat/error, (2) dikirim ke wallet_addEthereumChain
+        // di bawah — itu dipanggil LANGSUNG oleh MetaMask sendiri (bukan
+        // oleh JS halaman ini), jadi tidak bisa lewat proxy "/api/rpc" kita
+        // (MetaMask tidak tahu cara "menembus" proxy Vercel kita).
+        rpcUrl: '/api/rpc',
         rpcUrlFallback: 'https://rpc.testnet.arc.network',
-        nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
+        // USDC pakai 6 desimal (bukan 18) — kalau salah, MetaMask bisa
+        // salah tampilkan saldo gas user sampai meleset triliunan kali.
+        nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 6 },
         explorerUrl: 'https://testnet.arcscan.app'
     };
 
@@ -221,7 +236,11 @@
                     params: [{
                         chainId: VAULT_CONFIG.chainIdHex,
                         chainName: VAULT_CONFIG.chainName,
-                        rpcUrls: [VAULT_CONFIG.rpcUrl],
+                        // MetaMask memanggil URL ini SENDIRI secara langsung
+                        // (bukan lewat JS halaman ini), jadi harus RPC
+                        // publik absolut — bukan VAULT_CONFIG.rpcUrl yang
+                        // sekarang berupa path proxy relatif "/api/rpc".
+                        rpcUrls: [VAULT_CONFIG.rpcUrlFallback],
                         nativeCurrency: VAULT_CONFIG.nativeCurrency,
                         blockExplorerUrls: [VAULT_CONFIG.explorerUrl]
                     }]
