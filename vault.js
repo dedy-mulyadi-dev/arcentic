@@ -37,9 +37,14 @@
         // (MetaMask tidak tahu cara "menembus" proxy Vercel kita).
         rpcUrl: '/api/rpc',
         rpcUrlFallback: 'https://rpc.testnet.arc.network',
-        // USDC pakai 6 desimal (bukan 18) — kalau salah, MetaMask bisa
-        // salah tampilkan saldo gas user sampai meleset triliunan kali.
-        nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 6 },
+        // KOREKSI: desimal ini SENGAJA 18, bukan bug. Arc punya desain
+        // "dua desimal" untuk USDC — native gas balance (field ini, dipakai
+        // wallet_addEthereumChain & eth_getBalance) pakai 18 desimal seperti
+        // ETH di chain lain, SEDANGKAN interface ERC-20 USDC (transfer,
+        // approve, balanceOf di contract) pakai 6 desimal. Dua-duanya benar,
+        // cuma buat konteks beda — jangan disamakan.
+        // Sumber: docs.arc.io, repo resmi github.com/circlefin/skills.
+        nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
         explorerUrl: 'https://testnet.arcscan.app'
     };
 
