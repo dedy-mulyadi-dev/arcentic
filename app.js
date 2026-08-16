@@ -26,18 +26,25 @@
         ? `${window.location.origin}/api/rpc`
         : '/api/rpc';
 
+    // Dibaca dari network-config.js (harus di-load SEBELUM app.js di index.html).
+    // Ini satu-satunya tempat chain ID & alamat kontrak didefinisikan —
+    // vault.js membaca objek yang sama, jadi keduanya tidak bisa tidak sinkron.
+    const NET = window.ARCENTIC_NETWORK_CONFIG;
+    if (!NET) {
+        throw new Error('app.js: window.ARCENTIC_NETWORK_CONFIG tidak ditemukan — pastikan network-config.js di-load sebelum app.js di index.html.');
+    }
+
     const ARC_CHAIN = {
-        chainId: '0x4CEF52',
-        chainName: 'Arc Testnet',
+        chainId: NET.chainIdHex,
+        chainName: NET.chainName,
         // Proxy sendiri first (key aman di server), public endpoints sebagai
         // fallback kalau proxy/Alchemy hiccup atau quota habis.
         rpcUrls: [
             RPC_PROXY_URL,
-            'https://rpc.testnet.arc.network',
-            'https://arc-testnet.drpc.org'
+            ...NET.rpcUrls
         ],
-        nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
-        blockExplorerUrls: ['https://testnet.arcscan.app/']
+        nativeCurrency: NET.nativeCurrency,
+        blockExplorerUrls: NET.blockExplorerUrls
     };
 
     // WalletConnect butuh chain id dalam bentuk desimal (bukan hex seperti ARC_CHAIN.chainId)
@@ -73,14 +80,15 @@
             tokenMessenger: '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA',
             messageTransmitter: '0x91566bbf0e2A8c08cE886B7351da2B5C0ce9EB44'
         },
-        // Contract addresses for Arc Testnet (verified against docs.arc.io/arc/references/contract-addresses)
+        // Contract addresses for Arc network — dibaca dari network-config.js,
+        // otomatis ikut testnet/mainnet sesuai ARC_NETWORK di file itu.
         arcTestnet: {
-            usdc: '0x3600000000000000000000000000000000000000', // Native USDC ERC-20 interface on Arc (6 decimals)
-            tokenMessenger: '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA',
-            messageTransmitter: '0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275'
+            usdc: NET.cctp.usdc, // Native USDC ERC-20 interface on Arc (6 decimals)
+            tokenMessenger: NET.cctp.tokenMessenger,
+            messageTransmitter: NET.cctp.messageTransmitter
         },
-        // Circle Attestation API (Iris) — testnet sandbox base for GET /v2/messages/{sourceDomain}
-        attestationApi: 'https://iris-api-sandbox.circle.com/v2/messages'
+        // Circle Attestation API (Iris) — base URL ikut network aktif (sandbox utk testnet, production utk mainnet)
+        attestationApi: NET.attestationApi
     };
 
     // CCTP Contract ABIs (simplified for key functions)
@@ -514,22 +522,11 @@
     /* ══════════════════════════════════════════════════
        CONTRACT ADDRESSES
     ══════════════════════════════════════════════════ */
-    const CONTRACT_ADDRS = {
-        ArcenticMultiPool : '0x1975f275E8b2F6974246e952a4636Cfc675d43cb',
-        CENTIC            : '0xC55D995d096A5c0832c1ee6918C481f502DCBcB7',
-        USDC              : '0x3600000000000000000000000000000000000000',
-        EURC              : '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a',
-        USDT              : '0x175CdB1D338945f0D851A741ccF787D343E57952',
-        cirBTC            : '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF',
-        LendingBorrowing  : '0x15e803e1Bac195896B15561337aA97cd0ffBcD58',
-        // TODO: fill in after running scripts/deploy.js from the
-        // arcentic-staking project (ArcenticStakingMultiToken.sol)
-        ArcenticStaking   : '0x473d6b0a414d6E72Cc40A040dC38d9d0AC635D5d',
-        // ArcenticVault.sol — locks principal into ArcenticMultiPool as real
-        // liquidity while staked. Separate contract/ABI from ArcenticStaking
-        // above; managed from the "🏛️ Vault" admin tab.
-        ArcenticVault     : '0xf3b0798A5363eEDDd2aB5ED23A023621a4d63621',
-    };
+    // Dibaca dari network-config.js — testnet/mainnet ikut ARC_NETWORK di file itu.
+    // ArcenticVault: locks principal into ArcenticMultiPool as real liquidity
+    // while staked. Separate contract/ABI from ArcenticStaking; managed from
+    // the "🏛️ Vault" admin tab.
+    const CONTRACT_ADDRS = NET.contracts;
 
     /* ArcenticStakingMultiToken ABI — true multi-token staking: any whitelisted
        ERC-20 can be staked, each with its own independent lock tiers. */

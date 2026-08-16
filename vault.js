@@ -13,21 +13,27 @@
     'use strict';
 
     // ── Network / contract config ──────────────────────────────────────
+    // Dibaca dari network-config.js (harus di-load SEBELUM vault.js di
+    // index.html, sebelum atau sesudah app.js, urutan app/vault tidak
+    // penting asal network-config.js paling duluan). Ini SUMBER YANG SAMA
+    // dengan yang dipakai app.js — sebelumnya vault.js punya definisi
+    // chain ID & alamat sendiri secara terpisah, yang berarti update untuk
+    // mainnet bisa lupa disinkronkan ke salah satu file. Sekarang keduanya
+    // otomatis ikut satu switch di network-config.js.
+    const NET = window.ARCENTIC_NETWORK_CONFIG;
+    if (!NET) {
+        throw new Error('vault.js: window.ARCENTIC_NETWORK_CONFIG tidak ditemukan — pastikan network-config.js di-load sebelum vault.js di index.html.');
+    }
+
     const VAULT_CONFIG = {
-        address: '0xf3b0798A5363eEDDd2aB5ED23A023621a4d63621',
-        chainIdDec: 5042002,
-        chainIdHex: '0x' + (5042002).toString(16), // 0x4cef52
-        chainName: 'Arc Network Testnet',
+        address: NET.contracts.ArcenticVault,
+        chainIdDec: NET.chainIdDec,
+        chainIdHex: NET.chainIdHex,
+        chainName: NET.chainName,
         // rpcUrl: dipakai untuk PEMBACAAN DATA dari JS halaman ini (lewat
         // ethers.js, lihat bootstrap() di bawah). Sengaja diarahkan ke
         // "/api/rpc" (proxy serverless di domain sendiri, lihat api/rpc.js),
-        // BUKAN langsung ke endpoint Alchemy + API key. Sebelumnya key
-        // Alchemy tertulis langsung di sini dan otomatis terkirim ke
-        // browser SIAPA PUN yang buka halaman ini (bisa dilihat lewat View
-        // Source) — itu API key kamu sendiri yang bisa dipakai/disalahgunakan
-        // orang lain secara gratis. api/rpc.js sudah dibuat khusus untuk
-        // menyembunyikan key ini di server, tapi vault.js ini modul
-        // terpisah yang belum ikut memakainya — sekarang disamakan.
+        // BUKAN langsung ke endpoint Alchemy + API key.
         //
         // rpcUrlFallback: RPC publik TANPA API key, jadi aman dipanggil
         // langsung dari mana saja. Dipakai untuk 2 hal: (1) fallback kalau
@@ -36,7 +42,7 @@
         // oleh JS halaman ini), jadi tidak bisa lewat proxy "/api/rpc" kita
         // (MetaMask tidak tahu cara "menembus" proxy Vercel kita).
         rpcUrl: '/api/rpc',
-        rpcUrlFallback: 'https://rpc.testnet.arc.network',
+        rpcUrlFallback: NET.rpcUrlFallback,
         // KOREKSI: desimal ini SENGAJA 18, bukan bug. Arc punya desain
         // "dua desimal" untuk USDC — native gas balance (field ini, dipakai
         // wallet_addEthereumChain & eth_getBalance) pakai 18 desimal seperti
@@ -44,8 +50,8 @@
         // approve, balanceOf di contract) pakai 6 desimal. Dua-duanya benar,
         // cuma buat konteks beda — jangan disamakan.
         // Sumber: docs.arc.io, repo resmi github.com/circlefin/skills.
-        nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
-        explorerUrl: 'https://testnet.arcscan.app'
+        nativeCurrency: NET.nativeCurrency,
+        explorerUrl: NET.explorerUrl
     };
 
     const VAULT_ABI = [

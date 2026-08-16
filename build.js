@@ -31,6 +31,10 @@ function main() {
   fs.mkdirSync(DIST, { recursive: true });
 
   const targets = [
+    // network-config.js HARUS di-load sebelum app.js/vault.js di index.html
+    // (lihat urutan <script> tag) karena keduanya baca window.ARCENTIC_NETWORK_CONFIG
+    // yang didefinisikan file ini saat dijalankan.
+    { file: 'network-config.js', ext: '.js' },
     { file: 'app.js', ext: '.js' },
     { file: 'vault.js', ext: '.js' },
     { file: 'styles.css', ext: '.css' },
