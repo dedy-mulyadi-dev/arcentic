@@ -53,13 +53,13 @@
             attestationApi: 'https://iris-api-sandbox.circle.com/v2/messages',
 
             contracts: {
-                ArcenticMultiPool : '0x1975f275E8b2F6974246e952a4636Cfc675d43cb',
+                ArcenticMultiPool : '0x628a1D28cd6415e221ded959f3965d033a882516',
                 CENTIC            : '0xC55D995d096A5c0832c1ee6918C481f502DCBcB7',
                 USDC              : '0x3600000000000000000000000000000000000000',
                 EURC              : '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a',
                 USDT              : '0x175CdB1D338945f0D851A741ccF787D343E57952',
                 cirBTC            : '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF',
-                LendingBorrowing  : '0x15e803e1Bac195896B15561337aA97cd0ffBcD58',
+                LendingBorrowing  : '0xdE6190BBb66edc13c2Ab58AEa2Fd9c2323a606DB',
                 ArcenticStaking   : '0x473d6b0a414d6E72Cc40A040dC38d9d0AC635D5d',
                 ArcenticVault     : '0xf3b0798A5363eEDDd2aB5ED23A023621a4d63621'
             }

@@ -2180,9 +2180,9 @@
     ];
 
     /* ArcenticMultiPool ABI — swap(address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut) */
-    /* ArcenticMultiPool — verified ABI */
+    /* ArcenticMultiPool — verified ABI (kontrak redeploy Agu 2026: swap() sekarang 4 parameter, ada slippage protection) */
     const POOL_ABI = [
-        'function swap(address _tokenIn, address _tokenOut, uint256 _amountIn) returns (uint256 amountOut)',
+        'function swap(address _tokenIn, address _tokenOut, uint256 _amountIn, uint256 _minAmountOut) returns (uint256 amountOut)',
         'function reserves(address) view returns (uint256)',
         'function addLiquidity(address _token, uint256 _amount)',
         'function removeLiquidity(address _token, uint256 _amount)',
@@ -3188,11 +3188,29 @@
             }
 
             // Step 2: swap
+            // Hitung ulang quote PERSIS sebelum kirim tx (bukan pakai angka lama
+            // di layar) supaya minAmountOut mencerminkan reserves saat ini.
+            // Slippage tolerance 1% — cukup longgar untuk testnet, tapi tetap
+            // menolak transaksi kalau harga bergerak jauh lebih dari itu
+            // (mis. sandwich attack) di antara quote dan konfirmasi tx.
             setStatus('⏳ Step 2/2 — Sending swap transaction…');
             updateToast(swapToast,'pending','Sending Swap',`Swapping ${amt} ${fromTok.sym} → ${toTok.sym}…`);
             const pool = new ethers.Contract(CONTRACT_ADDRS.ArcenticMultiPool, POOL_ABI, signer);
+            const [resInFresh, resOutFresh] = await withRpcRetry(
+                () => Promise.all([pool.reserves(fromTok.addr), pool.reserves(toTok.addr)]),
+                { onRetry: onRpcRetry }
+            );
+            if (resInFresh.isZero() || resOutFresh.isZero()) {
+                throw new Error('Pool liquidity insufficient for this pair right now.');
+            }
+            // amountOut = amountIn * reserveOut / (reserveIn + amountIn) — sama
+            // persis dengan formula constant-product di kontrak, dihitung di sini
+            // pakai BigNumber supaya presisinya cocok dengan hasil on-chain.
+            const expectedOutWei = amtInWei.mul(resOutFresh).div(resInFresh.add(amtInWei));
+            const SWAP_SLIPPAGE_PCT = 1; // 1% toleransi
+            const minAmountOutWei = applySlippage(expectedOutWei, SWAP_SLIPPAGE_PCT);
             const swapTx = await withRpcRetry(
-                () => pool.swap(fromTok.addr, toTok.addr, amtInWei),
+                () => pool.swap(fromTok.addr, toTok.addr, amtInWei, minAmountOutWei),
                 { onRetry: onRpcRetry }
             );
             setStatus('⏳ Waiting for swap confirmation…');
