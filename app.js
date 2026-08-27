@@ -6255,12 +6255,19 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
     async function eijiCallGroq(messages, useTools, forcedTool) {
         if (useTools === undefined) useTools = true;
         const body = {
-            // GANTI Agu 2026: 'llama-3.3-70b-versatile' resmi di-deprecate
-            // Groq (diumumkan Jun 2026, berhenti dilayani total per Agu 2026).
-            // 'openai/gpt-oss-120b' adalah pengganti resmi yang direkomendasikan
-            // Groq untuk kelas model 70B ini — cek console.groq.com/docs/models
-            // kalau suatu saat ini error lagi, model Groq cukup sering berubah.
-            model: 'openai/gpt-oss-120b',
+            // GANTI LAGI (Agu 2026): openai/gpt-oss-120b ternyata punya bug
+            // tool-calling yang sudah banyak dilaporkan (LangChain issue
+            // #34155, thread komunitas Groq) — modelnya sering TIDAK benar-
+            // benar memanggil function, malah mengarang jawaban teks yang
+            // terdengar masuk akal seolah tool sudah dipanggil. Itu yang
+            // bikin Eiji "mengaku" tidak bisa baca app.js padahal read_code_file
+            // tidak pernah ke-invoke sama sekali.
+            // qwen/qwen3.6-27b adalah pilihan LAIN yang direkomendasikan
+            // resmi Groq untuk migrasi dari llama-3.3-70b-versatile, dari
+            // keluarga model berbeda — kalau ini juga bermasalah dengan tool
+            // calling, coba 'llama-4-scout-17b-16e-instruct' berikutnya
+            // (histori Llama di Groq lebih teruji untuk tool-calling).
+            model: 'qwen/qwen3.6-27b',
             max_tokens: eijiActiveMaxTokens(),
             messages
         };
