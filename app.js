@@ -6248,7 +6248,12 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
     async function eijiCallGroq(messages, useTools, forcedTool) {
         if (useTools === undefined) useTools = true;
         const body = {
-            model: 'llama-3.3-70b-versatile',
+            // GANTI Agu 2026: 'llama-3.3-70b-versatile' resmi di-deprecate
+            // Groq (diumumkan Jun 2026, berhenti dilayani total per Agu 2026).
+            // 'openai/gpt-oss-120b' adalah pengganti resmi yang direkomendasikan
+            // Groq untuk kelas model 70B ini — cek console.groq.com/docs/models
+            // kalau suatu saat ini error lagi, model Groq cukup sering berubah.
+            model: 'openai/gpt-oss-120b',
             max_tokens: eijiActiveMaxTokens(),
             messages
         };

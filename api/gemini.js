@@ -8,10 +8,9 @@ export default async function handler(req, res) {
     }
 
     try {
-        // Gemini punya endpoint OpenAI-compatible, jadi body dari frontend
-        // (messages, tools, tool_choice, dst) bisa langsung diteruskan.
-        // Hanya model name yang disesuaikan ke nama model Gemini.
-        const body = { ...(req.body || {}), model: 'gemini-2.0-flash' };
+        // GANTI Agu 2026: 'gemini-2.0-flash' sudah tidak tersedia lagi
+        // (pesan error Google eksplisit menyuruh pindah ke gemini-3.6-flash).
+        const body = { ...(req.body || {}), model: 'gemini-3.6-flash' };
 
         const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
             method: 'POST',
