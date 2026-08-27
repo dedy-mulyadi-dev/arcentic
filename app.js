@@ -5713,7 +5713,14 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
         return eijiCodingModeActive() ? EIJI_TOOLS.concat(EIJI_CODE_TOOLS) : EIJI_TOOLS;
     }
     function eijiActiveMaxTokens() {
-        return eijiCodingModeActive() ? 4096 : 1024;
+        // Groq free tier untuk openai/gpt-oss-120b: limit 8000 TPM, dan TPM
+        // dihitung dari (prompt + tools schema) + max_tokens yang direservasi
+        // — bukan cuma token yang benar-benar dipakai. Coding mode punya
+        // tools schema besar (EIJI_CODE_TOOLS) + isi file yang dibaca, jadi
+        // 4096 gampang bikin total lewat 8000 dan kena error 413.
+        // 2800 dipilih supaya prompt (~4000-an token realistis) + ini masih
+        // di bawah 8000 dengan sedikit margin aman.
+        return eijiCodingModeActive() ? 2800 : 1024;
     }
 
     /* -- Tool implementations: real public APIs, no key required -- */
