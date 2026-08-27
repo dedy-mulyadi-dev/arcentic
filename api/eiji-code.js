@@ -94,6 +94,50 @@ function isAdmin(addr) {
     return !!addr && !!admin && String(addr).toLowerCase() === admin;
 }
 
+// ================= WEBHOOK NOTIFICATIONS =================
+// Kirim notifikasi ke Discord setiap kali ada commit sukses, ATAU setiap
+// kali ada percobaan signature yang gagal (indikasi wallet lain sedang
+// coba akses coding mode). Tujuannya: kamu tahu ada perubahan/aktivitas
+// mencurigakan TANPA harus buka repo GitHub manual.
+//
+// SETUP (opsional — kalau env var ini kosong, notifikasi cuma di-skip
+// diam-diam, endpoint tetap jalan normal seperti sebelumnya):
+//   1. Di server Discord kamu: Server Settings -> Integrations -> Webhooks
+//      -> New Webhook -> pilih channel -> Copy Webhook URL
+//   2. Tambahkan di Vercel Environment Variables:
+//        Name  : EIJI_ALERT_WEBHOOK_URL
+//        Value : <url webhook Discord tadi>
+//   3. Redeploy.
+//
+// Kalau kamu pakai Slack, bukan Discord: Slack incoming webhook butuh
+// field "text" bukan "content" — ganti `{ content: text }` di bawah jadi
+// `{ text }`, sisanya sama.
+//
+// Fire-and-forget TAPI di-await dengan timeout pendek — supaya kalau
+// Discord lambat/down, ini tidak bikin request commit kamu ikut lambat
+// atau gagal gara-gara notifikasi doang.
+async function notifyWebhook(text) {
+    const url = process.env.EIJI_ALERT_WEBHOOK_URL;
+    if (!url) return; // fitur opsional, aman kalau belum dikonfigurasi
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    try {
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: text }),
+            signal: controller.signal
+        });
+    } catch (err) {
+        // Sengaja cuma di-log, JANGAN dilempar ke atas — kegagalan kirim
+        // notifikasi tidak boleh menggagalkan commit yang sudah sah.
+        console.error('eiji-code: gagal kirim webhook notifikasi:', err.message);
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
 async function ghContents(path, opts = {}) {
     const url = `https://api.github.com/repos/${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}/contents/${encodeURIComponent(path)}`;
     const res = await fetch(url, {
@@ -143,6 +187,14 @@ module.exports = async function handler(req, res) {
             let recovered;
             try { recovered = ethers.verifyMessage(message, signature); } catch { recovered = null; }
             if (!recovered || !isAdmin(recovered) || recovered.toLowerCase() !== String(wallet || '').toLowerCase()) {
+                // Percobaan gagal buka coding session — wallet yang mengklaim
+                // punya akses ternyata bukan ADMIN_WALLET, atau signature invalid.
+                // Ini sinyal awal yang patut dicurigai, kabari lewat webhook.
+                await notifyWebhook(
+                    `⚠️ **Eiji coding-mode: percobaan session GAGAL**\n` +
+                    `Wallet yang dicoba: \`${wallet || '(kosong)'}\`\n` +
+                    `Waktu: ${new Date().toISOString()}`
+                );
                 return res.status(403).json({ error: 'Wallet ini tidak punya akses coding mode.' });
             }
             const sessionToken = makeToken({ t: 'session', w: recovered.toLowerCase() }, SESSION_TTL_MS);
@@ -215,6 +267,14 @@ module.exports = async function handler(req, res) {
             let recovered;
             try { recovered = ethers.verifyMessage(message, signature); } catch { recovered = null; }
             if (!recovered || !isAdmin(recovered) || recovered.toLowerCase() !== String(wallet || '').toLowerCase()) {
+                // Percobaan COMMIT gagal — ini lebih serius daripada gagal
+                // session, karena ini upaya benar-benar menulis ke repo.
+                await notifyWebhook(
+                    `🚨 **Eiji coding-mode: percobaan COMMIT GAGAL**\n` +
+                    `Wallet yang dicoba: \`${wallet || '(kosong)'}\`\n` +
+                    `Target file: \`${path}\` (baris ${startLine}-${endLine})\n` +
+                    `Waktu: ${new Date().toISOString()}`
+                );
                 return res.status(403).json({ error: 'Wallet ini tidak punya akses admin.' });
             }
 
@@ -244,6 +304,20 @@ module.exports = async function handler(req, res) {
                     committer: { name: 'Eiji AI', email: 'eiji-bot@users.noreply.github.com' }
                 })
             });
+
+            // Notifikasi commit SUKSES. Sertakan potongan newText (dipotong
+            // supaya pesan Discord tidak kepanjangan) supaya kamu bisa lihat
+            // sekilas isi perubahan langsung dari notifikasi, tanpa perlu
+            // buka commitUrl dulu kalau cuma mau cek cepat.
+            const preview = newText.length > 500 ? newText.slice(0, 500) + '\n…(dipotong)' : newText;
+            await notifyWebhook(
+                `✅ **Eiji berhasil commit perubahan**\n` +
+                `File: \`${path}\` (baris ${s}-${e})\n` +
+                `Wallet: \`${recovered}\`\n` +
+                `Commit: ${result.commit && result.commit.html_url}\n` +
+                `Pesan: ${commitMessage || `Eiji AI: update ${path} (lines ${s}-${e})`}\n` +
+                `\n\`\`\`\n${preview}\n\`\`\``
+            );
 
             return res.status(200).json({
                 ok: true,
