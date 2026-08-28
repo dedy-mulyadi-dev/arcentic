@@ -138,8 +138,9 @@ async function notifyWebhook(text) {
     }
 }
 
-async function ghContents(path, opts = {}) {
-    const url = `https://api.github.com/repos/${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}/contents/${encodeURIComponent(path)}`;
+async function ghContents(pathWithQuery, opts = {}) {
+    const [filePath, query] = pathWithQuery.split('?');
+    const url = `https://api.github.com/repos/${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}/contents/${encodeURIComponent(filePath)}${query ? '?' + query : ''}`;
     const res = await fetch(url, {
         ...opts,
         headers: {
