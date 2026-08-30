@@ -1,0 +1,30 @@
+{
+  "atm-pools": {
+    "file": "app.js",
+    "hash": "f70f9a3d0cdfc0af00d56e617fdbab15744569413ea54936edabb1e53fbbdc9f"
+  },
+  "atm-tab-ids": {
+    "file": "app.js",
+    "hash": "4d775501b8be8e063b150ff54c44b78e4c3b8868637eb825148d4f5ecb1b8d88"
+  },
+  "atm-pool-buttons": {
+    "file": "index.html",
+    "hash": "c350fb309c5255e647e9103e44ea6673d8dae450193a0d1fa7774404e23b0a0d"
+  },
+  "testnet-contracts": {
+    "file": "network-config.js",
+    "hash": "11a9e61833611218e32eec98c8ef5c62687fc663d0d83032cd626d0c558dd57f"
+  },
+  "editable-files": {
+    "file": "api/eiji-code.js",
+    "hash": "a77fbb141e1b940b97a88aacef1e55d8fb0028b26290f4eb0a6158c5b62dedd0"
+  },
+  "is-admin": {
+    "file": "api/eiji-code.js",
+    "hash": "a1e025c805b65b3c644c49b5b8fa1f158f405b585f8f46efff001ec8445c92ee"
+  },
+  "gh-contents-url": {
+    "file": "api/eiji-code.js",
+    "hash": "30b492364090e91a75876ef68c4f69323b5c1ef5067b5bcb2c34abc48647ef86"
+  }
+}
