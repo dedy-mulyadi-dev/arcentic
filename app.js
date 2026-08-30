@@ -4669,6 +4669,7 @@
         'usdc-centic': ['USDC','CENTIC'],
         'usdc-eurc':   ['USDC','EURC'],
         'eurc-centic': ['EURC','CENTIC'],
+        'usdc-usdt':   ['USDC','USDT'],
     };
 
     function openAddTokenModal() {
@@ -4684,7 +4685,7 @@
     function setATMPool(poolKey, btn) {
         atmPool = poolKey;
         atmToken = null;
-        ['atm-tab-usdc-centic','atm-tab-usdc-eurc','atm-tab-eurc-centic'].forEach(id => {
+        ['atm-tab-usdc-centic','atm-tab-usdc-eurc','atm-tab-eurc-centic','atm-tab-usdc-usdt'].forEach(id => {
             document.getElementById(id).classList.remove('active');
         });
         btn.classList.add('active');
