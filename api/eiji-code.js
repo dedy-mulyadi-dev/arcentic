@@ -49,7 +49,10 @@
 const crypto = require('crypto');
 const { ethers } = require('ethers');
 
+// ARCENTIC-LOCK:editable-files — daftar file yang boleh diedit Eiji. JANGAN
+// tambahkan 'contracts/*', 'api/*', 'vercel.json', atau 'package.json' ke sini.
 const EDITABLE_FILES = ['app.js', 'index.html', 'styles.css'];
+// ARCENTIC-LOCK-END:editable-files
 
 const NONCE_TTL_MS = 5 * 60 * 1000;      // 5 minutes to use a nonce
 const SESSION_TTL_MS = 30 * 60 * 1000;   // 30 minutes coding-mode session
@@ -89,10 +92,12 @@ function verifyToken(token) {
     return payload;
 }
 
+// ARCENTIC-LOCK:is-admin
 function isAdmin(addr) {
     const admin = (process.env.ADMIN_WALLET || '').toLowerCase();
     return !!addr && !!admin && String(addr).toLowerCase() === admin;
 }
+// ARCENTIC-LOCK-END:is-admin
 
 // ================= WEBHOOK NOTIFICATIONS =================
 // Kirim notifikasi ke Discord setiap kali ada commit sukses, ATAU setiap
@@ -138,9 +143,13 @@ async function notifyWebhook(text) {
     }
 }
 
+// ARCENTIC-LOCK:gh-contents-url — bug encoding path pernah terjadi di sini
+// (?ref=main ikut ter-encode karena digabung sebelum di-split). Jangan
+// encode path+query jadi satu string lagi.
 async function ghContents(pathWithQuery, opts = {}) {
     const [filePath, query] = pathWithQuery.split('?');
     const url = `https://api.github.com/repos/${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}/contents/${encodeURIComponent(filePath)}${query ? '?' + query : ''}`;
+// ARCENTIC-LOCK-END:gh-contents-url
     const res = await fetch(url, {
         ...opts,
         headers: {

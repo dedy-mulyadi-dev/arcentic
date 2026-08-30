@@ -52,6 +52,10 @@
             // saat mainnet (bukan lagi -sandbox), cek docs.arc.io / developers.circle.com
             attestationApi: 'https://iris-api-sandbox.circle.com/v2/messages',
 
+            // ARCENTIC-LOCK:testnet-contracts — address kontrak testnet. Perubahan
+            // di sini HARUS disengaja (redeploy ulang), tidak boleh berubah karena
+            // salah edit AI. Update baseline lewat `npm run verify-lock -- --update`
+            // hanya setelah kamu benar-benar yakin ini perubahan yang diinginkan.
             contracts: {
                 ArcenticMultiPool : '0x628a1D28cd6415e221ded959f3965d033a882516',
                 CENTIC            : '0xC55D995d096A5c0832c1ee6918C481f502DCBcB7',
@@ -63,6 +67,7 @@
                 ArcenticStaking   : '0x473d6b0a414d6E72Cc40A040dC38d9d0AC635D5d',
                 ArcenticVault     : '0xf3b0798A5363eEDDd2aB5ED23A023621a4d63621'
             }
+            // ARCENTIC-LOCK-END:testnet-contracts
         },
 
         // Isi semua field di bawah begitu Arc mengumumkan alamat mainnet resmi

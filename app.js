@@ -4665,12 +4665,15 @@
     let atmPool = 'usdc-centic';
     let atmToken = null; // selected token sym
 
+    // ARCENTIC-LOCK:atm-pools — jangan ubah/hapus baris di dalam blok ini
+    // tanpa menjalankan `npm run verify-lock -- --update` setelah verifikasi manual.
     const ATM_POOLS = {
         'usdc-centic': ['USDC','CENTIC'],
         'usdc-eurc':   ['USDC','EURC'],
         'eurc-centic': ['EURC','CENTIC'],
         'usdc-usdt':   ['USDC','USDT'],
     };
+    // ARCENTIC-LOCK-END:atm-pools
 
     function openAddTokenModal() {
         document.getElementById('addTokenModal').classList.add('open');
@@ -4685,7 +4688,9 @@
     function setATMPool(poolKey, btn) {
         atmPool = poolKey;
         atmToken = null;
+        // ARCENTIC-LOCK:atm-tab-ids
         ['atm-tab-usdc-centic','atm-tab-usdc-eurc','atm-tab-eurc-centic','atm-tab-usdc-usdt'].forEach(id => {
+        // ARCENTIC-LOCK-END:atm-tab-ids
             document.getElementById(id).classList.remove('active');
         });
         btn.classList.add('active');
