@@ -52,7 +52,8 @@ const LENDING_ABI = [
 const ERC20_ABI = [
     'function balanceOf(address) view returns (uint256)',
     'function approve(address spender, uint256 amount) returns (bool)',
-    'function allowance(address owner, address spender) view returns (uint256)'
+    'function allowance(address owner, address spender) view returns (uint256)',
+    'function decimals() view returns (uint8)'
 ];
 
 async function getProvider() {
@@ -92,12 +93,24 @@ async function main() {
     const results = { timestamp: new Date().toISOString(), block: block.number, tests: {} };
 
     // ── TEST 1: swap() — USDC -> USDT, jumlah kecil ────────────────────────
+    // Desimal diambil langsung on-chain, bukan ditebak — token berbeda bisa
+    // punya desimal berbeda (mis. USDC Arc = 6, belum tentu USDT sama).
     console.log('── TEST 1: swap() ──');
     try {
-        const amountIn = ethers.parseUnits('1', 18); // sesuaikan desimal token asli kamu
+        const TOKEN_IN_DECIMALS = await usdc.decimals();
+        const TOKEN_OUT_DECIMALS = await usdt.decimals();
+        console.log(`Desimal USDC on-chain: ${TOKEN_IN_DECIMALS}, Desimal USDT on-chain: ${TOKEN_OUT_DECIMALS}`);
+
+        const amountIn = ethers.parseUnits('1', TOKEN_IN_DECIMALS);
         const reserveIn = await multiPool.reserves(ADDR.USDC);
         const reserveOut = await multiPool.reserves(ADDR.USDT);
-        console.log(`Reserve USDC: ${ethers.formatUnits(reserveIn, 18)}, Reserve USDT: ${ethers.formatUnits(reserveOut, 18)}`);
+        console.log(`Reserve USDC: ${ethers.formatUnits(reserveIn, TOKEN_IN_DECIMALS)}, Reserve USDT: ${ethers.formatUnits(reserveOut, TOKEN_OUT_DECIMALS)}`);
+
+        const walletBalance = await usdc.balanceOf(wallet.address);
+        console.log(`Saldo USDC wallet: ${ethers.formatUnits(walletBalance, TOKEN_IN_DECIMALS)}`);
+        if (walletBalance < amountIn) {
+            throw new Error(`Saldo wallet (${ethers.formatUnits(walletBalance, TOKEN_IN_DECIMALS)} USDC) kurang dari amountIn (${ethers.formatUnits(amountIn, TOKEN_IN_DECIMALS)} USDC). Cek faucet atau kurangi amountIn.`);
+        }
 
         if (reserveIn === 0n || reserveOut === 0n) {
             console.warn('Reserve salah satu token = 0, swap akan revert ("Pool liquidity insufficient"). Skip.');
