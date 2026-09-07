@@ -56,8 +56,16 @@
             // di sini HARUS disengaja (redeploy ulang), tidak boleh berubah karena
             // salah edit AI. Update baseline lewat `npm run verify-lock -- --update`
             // hanya setelah kamu benar-benar yakin ini perubahan yang diinginkan.
+            //
+            // RIWAYAT: ArcenticMultiPool diganti 5 Sep 2026 — versi lama
+            // (0x628a1D28cd6415e221ded959f3965d033a882516) punya bug kritis:
+            // swap() salah hitung harga untuk token dengan desimal berbeda
+            // (USDC 6 desimal vs USDT 18 desimal). Liquidity sudah dimigrasi
+            // ke kontrak baru (967.71 dari 1000 USDT — sisa 32.29 USDT
+            // ketinggalan di kontrak lama karena bug desain LP tracking
+            // terpisah, catatan untuk perbaikan desain berikutnya).
             contracts: {
-                ArcenticMultiPool : '0x628a1D28cd6415e221ded959f3965d033a882516',
+                ArcenticMultiPool : '0x4d3f5801304E13d243ec898Bb129d96eC7B1b2d9',
                 CENTIC            : '0xC55D995d096A5c0832c1ee6918C481f502DCBcB7',
                 USDC              : '0x3600000000000000000000000000000000000000',
                 EURC              : '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a',

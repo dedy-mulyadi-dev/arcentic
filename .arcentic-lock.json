@@ -13,7 +13,7 @@
   },
   "testnet-contracts": {
     "file": "network-config.js",
-    "hash": "11a9e61833611218e32eec98c8ef5c62687fc663d0d83032cd626d0c558dd57f"
+    "hash": "1fd4a52f5fba72116f704bd01de32f9b1a7920c9d5b4b35fa56c47fc1033a648"
   },
   "editable-files": {
     "file": "api/eiji-code.js",

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {IERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts@5.0.2/token/ERC20/extensions/IERC20Metadata.sol";
 import {Ownable} from "@openzeppelin/contracts@5.0.2/access/Ownable.sol";
 import {Ownable2Step} from "@openzeppelin/contracts@5.0.2/access/Ownable2Step.sol";
 
@@ -31,6 +32,21 @@ import {Ownable2Step} from "@openzeppelin/contracts@5.0.2/access/Ownable2Step.so
 /// 4. TIDAK saya ubah: transfer/transferFrom pakai interface manual, bukan
 ///    SafeERC20. Token yang return false alih-alih revert bisa gagal diam-diam.
 ///    ArcenticStakingMultiToken sudah pakai SafeERC20 — pool ini belum.
+/// 5. FIX KRITIS (ditemukan lewat pengujian gas pasca-Zero8, 4 Sept 2026):
+///    swap() versi lama menghitung amountOut langsung dari reserves mentah
+///    tanpa menormalisasi perbedaan desimal antar token. Contoh nyata yang
+///    ditemukan: USDC (6 desimal) vs USDT deploy testnet ini (18 desimal) —
+///    swap 1 USDC dihitung kontrak cuma senilai ~0.0275 USDT, selisih 36x
+///    lipat dari nilai wajar. Ini bukan cuma bug tampilan, ini kerentanan
+///    ekonomi: siapapun yang tahu bisa swap dengan harga timpang dan
+///    menguras reserve token yang desimalnya lebih rendah. Fix: semua
+///    perhitungan rasio di swap() sekarang dinormalisasi ke basis 18
+///    desimal dulu (_normalize/_denormalize), desimal tiap token di-cache
+///    on-chain via decimals() saat pertama kali dipakai supaya swap
+///    berikutnya tidak perlu external call berulang.
+///    ⚠️ INI BREAKING CHANGE: kontrak lama yang sudah dideploy TIDAK bisa
+///    di-upgrade in-place (bukan proxy pattern). Perlu redeploy penuh +
+///    migrasi ulang liquidity dari pool lama sebelum mainnet.
 contract ArcenticMultiPool is Ownable2Step {
     // Pool reserves per token
     mapping(address => uint256) public reserves;
@@ -38,7 +54,43 @@ contract ArcenticMultiPool is Ownable2Step {
     // LP balance per user per token (tracks how much each user deposited)
     mapping(address => mapping(address => uint256)) public lpBalance;
 
+    // Cache desimal token — diisi otomatis saat token pertama kali dipakai
+    // (addLiquidity atau swap), supaya panggilan berikutnya tidak perlu
+    // external call decimals() lagi.
+    mapping(address => uint8) private _cachedDecimals;
+    mapping(address => bool) private _decimalsCached;
+
+    uint8 private constant BASE_DECIMALS = 18;
+
     constructor(address _owner) Ownable(_owner) {}
+
+    /// @notice Ambil desimal token, cache di storage supaya cuma 1x external
+    ///         call seumur hidup kontrak per token (kecuali token aneh yang
+    ///         desimalnya bisa berubah — tidak kita dukung, itu di luar scope).
+    function _getDecimals(address _token) internal returns (uint8) {
+        if (_decimalsCached[_token]) return _cachedDecimals[_token];
+        uint8 d = IERC20Metadata(_token).decimals();
+        _cachedDecimals[_token] = d;
+        _decimalsCached[_token] = true;
+        return d;
+    }
+
+    /// @notice Skalakan amount dari desimal aslinya ke basis 18 desimal,
+    ///         supaya rasio antar token dengan desimal berbeda bisa
+    ///         dibandingkan secara adil (bukan angka mentah apa adanya).
+    function _normalize(uint256 _amount, uint8 _decimals) internal pure returns (uint256) {
+        if (_decimals == BASE_DECIMALS) return _amount;
+        if (_decimals < BASE_DECIMALS) return _amount * (10 ** (BASE_DECIMALS - _decimals));
+        return _amount / (10 ** (_decimals - BASE_DECIMALS));
+    }
+
+    /// @notice Kebalikan dari _normalize — dari basis 18 desimal kembali ke
+    ///         desimal asli token, dipakai untuk hasil akhir amountOut.
+    function _denormalize(uint256 _amount, uint8 _decimals) internal pure returns (uint256) {
+        if (_decimals == BASE_DECIMALS) return _amount;
+        if (_decimals < BASE_DECIMALS) return _amount / (10 ** (BASE_DECIMALS - _decimals));
+        return _amount * (10 ** (_decimals - BASE_DECIMALS));
+    }
 
     // Add liquidity for any token
     function addLiquidity(address _token, uint256 _amount) external {
@@ -63,13 +115,29 @@ contract ArcenticMultiPool is Ownable2Step {
     // _minAmountOut: batas minimum yang diterima user. Kalau harga bergerak
     // (mis. front-run/sandwich) sampai amountOut jatuh di bawah ini, tx revert
     // alih-alih diam-diam mengeksekusi swap yang rugi untuk user.
+    //
+    // PENTING: reserveIn/reserveOut dan amountIn dinormalisasi ke basis 18
+    // desimal DULU sebelum masuk rumus constant product, supaya token dengan
+    // desimal berbeda (mis. USDC 6 desimal vs token 18 desimal) tidak
+    // menghasilkan harga yang timpang. Hasil akhir amountOut baru
+    // di-denormalisasi kembali ke desimal asli _tokenOut.
     function swap(address _tokenIn, address _tokenOut, uint256 _amountIn, uint256 _minAmountOut) external returns (uint256 amountOut) {
         require(reserves[_tokenIn] > 0 && reserves[_tokenOut] > 0, "Pool liquidity insufficient");
 
+        uint8 decIn = _getDecimals(_tokenIn);
+        uint8 decOut = _getDecimals(_tokenOut);
+
         IERC20(_tokenIn).transferFrom(msg.sender, address(this), _amountIn);
 
-        // Constant product: amountOut = amountIn * reserveOut / (reserveIn + amountIn)
-        amountOut = (_amountIn * reserves[_tokenOut]) / (reserves[_tokenIn] + _amountIn);
+        uint256 amountInNorm = _normalize(_amountIn, decIn);
+        uint256 reserveInNorm = _normalize(reserves[_tokenIn], decIn);
+        uint256 reserveOutNorm = _normalize(reserves[_tokenOut], decOut);
+
+        // Constant product dalam basis 18 desimal, baru dikembalikan ke
+        // desimal asli tokenOut.
+        uint256 amountOutNorm = (amountInNorm * reserveOutNorm) / (reserveInNorm + amountInNorm);
+        amountOut = _denormalize(amountOutNorm, decOut);
+
         require(amountOut >= _minAmountOut, "Slippage: amountOut below minimum");
 
         reserves[_tokenIn] += _amountIn;

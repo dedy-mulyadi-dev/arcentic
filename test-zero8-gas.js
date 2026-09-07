@@ -27,7 +27,7 @@ const RPC_FALLBACK = 'https://arc-testnet.drpc.org';
 const CHAIN_ID = 5042002; // 0x4CEF52
 
 const ADDR = {
-    MultiPool: '0x628a1D28cd6415e221ded959f3965d033a882516',
+    MultiPool: '0x4d3f5801304E13d243ec898Bb129d96eC7B1b2d9', // kontrak BARU, sudah fix bug desimal
     LendingBorrowing: '0xdE6190BBb66edc13c2Ab58AEa2Fd9c2323a606DB',
     USDC: '0x3600000000000000000000000000000000000000',
     USDT: '0x175CdB1D338945f0D851A741ccF787D343E57952',
