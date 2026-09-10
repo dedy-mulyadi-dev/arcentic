@@ -100,15 +100,35 @@ contract ArcenticMultiPool is Ownable2Step {
         lpBalance[msg.sender][_token] += _amount;
     }
 
-    // Withdraw previously deposited liquidity (up to your own LP balance)
-    function removeLiquidity(address _token, uint256 _amount) external {
+    // Withdraw previously deposited liquidity (up to your own LP balance).
+    //
+    // MITIGASI (belum fix sempurna — lihat catatan desain di atas kontrak):
+    // Karena reserves per-token bisa turun di bawah total lpBalance akibat
+    // swap (lpBalance TIDAK proporsional terhadap reserves aktual, ini
+    // desain lama yang belum di-rewrite jadi LP-share model), withdraw yang
+    // diminta bisa melebihi reserves[_token] yang tersedia saat ini.
+    //
+    // Daripada revert total (yang membuat LP stuck sepenuhnya sampai reserves
+    // pulih), fungsi ini sekarang memberi SEBANYAK reserves yang tersedia,
+    // dan MENYISAKAN kekurangannya di lpBalance untuk diklaim nanti (lewat
+    // pemanggilan removeLiquidity lagi) begitu reserves token itu terisi lagi
+    // (dari deposit LP lain atau swap balik ke token ini).
+    //
+    // Ini TIDAK menghilangkan risiko dasarnya — LP tetap bisa menunggu lama
+    // untuk dapat sisa dananya kalau reserves token itu jarang terisi lagi.
+    // Ini mitigasi non-breaking untuk launch, bukan pengganti rewrite LP-share
+    // model yang benar secara matematis.
+    function removeLiquidity(address _token, uint256 _amount) external returns (uint256 amountWithdrawn) {
         require(_amount > 0, "Amount must be > 0");
         require(lpBalance[msg.sender][_token] >= _amount, "Insufficient LP balance");
-        require(reserves[_token] >= _amount, "Insufficient pool reserve");
 
-        lpBalance[msg.sender][_token] -= _amount;
-        reserves[_token] -= _amount;
-        IERC20(_token).transfer(msg.sender, _amount);
+        uint256 available = reserves[_token];
+        amountWithdrawn = _amount > available ? available : _amount;
+        require(amountWithdrawn > 0, "Pool reserve currently empty for this token");
+
+        lpBalance[msg.sender][_token] -= amountWithdrawn;
+        reserves[_token] -= amountWithdrawn;
+        IERC20(_token).transfer(msg.sender, amountWithdrawn);
     }
 
     // Swap tokenIn -> tokenOut using constant product formula (x * y = k)
