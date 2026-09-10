@@ -168,8 +168,26 @@ contract ArcenticMultiPool is Ownable2Step {
 
     // Emergency withdraw by owner (for any stuck funds)
     // ⚠️ Lihat catatan #2 di atas — fungsi ini masih bisa menarik seluruh
-    // reserves, bukan hanya dana yang benar-benar "nyasar".
+    // reserves, bukan hanya dana yang benar-benar "nyasar". Itu risiko
+    // KEWENANGAN (siapa yang boleh menarik berapa banyak) dan SENGAJA belum
+    // diubah di sini — itu butuh keputusan desain terpisah (timelock,
+    // multisig, atau batasan saldo != reserves tercatat).
+    //
+    // FIX di sini cuma soal ACCOUNTING: sebelumnya fungsi ini transfer token
+    // keluar TANPA mengurangi reserves[_token], jadi reserves[_token] jadi
+    // lebih besar dari saldo token yang benar-benar dipegang kontrak — LP
+    // lain yang removeLiquidity() bisa gagal (reserves "hantu") atau, dengan
+    // patch mitigasi removeLiquidity di atas, malah dapat withdrawal address
+    // yang tidak didukung saldo riil.
+    //
+    // reserves[_token] dikurangi SEBANYAK yang tercatat saja (min(_amount,
+    // reserves[_token])), bukan _amount penuh — supaya menarik token yang
+    // benar-benar nyasar (dikirim langsung ke kontrak, tidak pernah tercatat
+    // di reserves) tidak menyebabkan underflow/revert.
     function emergencyWithdraw(address _token, uint256 _amount) external onlyOwner {
+        uint256 trackedReserve = reserves[_token];
+        uint256 reserveDecrease = _amount > trackedReserve ? trackedReserve : _amount;
+        reserves[_token] = trackedReserve - reserveDecrease;
         IERC20(_token).transfer(owner(), _amount);
     }
 }
