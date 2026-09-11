@@ -57,15 +57,29 @@
             // salah edit AI. Update baseline lewat `npm run verify-lock -- --update`
             // hanya setelah kamu benar-benar yakin ini perubahan yang diinginkan.
             //
-            // RIWAYAT: ArcenticMultiPool diganti 5 Sep 2026 — versi lama
-            // (0x628a1D28cd6415e221ded959f3965d033a882516) punya bug kritis:
-            // swap() salah hitung harga untuk token dengan desimal berbeda
-            // (USDC 6 desimal vs USDT 18 desimal). Liquidity sudah dimigrasi
-            // ke kontrak baru (967.71 dari 1000 USDT — sisa 32.29 USDT
-            // ketinggalan di kontrak lama karena bug desain LP tracking
-            // terpisah, catatan untuk perbaikan desain berikutnya).
+            // RIWAYAT:
+            // - 5 Sep 2026: ArcenticMultiPool diganti dari
+            //   0x628a1D28cd6415e221ded959f3965d033a882516 (bug kritis: swap()
+            //   salah hitung harga untuk token dengan desimal berbeda, USDC 6
+            //   desimal vs USDT 18 desimal) ke 0x4d3f5801304E13d243ec898Bb129d96eC7B1b2d9.
+            //   Liquidity dimigrasi (967.71 dari 1000 USDT — sisa 32.29 USDT
+            //   ketinggalan karena bug desain LP tracking terpisah).
+            // - 11 Sep 2026: ArcenticMultiPool diganti lagi dari
+            //   0x4d3f5801304E13d243ec898Bb129d96eC7B1b2d9 ke
+            //   0xe77053064D513ca55b702c9717F1570Cbab894b6 — fix 2 bug:
+            //   (1) removeLiquidity() sekarang partial-withdraw (min(amount,
+            //   reserves tersedia)) alih-alih revert total saat reserves
+            //   kurang dari lpBalance tercatat; (2) emergencyWithdraw()
+            //   sekarang konsisten mengurangi reserves[_token] tercatat.
+            //   Owner kontrak baru di-set LANGSUNG ke Safe ARCENIS
+            //   (0xFe8f4adF85f842B9fd90bC46B75C712cE69A54B1) saat deploy —
+            //   tidak lewat transferOwnership/acceptOwnership lagi. Liquidity
+            //   dimigrasi penuh untuk USDC (35000), USDT hampir penuh
+            //   (967.68 dari 967.71 — sisa 0.0276 USDT ketinggalan di
+            //   kontrak lama, gejala langsung dari bug #1 yang baru saja
+            //   difix).
             contracts: {
-                ArcenticMultiPool : '0x4d3f5801304E13d243ec898Bb129d96eC7B1b2d9',
+                ArcenticMultiPool : '0xe77053064D513ca55b702c9717F1570Cbab894b6',
                 CENTIC            : '0xC55D995d096A5c0832c1ee6918C481f502DCBcB7',
                 USDC              : '0x3600000000000000000000000000000000000000',
                 EURC              : '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a',
