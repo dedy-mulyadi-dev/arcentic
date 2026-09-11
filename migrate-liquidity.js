@@ -2,8 +2,11 @@
    migrate-liquidity.js
    ----------------------------------------------------------------------------
    Tujuan: pindahkan LP position (USDC + USDT) dari MultiPool LAMA
-   (0x628a1D28...) ke MultiPool BARU (0x4d3f5801... — versi yang sudah
-   dipatch, fix bug desimal di swap()) tanpa perlu klak-klik form di Remix.
+   (0x4d3f5801... — versi fix desimal, tapi masih punya bug lpBalance/
+   emergencyWithdraw) ke MultiPool BARU (0xe7705306... — sudah dipatch:
+   removeLiquidity partial-withdraw + emergencyWithdraw accounting fix,
+   owner di-set LANGSUNG ke Safe ARCENIS saat deploy, tidak perlu
+   transferOwnership/acceptOwnership lagi) tanpa perlu klak-klik form di Remix.
 
    Alur per token:
      1. Baca lpBalance(wallet, token) di kontrak LAMA
@@ -31,8 +34,8 @@ const RPC_URL = process.env.TESTNET_RPC_URL || 'https://rpc.testnet.arc.network'
 const RPC_FALLBACK = 'https://arc-testnet.drpc.org';
 const CHAIN_ID = 5042002;
 
-const OLD_POOL = '0x628a1D28cd6415e221ded959f3965d033a882516';
-const NEW_POOL = '0x4d3f5801304E13d243ec898Bb129d96eC7B1b2d9';
+const OLD_POOL = '0x4d3f5801304E13d243ec898Bb129d96eC7B1b2d9';
+const NEW_POOL = '0xe77053064D513ca55b702c9717F1570Cbab894b6';
 
 const TOKENS = {
     USDC: '0x3600000000000000000000000000000000000000',
