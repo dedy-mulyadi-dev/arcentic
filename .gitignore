@@ -15,3 +15,14 @@ secrets.js
 
 # OS / editor
 .DS_Store
+
+# Dependency resolution cache (efek samping build/verify-lock, bukan kode)
+.deps/
+.deps/npm/
+
+# Build artifacts (regenerated otomatis tiap compile, tidak perlu di-track)
+artifacts/build-info/
+
+# Sisa proses build/workspace Remix atau tool lain
+contracts/.deps/
+contracts/.workspaces/
