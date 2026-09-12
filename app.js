@@ -741,6 +741,14 @@
         return adminSendTxTo(CONTRACT_ADDRS.ArcenticVault, VAULT_ABI, fnName, args, opts);
     }
 
+    // LendingBorrowing admin calls — setCirBTCPrice() and setLiquidationParams()
+    // ARE onlyOwner on-chain (unlike fundPool() below, which is not). Same
+    // real protection model: adminSendTxTo's isAdminWallet() check here is just
+    // UX, the actual gate is Ownable2Step on the contract.
+    async function adminLendSendTx(fnName, args, opts) {
+        return adminSendTxTo(CONTRACT_ADDRS.LendingBorrowing, LEND_ABI, fnName, args, opts);
+    }
+
     // Small helpers for the admin form inputs
     function adminTokenAddrInput(id)  { return (document.getElementById(id).value || '').trim(); }
     function adminPercentToBps(id)    { return Math.round(parseFloat(document.getElementById(id).value || '0') * 100); }
@@ -965,6 +973,90 @@
         }
     }
 
+    /* ── LendingBorrowing: setCirBTCPrice() ──
+       Real onlyOwner gate on-chain. Sanity bound enforced by the contract:
+       max ±20% move per call (MAX_PRICE_MOVE_BPS) — a too-large jump reverts
+       on-chain with "price move exceeds limit", not silently clamped here. */
+    async function adminSetCirBTCPrice() {
+        const priceStr = document.getElementById('adminLendPriceInput').value;
+        if (!priceStr || parseFloat(priceStr) <= 0) { showToast('error','Invalid Price','Enter a price greater than 0.'); return; }
+        const priceWei = ethers.utils.parseUnits(parseFloat(priceStr).toFixed(USDC_DECIMALS), USDC_DECIMALS);
+        await adminLendSendTx('setCirBTCPrice', [priceWei], {
+            successTitle: 'cirBTC Price Updated',
+            successMsg: `cirBTC price set to $${parseFloat(priceStr).toLocaleString()}.`,
+            confirmMsg: 'Update the manual cirBTC price? This is not an oracle — make sure this matches the real market price, since it directly controls how much users can borrow and who becomes liquidatable.'
+        });
+        document.getElementById('adminLendPriceInput').value = '';
+    }
+
+    /* ── LendingBorrowing: setLiquidationParams() ──
+       Real onlyOwner gate on-chain. Contract also enforces thresholdBps must
+       exceed collateralFactor*100 and bonusBps <= 2000 (20% hard cap) —
+       a bad combination reverts on-chain rather than being silently accepted. */
+    async function adminSetLiquidationParams() {
+        const thresholdStr = document.getElementById('adminLendThresholdInput').value;
+        const bonusStr = document.getElementById('adminLendBonusInput').value;
+        if (!thresholdStr || !bonusStr) { showToast('error','Missing Values','Enter both threshold and bonus.'); return; }
+        const thresholdBps = Math.round(parseFloat(thresholdStr) * 100);
+        const bonusBps = Math.round(parseFloat(bonusStr) * 100);
+        await adminLendSendTx('setLiquidationParams', [thresholdBps, bonusBps], {
+            successTitle: 'Liquidation Params Updated',
+            successMsg: `Threshold set to ${thresholdStr}%, bonus set to ${bonusStr}%.`,
+            confirmMsg: `Update liquidation threshold to ${thresholdStr}% and bonus to ${bonusStr}%? This changes when under-water positions become liquidatable for every borrower.`
+        });
+    }
+
+    /* ── LendingBorrowing: liquidate() ──
+       NOTE: unlike setCirBTCPrice()/setLiquidationParams() above, liquidate()
+       has NO access control in the contract — any connected wallet can call
+       this, not just the admin/owner. This form is shown to any connected
+       wallet (see the template below), not gated behind isAdminWallet(). */
+    async function adminLiquidatePosition() {
+        if (!isConnected) { showToast('error','Wallet Not Connected','Connect your wallet first.'); return; }
+        const borrower = (document.getElementById('adminLendLiquidateBorrower').value || '').trim();
+        const repayStr = document.getElementById('adminLendLiquidateAmount').value;
+        if (!ethers.utils.isAddress(borrower)) { showToast('error','Invalid Address','Enter a valid borrower address.'); return; }
+        if (!repayStr || parseFloat(repayStr) <= 0) { showToast('error','Invalid Amount','Enter a USDC amount to repay on the borrower\'s behalf.'); return; }
+
+        let toast = showToast('pending','Liquidating Position','Checking eligibility…');
+        try {
+            const provider = new ethers.providers.Web3Provider(getActiveProvider());
+            provider.polling = false;
+            const signer = provider.getSigner();
+            const lendRead = new ethers.Contract(CONTRACT_ADDRS.LendingBorrowing, LEND_ABI, provider);
+            const liquidatable = await lendRead.isLiquidatable(borrower);
+            if (!liquidatable) {
+                updateToast(toast, 'error', 'Not Liquidatable', 'This position is not currently under the liquidation threshold.', 8000);
+                return;
+            }
+
+            const repayWei = ethers.utils.parseUnits(parseFloat(repayStr).toFixed(USDC_DECIMALS), USDC_DECIMALS);
+            const onRpcRetry = (n, max) => updateToast(toast, 'pending', 'Liquidating Position', `RPC hiccup — retrying (${n}/${max})…`);
+
+            const usdcContract = new ethers.Contract(CONTRACT_ADDRS.USDC, ERC20_ABI, signer);
+            const allowance = await withRpcRetry(() => usdcContract.allowance(currentAccount, CONTRACT_ADDRS.LendingBorrowing), { onRetry: onRpcRetry });
+            if (allowance.lt(repayWei)) {
+                updateToast(toast, 'pending', 'Liquidating Position', 'Approving USDC…');
+                const approveTx = await withRpcRetry(() => usdcContract.approve(CONTRACT_ADDRS.LendingBorrowing, ethers.constants.MaxUint256), { onRetry: onRpcRetry });
+                await withRpcRetry(() => approveTx.wait(), { onRetry: onRpcRetry });
+            }
+
+            updateToast(toast, 'pending', 'Liquidating Position', 'Waiting for wallet confirmation…');
+            const lend = new ethers.Contract(CONTRACT_ADDRS.LendingBorrowing, LEND_ABI, signer);
+            const tx = await withRpcRetry(() => lend.liquidate(borrower, repayWei), { onRetry: onRpcRetry });
+            updateToast(toast, 'pending', 'Liquidating Position', 'Confirming on-chain…');
+            await withRpcRetry(() => tx.wait(), { onRetry: onRpcRetry });
+
+            updateToast(toast, 'success', 'Position Liquidated', `Repaid ${repayStr} USDC on behalf of ${borrower}. cirBTC collateral (+bonus) sent to your wallet.`, 8000);
+            document.getElementById('adminLendLiquidateBorrower').value = '';
+            document.getElementById('adminLendLiquidateAmount').value = '';
+            await loadAdminOverview();
+        } catch (err) {
+            console.error('adminLiquidatePosition error:', err);
+            updateToast(toast, 'error', 'Liquidation Failed', friendlyTxError(err), 8000);
+        }
+    }
+
     async function adminSetTreasury() {
         const addr = adminTokenAddrInput('adminTreasuryAddr');
         if (!ethers.utils.isAddress(addr)) { showToast('error','Invalid Address','Enter a valid wallet address.'); return; }
@@ -1182,7 +1274,7 @@
         el.innerHTML = '<p class="text-gray-500 text-sm text-center py-10">Loading admin overview…</p>';
 
         let tvl = null, tokenRows = '', onChainOwner = null, isPaused = null, treasuryAddr = null, penaltyBps = null;
-        let lendOwner = null, lendCollFactor = null, lendPrice = null, lendPoolUsdc = null;
+        let lendOwner = null, lendCollFactor = null, lendPrice = null, lendPoolUsdc = null, lendThresholdPct = null, lendBonusPct = null;
         let vaultOwner = null, vaultPaused = null, vaultTreasury = null, vaultPenaltyBps = null, vaultPoolAddr = null, vaultTokenRows = '';
 
         // Status on-chain, TVL, LendingBorrowing status, status Vault, dan status
@@ -1203,15 +1295,18 @@
                 const provider = readOnlyProvider();
                 const lend = new ethers.Contract(CONTRACT_ADDRS.LendingBorrowing, LEND_ABI, provider);
                 const usdc = new ethers.Contract(CONTRACT_ADDRS.USDC, ERC20_ABI, provider);
-                const [owner, factor, price, poolBal] = await Promise.all([
+                const [owner, factor, price, poolBal, thresholdBps, bonusBps] = await Promise.all([
                     lend.owner(), lend.collateralFactor(), lend.cirBTCPriceUSDC(),
-                    usdc.balanceOf(CONTRACT_ADDRS.LendingBorrowing)
+                    usdc.balanceOf(CONTRACT_ADDRS.LendingBorrowing),
+                    lend.liquidationThresholdBps(), lend.liquidationBonusBps()
                 ]);
                 return {
                     owner,
                     factor: factor.toNumber(),
                     price: parseFloat(ethers.utils.formatUnits(price, USDC_DECIMALS)),
                     poolBal: parseFloat(ethers.utils.formatUnits(poolBal, USDC_DECIMALS)),
+                    thresholdPct: thresholdBps.toNumber() / 100,
+                    bonusPct: bonusBps.toNumber() / 100,
                 };
             })(),
             (async () => {
@@ -1269,6 +1364,8 @@
             lendCollFactor = lendResult.value.factor;
             lendPrice = lendResult.value.price;
             lendPoolUsdc = lendResult.value.poolBal;
+            lendThresholdPct = lendResult.value.thresholdPct;
+            lendBonusPct = lendResult.value.bonusPct;
         } else {
             console.error('admin lending status error:', lendResult.reason);
         }
@@ -1368,6 +1465,13 @@
             ? `<div class="mt-3 text-xs px-3 py-2 rounded-lg" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#fca5a5;">
                  ⚠ ArcenticVault's on-chain owner() is <span class="font-mono">${vaultOwner}</span> — this does NOT match the ADMIN_WALLET configured in this page.
                  Vault admin transactions will revert unless sent from the real owner wallet.
+               </div>` : '';
+
+        const lendOwnerMatches = lendOwner && isAdminWallet(lendOwner);
+        const lendOwnerWarning = lendOwner && !lendOwnerMatches
+            ? `<div class="mt-3 text-xs px-3 py-2 rounded-lg" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#fca5a5;">
+                 ⚠ LendingBorrowing's on-chain owner() is <span class="font-mono">${lendOwner}</span> — this does NOT match the ADMIN_WALLET configured in this page.
+                 setCirBTCPrice() and setLiquidationParams() will revert unless sent from the real owner wallet (e.g. the Safe).
                </div>` : '';
 
         el.innerHTML = `
@@ -1527,7 +1631,7 @@
                     <p class="text-gray-500 text-xs font-mono">Contract owner(): ${lendOwner || '—'}</p>
                     <div class="grid sm:grid-cols-3 gap-4 mt-4">
                         <div class="stat-chip">
-                            <div class="text-gray-400 text-xs mb-1">Collateral factor</div>
+                            <div class="text-gray-400 text-xs mb-1">Collateral factor (max borrow)</div>
                             <div class="text-xl font-black">${lendCollFactor === null ? '—' : lendCollFactor + '%'}</div>
                         </div>
                         <div class="stat-chip">
@@ -1538,19 +1642,58 @@
                             <div class="text-gray-400 text-xs mb-1">Pool USDC liquidity</div>
                             <div class="text-xl font-black">${lendPoolUsdc === null ? '—' : lendPoolUsdc.toLocaleString(undefined,{maximumFractionDigits:2})}</div>
                         </div>
+                        <div class="stat-chip">
+                            <div class="text-gray-400 text-xs mb-1">Liquidation threshold</div>
+                            <div class="text-xl font-black">${lendThresholdPct === null ? '—' : lendThresholdPct + '%'}</div>
+                        </div>
+                        <div class="stat-chip">
+                            <div class="text-gray-400 text-xs mb-1">Liquidation bonus</div>
+                            <div class="text-xl font-black">${lendBonusPct === null ? '—' : lendBonusPct + '%'}</div>
+                        </div>
                     </div>
                     <div class="mt-3 text-xs px-3 py-2 rounded-lg" style="background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);color:#fde68a;">
-                        ⚠ Heads up: <code>collateralFactor</code> and <code>cirBTCPriceUSDC</code> are fixed at deploy time —
-                        the deployed contract has no setter function for either, so they can't be changed from this panel (or at all) right now.
-                        <code>fundPool()</code> also has no <code>onlyOwner</code> guard in the contract — any wallet can call it, not just the owner.
+                        ⚠ Heads up: <code>collateralFactor</code> is still fixed at deploy time (no setter). <code>cirBTCPriceUSDC</code>,
+                        <code>liquidationThresholdBps</code>, and <code>liquidationBonusBps</code> CAN now be changed by the owner using the forms below.
+                        This is a manual price, not an oracle — it only updates when someone with owner access calls setCirBTCPrice().
+                        <code>fundPool()</code> still has no <code>onlyOwner</code> guard in the contract — any wallet can call it, not just the owner.
                     </div>
+                    ${lendOwnerWarning}
                 </div>
 
-                <div class="glass rounded-3xl p-5 sm:p-8">
+                <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
+                    <h3 class="text-lg font-black mb-4">Update cirBTC price</h3>
+                    <p class="text-xs text-gray-400 mb-2">Manual price (not an oracle). Contract enforces a max ±20% move per call — a bigger jump reverts on-chain.</p>
+                    <input id="adminLendPriceInput" type="number" placeholder="New price in USDC (e.g. 68000)" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                    <button onclick="adminSetCirBTCPrice()" class="token-select-btn tok-active w-full">Update Price</button>
+                </div>
+
+                <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
+                    <h3 class="text-lg font-black mb-4">Update liquidation parameters</h3>
+                    <p class="text-xs text-gray-400 mb-2">Threshold must stay above the collateral factor (${lendCollFactor === null ? '—' : lendCollFactor + '%'}). Bonus is hard-capped at 20% by the contract.</p>
+                    <div class="grid sm:grid-cols-2 gap-2 mb-2">
+                        <input id="adminLendThresholdInput" type="number" step="0.01" placeholder="Threshold % (e.g. 75)" class="px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                        <input id="adminLendBonusInput" type="number" step="0.01" placeholder="Bonus % (e.g. 5)" class="px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                    </div>
+                    <button onclick="adminSetLiquidationParams()" class="token-select-btn tok-active w-full">Update Liquidation Params</button>
+                </div>
+
+                <div class="glass rounded-3xl p-5 sm:p-8 mb-6">
                     <h3 class="text-lg font-black mb-4">Fund lending pool</h3>
                     <p class="text-xs text-gray-400 mb-2">Top up USDC liquidity so users have something to borrow against their cirBTC collateral.</p>
                     <input id="adminLendFundAmount" type="number" placeholder="Amount (USDC)" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
                     <button onclick="adminFundLendingPool()" class="token-select-btn tok-active w-full">Fund Pool</button>
+                </div>
+
+                <div class="glass rounded-3xl p-5 sm:p-8">
+                    <h3 class="text-lg font-black mb-4">Liquidate an under-water position</h3>
+                    <p class="text-xs text-gray-400 mb-2">
+                        ⚠ Open to ANY connected wallet, not just the owner — <code>liquidate()</code> has no access control in the
+                        contract. Repaying part of a liquidatable borrower's debt earns you their cirBTC collateral plus a
+                        ${lendBonusPct === null ? '—' : lendBonusPct + '%'} bonus.
+                    </p>
+                    <input id="adminLendLiquidateBorrower" type="text" placeholder="Borrower address (0x...)" class="w-full mb-2 px-3 py-2 rounded-lg text-sm font-mono" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                    <input id="adminLendLiquidateAmount" type="number" placeholder="USDC amount to repay" class="w-full mb-2 px-3 py-2 rounded-lg text-sm" style="background:rgba(255,255,255,.04);border:1px solid rgba(92,120,255,.2);color:#fff;">
+                    <button onclick="adminLiquidatePosition()" class="token-select-btn tok-active w-full">Check & Liquidate</button>
                 </div>
             </div>
 
@@ -5196,6 +5339,14 @@
         'function cirBTCPriceUSDC() view returns (uint256)',
         'function owner() view returns (address)',
         'function fundPool(uint256 amount)',
+        // ── Ditambahkan setelah kontrak upgrade ke Ownable2Step + liquidation ──
+        'function setCirBTCPrice(uint256 _newPrice)',
+        'function setLiquidationParams(uint256 _thresholdBps, uint256 _bonusBps)',
+        'function liquidationThresholdBps() view returns (uint256)',
+        'function liquidationBonusBps() view returns (uint256)',
+        'function isLiquidatable(address borrower) view returns (bool)',
+        'function collateralValueOf(address borrower) view returns (uint256)',
+        'function liquidate(address borrower, uint256 repayAmount)',
     ];
 
     const CIRBTC_ABI = [
