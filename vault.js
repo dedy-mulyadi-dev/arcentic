@@ -176,7 +176,16 @@
         return d + (d === 1 ? ' day' : ' days');
     }
 
-    function fmtApr(bps) { return (bps / 100).toString().replace(/\.?0+$/, '') + '%'; }
+    function fmtApr(bps) {
+        var s = (bps / 100).toString();
+        // Hanya potong trailing zero SETELAH tanda titik desimal (mis. "4.50" -> "4.5"),
+        // jangan pernah potong digit 0 yang merupakan bagian dari bilangan bulat
+        // (mis. "0" harus tetap "0", "10" harus tetap "10", bukan "1").
+        if (s.indexOf('.') !== -1) {
+            s = s.replace(/0+$/, '').replace(/\.$/, '');
+        }
+        return s + '%';
+    }
 
     function fmtDate(unixSeconds) {
         return new Date(unixSeconds * 1000).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
