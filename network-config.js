@@ -96,34 +96,47 @@
         // (docs.arc.io/arc/references/contract-addresses — halaman itu sendiri
         // saat ini bilang "Mainnet addresses are not yet available").
         mainnet: {
-            chainIdHex: null,      // TODO: isi setelah Arc umumkan chain ID mainnet
-            chainIdDec: null,
+            // ── Diisi 16 Sep 2026 dari docs.arc.io/arc/references/contract-addresses
+            // dan /arc/references/rpc-endpoints (dicek langsung, bukan dari cache/pihak
+            // ketiga). RPC dikonfirmasi TERBUKA tanpa kredensial via eth_blockNumber
+            // (hasil: block 0x142b447 = 21,148,743), meski docs masih menyebut fase
+            // "private mainnet" — jangan kaget kalau suatu saat butuh API key, cek lagi
+            // docs.arc.io kalau RPC ini berhenti merespons.
+            chainIdHex: '0x13B2',
+            chainIdDec: 5042,
             chainName: 'Arc Mainnet',
-            rpcUrls: [],           // TODO
-            rpcUrlFallback: null,  // TODO
+            rpcUrls: [
+                'https://rpc.mainnet.arc.io'
+            ],
+            rpcUrlFallback: 'https://rpc.mainnet.arc.io',
             nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
-            blockExplorerUrls: [], // TODO: block explorer mainnet (kemungkinan besar bukan testnet.arcscan.app)
-            explorerUrl: null,
+            blockExplorerUrls: ['https://explorer.arc.io/'],
+            explorerUrl: 'https://explorer.arc.io',
 
             cctp: {
-                domain: null,      // TODO: cek apakah domain CCTP 26 tetap sama di mainnet
-                usdc: null,
-                tokenMessenger: null,
-                messageTransmitter: null
+                domain: 26,
+                usdc: '0x3600000000000000000000000000000000000000',
+                tokenMessenger: '0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d',
+                messageTransmitter: '0x81D40F21F12A8F0E3252Bccb954D722d4c464B64'
             },
 
-            attestationApi: null,  // TODO: ganti dari -sandbox ke endpoint production Iris
+            // TODO: ganti dari -sandbox ke endpoint production Iris — belum
+            // diverifikasi, JANGAN tebak, cek docs.arc.io / developers.circle.com dulu.
+            attestationApi: null,
 
             contracts: {
-                // TODO: isi setelah redeploy masing-masing kontrak ke mainnet.
-                // Constructor semua kontrak ARCENTIC sudah menerima address
-                // sebagai parameter (bukan hardcoded), jadi redeploy tidak
-                // perlu ubah kode Solidity — cukup jalankan deployment script
-                // dengan constructor args yang sesuai environment mainnet.
+                // Alamat resmi Circle — sudah pasti benar, sumber: docs.arc.io.
+                USDC : '0x3600000000000000000000000000000000000000',
+                EURC : '0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1',
+
+                // TODO: isi setelah redeploy masing-masing kontrak milik ARCENTIC
+                // sendiri ke mainnet. Constructor semua kontrak sudah menerima
+                // address sebagai parameter (bukan hardcoded), jadi redeploy
+                // tidak perlu ubah kode Solidity.
+                // USDT & cirBTC: PUTUSKAN dulu — pakai token asli (kalau ada di
+                // Arc mainnet) atau mock buatan sendiri yang di-redeploy ulang.
                 ArcenticMultiPool : null,
                 CENTIC            : null,
-                USDC              : null,
-                EURC              : null,
                 USDT              : null,
                 cirBTC            : null,
                 LendingBorrowing  : null,
