@@ -33,10 +33,13 @@
             chainName: 'Arc Testnet',
             rpcUrls: [
                 // RPC_PROXY_URL diisi runtime oleh app.js (origin-relative /api/rpc)
-                'https://rpc.testnet.arc.network',
+                // Migrasi 8 Okt 2026: arc.network -> arc.io (URL lama dihapus 15 Okt 2026,
+                // lihat status.arc.io). Sumber URL: docs.arc.io/arc/references/rpc-endpoints
+                'https://rpc.testnet.arc.io',
+                'https://rpc.drpc.testnet.arc.io',
                 'https://arc-testnet.drpc.org'
             ],
-            rpcUrlFallback: 'https://rpc.testnet.arc.network',
+            rpcUrlFallback: 'https://rpc.drpc.testnet.arc.io',
             nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
             blockExplorerUrls: ['https://testnet.arcscan.app/'],
             explorerUrl: 'https://testnet.arcscan.app',
