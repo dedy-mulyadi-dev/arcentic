@@ -12,7 +12,7 @@
 require('dotenv').config();
 const { ethers } = require('ethers');
 
-const RPC_URL = process.env.TESTNET_RPC_URL || 'https://rpc.testnet.arc.network';
+const RPC_URL = process.env.TESTNET_RPC_URL || 'https://rpc.testnet.arc.io';
 const CHAIN_ID = 5042002;
 const NEW_POOL = '0x4d3f5801304E13d243ec898Bb129d96eC7B1b2d9';
 const USDC = '0x3600000000000000000000000000000000000000';

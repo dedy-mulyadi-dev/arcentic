@@ -19,7 +19,7 @@
       itu wallet disposable, tidak punya LP position apapun di pool ini):
 
         OWNER_PRIVATE_KEY=0x...   (private key Account 16)
-        TESTNET_RPC_URL=https://rpc.testnet.arc.network
+        TESTNET_RPC_URL=https://rpc.testnet.arc.io
 
    2. node migrate-liquidity.js
 
@@ -30,7 +30,7 @@
 require('dotenv').config();
 const { ethers } = require('ethers');
 
-const RPC_URL = process.env.TESTNET_RPC_URL || 'https://rpc.testnet.arc.network';
+const RPC_URL = process.env.TESTNET_RPC_URL || 'https://rpc.testnet.arc.io';
 const RPC_FALLBACK = 'https://arc-testnet.drpc.org';
 const CHAIN_ID = 5042002;
 

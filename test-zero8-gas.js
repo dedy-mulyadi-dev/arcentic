@@ -15,14 +15,14 @@
    1. npm install ethers dotenv --save
    2. Buat file .env di folder yang sama:
         TESTNET_PRIVATE_KEY=0x...   (wallet testnet, JANGAN wallet mainnet)
-        TESTNET_RPC_URL=https://rpc.testnet.arc.network
+        TESTNET_RPC_URL=https://rpc.testnet.arc.io
    3. node test-zero8-gas.js
    ══════════════════════════════════════════════════════════════════════════ */
 require('dotenv').config();
 const { ethers } = require('ethers');
 
 // ── Konfigurasi dari network-config.js kamu ────────────────────────────────
-const RPC_URL = process.env.TESTNET_RPC_URL || 'https://rpc.testnet.arc.network';
+const RPC_URL = process.env.TESTNET_RPC_URL || 'https://rpc.testnet.arc.io';
 const RPC_FALLBACK = 'https://arc-testnet.drpc.org';
 const CHAIN_ID = 5042002; // 0x4CEF52
 
