@@ -528,7 +528,7 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"ARCENTIC.sol": "ARCENTIC"
+			"contracts/ARCENTIC.sol": "ARCENTIC"
 		},
 		"evmVersion": "osaka",
 		"libraries": {},
@@ -536,7 +536,7 @@
 			"bytecodeHash": "ipfs"
 		},
 		"optimizer": {
-			"enabled": true,
+			"enabled": false,
 			"runs": 200
 		},
 		"remappings": []
@@ -590,7 +590,7 @@
 				"dweb:/ipfs/Qmax9WHBnVsZP46ZxEMNRQpLQnrdE4dK8LehML1Py8FowF"
 			]
 		},
-		"ARCENTIC.sol": {
+		"contracts/ARCENTIC.sol": {
 			"keccak256": "0xc18ae27fd46600be0a6f6e66b60095671a94781e84aa71ba0a6bade4ef934078",
 			"license": "MIT",
 			"urls": [

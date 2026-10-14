@@ -9,6 +9,11 @@
 				"inputs": [
 					{
 						"internalType": "address",
+						"name": "_owner",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
 						"name": "_cirBTC",
 						"type": "address"
 					},
@@ -20,6 +25,155 @@
 				],
 				"stateMutability": "nonpayable",
 				"type": "constructor"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "owner",
+						"type": "address"
+					}
+				],
+				"name": "OwnableInvalidOwner",
+				"type": "error"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "account",
+						"type": "address"
+					}
+				],
+				"name": "OwnableUnauthorizedAccount",
+				"type": "error"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": false,
+						"internalType": "uint256",
+						"name": "oldPrice",
+						"type": "uint256"
+					},
+					{
+						"indexed": false,
+						"internalType": "uint256",
+						"name": "newPrice",
+						"type": "uint256"
+					}
+				],
+				"name": "CirBTCPriceUpdated",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "borrower",
+						"type": "address"
+					},
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "liquidator",
+						"type": "address"
+					},
+					{
+						"indexed": false,
+						"internalType": "uint256",
+						"name": "debtRepaid",
+						"type": "uint256"
+					},
+					{
+						"indexed": false,
+						"internalType": "uint256",
+						"name": "collateralSeized",
+						"type": "uint256"
+					}
+				],
+				"name": "Liquidated",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": false,
+						"internalType": "uint256",
+						"name": "thresholdBps",
+						"type": "uint256"
+					},
+					{
+						"indexed": false,
+						"internalType": "uint256",
+						"name": "bonusBps",
+						"type": "uint256"
+					}
+				],
+				"name": "LiquidationParamsUpdated",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "previousOwner",
+						"type": "address"
+					},
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "newOwner",
+						"type": "address"
+					}
+				],
+				"name": "OwnershipTransferStarted",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "previousOwner",
+						"type": "address"
+					},
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "newOwner",
+						"type": "address"
+					}
+				],
+				"name": "OwnershipTransferred",
+				"type": "event"
+			},
+			{
+				"inputs": [],
+				"name": "MAX_PRICE_MOVE_BPS",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "acceptOwnership",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
 			},
 			{
 				"inputs": [],
@@ -82,6 +236,25 @@
 			{
 				"inputs": [
 					{
+						"internalType": "address",
+						"name": "borrower",
+						"type": "address"
+					}
+				],
+				"name": "collateralValueOf",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
 						"internalType": "uint256",
 						"name": "amount",
 						"type": "uint256"
@@ -103,6 +276,69 @@
 				"name": "fundPool",
 				"outputs": [],
 				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "borrower",
+						"type": "address"
+					}
+				],
+				"name": "isLiquidatable",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "borrower",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "repayAmount",
+						"type": "uint256"
+					}
+				],
+				"name": "liquidate",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "liquidationBonusBps",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "liquidationThresholdBps",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
 				"type": "function"
 			},
 			{
@@ -148,6 +384,26 @@
 				"type": "function"
 			},
 			{
+				"inputs": [],
+				"name": "pendingOwner",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "renounceOwnership",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
 				"inputs": [
 					{
 						"internalType": "uint256",
@@ -164,11 +420,55 @@
 				"inputs": [
 					{
 						"internalType": "uint256",
+						"name": "_newPrice",
+						"type": "uint256"
+					}
+				],
+				"name": "setCirBTCPrice",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "_thresholdBps",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "_bonusBps",
+						"type": "uint256"
+					}
+				],
+				"name": "setLiquidationParams",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
 						"name": "amount",
 						"type": "uint256"
 					}
 				],
 				"name": "takeLoan",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "newOwner",
+						"type": "address"
+					}
+				],
+				"name": "transferOwnership",
 				"outputs": [],
 				"stateMutability": "nonpayable",
 				"type": "function"
@@ -201,19 +501,79 @@
 			}
 		],
 		"devdoc": {
+			"errors": {
+				"OwnableInvalidOwner(address)": [
+					{
+						"details": "The owner is not a valid owner account. (eg. `address(0)`)"
+					}
+				],
+				"OwnableUnauthorizedAccount(address)": [
+					{
+						"details": "The caller account is not authorized to perform an operation."
+					}
+				]
+			},
 			"kind": "dev",
-			"methods": {},
+			"methods": {
+				"acceptOwnership()": {
+					"details": "The new owner accepts the ownership transfer."
+				},
+				"liquidate(address,uint256)": {
+					"params": {
+						"borrower": "Alamat peminjam yang posisinya under-water.",
+						"repayAmount": "Jumlah USDC utang yang mau dilunasi oleh liquidator        (boleh sebagian, tidak harus melunasi seluruh utang sekaligus)."
+					}
+				},
+				"owner()": {
+					"details": "Returns the address of the current owner."
+				},
+				"pendingOwner()": {
+					"details": "Returns the address of the pending owner."
+				},
+				"renounceOwnership()": {
+					"details": "Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner."
+				},
+				"transferOwnership(address)": {
+					"details": "Starts the ownership transfer of the contract to a new account. Replaces the pending transfer if there is one. Can only be called by the current owner."
+				}
+			},
 			"version": 1
 		},
 		"userdoc": {
 			"kind": "user",
-			"methods": {},
+			"methods": {
+				"MAX_PRICE_MOVE_BPS()": {
+					"notice": "Batas maksimum perubahan harga per panggilan setCirBTCPrice(),         dalam basis points dari harga saat ini. 2000 = maksimum ±20%."
+				},
+				"collateralValueOf(address)": {
+					"notice": "Nilai collateral (dalam USDC, 6 desimal) milik `borrower` pada         harga cirBTC saat ini."
+				},
+				"isLiquidatable(address)": {
+					"notice": "True kalau rasio utang/nilai-collateral borrower sudah melewati         liquidationThresholdBps — artinya posisi ini boleh dilikuidasi."
+				},
+				"liquidate(address,uint256)": {
+					"notice": "Siapapun boleh memanggil ini untuk melunasi sebagian/seluruh         utang `borrower` yang sudah liquidatable, dan sebagai gantinya         menerima collateral cirBTC senilai utang yang dilunasi + bonus."
+				},
+				"liquidationBonusBps()": {
+					"notice": "Bonus (bps dari collateral yang disita) yang diterima         liquidator sebagai insentif melakukan liquidate()."
+				},
+				"liquidationThresholdBps()": {
+					"notice": "Rasio utang/nilai-collateral (bps) di atas mana posisi bisa         dilikuidasi. Harus > collateralFactor supaya ada ruang aman         antara \"batas pinjam\" dan \"batas liquidatable\"."
+				},
+				"setCirBTCPrice(uint256)": {
+					"notice": "Update harga cirBTC dalam USDC (6 desimal). Dibatasi ±20% per         panggilan sebagai sanity guard — kalau harga riil bergerak         lebih jauh dari itu, panggil beberapa kali atau naikkan         MAX_PRICE_MOVE_BPS lewat redeploy (bukan lewat fungsi ini)."
+				},
+				"setLiquidationParams(uint256,uint256)": {
+					"notice": "Ubah ambang liquidation / bonus. thresholdBps HARUS lebih besar         dari collateralFactor*100 (mis. collateralFactor=50 -> minimal 5001)         supaya posisi yang baru dibuka tidak langsung liquidatable."
+				}
+			},
+			"notice": "CATATAN PATCH (baca sebelum deploy mainnet): 1. Kontrak lama punya `address public owner` tapi TIDAK PERNAH DIPAKAI —    tidak ada modifier onlyOwner, tidak ada satupun fungsi admin. Ini bug    tersembunyi: tidak ada cara mengubah parameter apapun setelah deploy.    Sudah saya ganti ke Ownable2Step (sama seperti kontrak staking kamu)    supaya ada kontrol admin yang nyata. 2. cirBTCPriceUSDC sekarang bisa diupdate via setCirBTCPrice(), dibatasi    onlyOwner, dengan sanity bound (tidak boleh 0 dan tidak boleh melompat    lebih dari MAX_PRICE_MOVE_BPS dalam satu kali update) supaya owner    yang keliru input atau key yang dicuri tidak bisa langsung set harga    absurd (misal ke 1) dan membuka pinjaman tak terbatas dalam satu tx. 3. INI BUKAN ORACLE — ini cuma harga manual yang owner update sendiri.    Kalau owner lupa/telat update saat harga BTC riil bergerak jauh,    kontrak ini tetap salah hitung collateral value. Untuk mainnet    sungguhan, ganti ini dengan Chainlink price feed (atau oracle lain)    sebelum ada uang sungguhan masuk — ini cuma menutup lubang \"tidak    bisa diubah sama sekali\", bukan menutup lubang \"butuh oracle asli\". 4. Liquidation mechanism sudah ditambahkan (lihat liquidate() di bawah).    Aturannya: collateralFactor (50%) adalah batas MAX BORROW saat buka    pinjaman baru. liquidationThresholdBps (75%) adalah batas BERBEDA —    kalau rasio pinjaman/nilai-collateral naik melewati 75% (karena harga    cirBTC turun, atau owner update harga turun), SIAPAPUN boleh panggil    liquidate() untuk melunasi sebagian/seluruh utang itu dan menerima    collateral senilai utang yang dilunasi + bonus 5%. Ini insentif    ekonomi supaya posisi under-water dibersihkan otomatis oleh pihak    ketiga, bukan menunggu owner bertindak manual.    ⚠️ Ini tetap bergantung pada cirBTCPriceUSDC yang akurat. Kalau owner    telat update harga turun, posisi yang sebenarnya sudah under-water    di harga riil tidak akan terlihat \"liquidatable\" oleh kontrak sampai    harga di-update. Oracle asli (Chainlink) menyelesaikan ini secara    otomatis — harga manual tidak. 5. TIDAK saya ubah: transfer/transferFrom masih interface manual, bukan    SafeERC20 — token yang return false alih-alih revert bisa gagal diam-diam.",
 			"version": 1
 		}
 	},
 	"settings": {
 		"compilationTarget": {
-			"ArcenticLendingBorrowing.sol": "LendingBorrowing"
+			"contracts/ArcenticLendingBorrowing.sol": "LendingBorrowing"
 		},
 		"evmVersion": "osaka",
 		"libraries": {},
@@ -227,12 +587,44 @@
 		"remappings": []
 	},
 	"sources": {
-		"ArcenticLendingBorrowing.sol": {
-			"keccak256": "0x6e1121d915332c678b9cad6787dd45eb644392474ed943ad9086638c56cb48f7",
+		"@openzeppelin/contracts@5.0.2/access/Ownable.sol": {
+			"keccak256": "0xff6d0bb2e285473e5311d9d3caacb525ae3538a80758c10649a4d61029b017bb",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://6017cfd3239aa21540c263b5d6b56815c0fca35319602efd99e2b8bd6a9ea5f9",
-				"dweb:/ipfs/QmcdwTmE46SVq2hL3UbkvMHN59YVq83McLffpxx6HV6UvK"
+				"bzz-raw://8ed324d3920bb545059d66ab97d43e43ee85fd3bd52e03e401f020afb0b120f6",
+				"dweb:/ipfs/QmfEckWLmZkDDcoWrkEvMWhms66xwTLff9DDhegYpvHo1a"
+			]
+		},
+		"@openzeppelin/contracts@5.0.2/access/Ownable2Step.sol": {
+			"keccak256": "0x5d3e5de9eadfa1f8a892eb2e95bbebd3e4b8c8ada5b76f104d383fea518fa688",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://cde108962511e6a4d3cfb7b6fb6a36bdcfa300761c17dad2d7dd87d4f8117b48",
+				"dweb:/ipfs/Qmf7YxUVK68JedWybWfXvzLCegsD95DtGc3mbpEWkWSMm8"
+			]
+		},
+		"@openzeppelin/contracts@5.0.2/token/ERC20/IERC20.sol": {
+			"keccak256": "0xc6a8ff0ea489379b61faa647490411b80102578440ab9d84e9a957cc12164e70",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://0ea104e577e63faea3b69c415637e99e755dcbf64c5833d7140c35a714d6d90c",
+				"dweb:/ipfs/Qmau6x4Ns9XdyynRCNNp3RhLqijJjFm7z5fyZazfYFGYdq"
+			]
+		},
+		"@openzeppelin/contracts@5.0.2/utils/Context.sol": {
+			"keccak256": "0x493033a8d1b176a037b2cc6a04dad01a5c157722049bbecf632ca876224dd4b2",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://6a708e8a5bdb1011c2c381c9a5cfd8a9a956d7d0a9dc1bd8bcdaf52f76ef2f12",
+				"dweb:/ipfs/Qmax9WHBnVsZP46ZxEMNRQpLQnrdE4dK8LehML1Py8FowF"
+			]
+		},
+		"contracts/ArcenticLendingBorrowing.sol": {
+			"keccak256": "0x4d1ca0e93e0fb967147b2b0a95c2c0731a390f3cd81b815e63d79c68d7d27053",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://85b4d7b17f3a39903249b76345e53cce1b4fad026317e834ec58278b6dc13a8e",
+				"dweb:/ipfs/QmYETAdyFnNxvaGPQCAnM2mRiy7hJYZX2hsUVdxCZeYcVK"
 			]
 		}
 	},

@@ -1217,7 +1217,7 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"ArcenticStakingMultiToken.sol": "ArcenticStakingMultiToken"
+			"contracts/ArcenticStakingMultiToken.sol": "ArcenticStakingMultiToken"
 		},
 		"evmVersion": "osaka",
 		"libraries": {},
@@ -1295,7 +1295,7 @@
 				"dweb:/ipfs/QmawrZ4voKQjH3oomXT3Kuheb3Mnmo2VvVpxg8Ne5UJUrd"
 			]
 		},
-		"ArcenticStakingMultiToken.sol": {
+		"contracts/ArcenticStakingMultiToken.sol": {
 			"keccak256": "0x5e6009c2b37d50b8347a68f42126e13f8e5c0cd23479d11b4e99fcaf9fce13e4",
 			"license": "MIT",
 			"urls": [

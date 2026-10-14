@@ -325,6 +325,11 @@
 
     // ── Init / open view ────────────────────────────────────────────────
     window.showVault = function () {
+        /* ARCENTIC-FIX vault-gate */
+        if (!VAULT_CONFIG.address) {
+            if (window.showToast) window.showToast('info', 'Coming Soon', 'Vault belum aktif di mainnet.');
+            return;
+        }
         document.getElementById('vaultView').classList.add('open');
         if (!inited) {
             inited = true;
@@ -369,7 +374,7 @@
             { provider: publicProvider, priority: 2, weight: 1, stallTimeout: 2500 }
         ], 1);
         readProvider.polling = false;
-        vaultRO = new ethers.Contract(VAULT_CONFIG.address, VAULT_ABI, readProvider);
+        vaultRO = VAULT_CONFIG.address ? new ethers.Contract(VAULT_CONFIG.address, VAULT_ABI, readProvider) : null;
 
         const backBtn = document.querySelector('.vault-back-btn');
         if (backBtn) backBtn.addEventListener('click', function () {

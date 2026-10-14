@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panduan Perbaikan & Tes ARCENTIC</title>
+<style>
+:root{--bg:#0b0f1f;--card:#111733;--line:#26305e;--txt:#e6e9ff;--mut:#8f9ac8;--acc:#7c93ff;--ok:#22c55e;--warn:#f59e0b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.55 Inter,system-ui,sans-serif;padding:20px}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:1.5rem;margin:0 0 4px}
+.sub{color:var(--mut);margin:0 0 20px}
+.note{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);color:#fde68a;border-radius:12px;padding:12px 14px;margin-bottom:20px;font-size:.88rem}
+.step{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px}
+.step h2{font-size:1.05rem;margin:0 0 4px;display:flex;gap:10px;align-items:center}
+.num{background:linear-gradient(135deg,#3478ff,#8b5cf6);border-radius:50%;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:800;flex-shrink:0}
+.hint{color:var(--mut);font-size:.85rem;margin:0 0 10px}
+.cmd{position:relative;margin:8px 0}
+pre{margin:0;background:#070b1a;border:1px solid var(--line);border-radius:10px;padding:12px 76px 12px 14px;overflow-x:auto;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;color:#c7d0ff;white-space:pre}
+button.copy{position:absolute;top:8px;right:8px;background:rgba(124,147,255,.15);border:1px solid rgba(124,147,255,.4);color:#fff;border-radius:8px;padding:5px 10px;font-size:.75rem;cursor:pointer}
+button.copy:hover{background:rgba(124,147,255,.3)}
+button.copy.done{background:rgba(34,197,94,.25);border-color:rgba(34,197,94,.6)}
+.tag{font-size:.7rem;color:var(--mut);margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Panduan Perbaikan &amp; Tes ARCENTIC</h1>
+<p class="sub">Jalankan berurutan di terminal VS Code (Ctrl + ` ), posisi folder = folder proyek. Berlaku untuk PowerShell, CMD, maupun bash.</p>
+<div class="note">Dua file ini harus ada di folder proyek, sejajar dengan <b>app.js</b>: <b>fix-arcentic.js</b> dan <b>check-arcentic.js</b>. Perintah di bawah memakai Node, jadi tidak bergantung pada sed/bash.</div>
+<div id="steps"></div>
+</div>
+
+<script>
+var STEPS = [
+ {t:"Cek Node", h:"Harus versi 18 ke atas.", c:["node -v"]},
+ {t:"Lihat kondisi awal (sebelum perbaikan)", h:"Simpan hasilnya sebagai pembanding.", c:["node check-arcentic.js"]},
+ {t:"Terapkan perbaikan otomatis", h:"Backup otomatis dibuat sebagai app.js.bak dan vault.js.bak.", c:["node fix-arcentic.js"]},
+ {t:"Cek syntax", h:"Harus tidak ada error.", c:["node --check network-config.js","node --check app.js","node --check vault.js"]},
+ {t:"Jalankan situs lokal", h:"Buka http://localhost:3000, lalu tekan F12 dan buka tab Console.", c:["npx serve ."]},
+ {t:"Tes live di browser", h:"Tempel di Console. Hasilnya mencetak kontrak null, fungsi hilang, elemen hilang, kurs swap, dan perilaku Vault.", c:[
+"(async () => {\n  const C = window.ARCENTIC_NETWORK_CONFIG;\n  console.log('Network aktif:', window.ARCENTIC_NETWORK, '| chainId', C.chainIdDec);\n  console.table(Object.entries(C.contracts).map(([k, v]) => ({ kontrak: k, alamat: v, status: v ? 'terisi' : 'NULL' })));\n  console.log('attestationApi:', C.attestationApi);\n  console.log('typeof connectWallet:', typeof connectWallet);\n  console.log('elemen depositPreviewAmt:', document.getElementById('depositPreviewAmt'));\n  console.log('elemen borrowPreviewAmt:', document.getElementById('borrowPreviewAmt'));\n  console.log('Teks Chain ID di Portfolio:', document.querySelector('#pfConnected .stat-chip .font-bold')?.textContent);\n  const rpc = new ethers.providers.StaticJsonRpcProvider(C.rpcUrls[0], C.chainIdDec);\n  for (const [k, v] of Object.entries(C.contracts)) {\n    if (!v) continue;\n    const code = await rpc.getCode(v);\n    console.log(k, code === '0x' ? 'TIDAK ADA KONTRAK' : 'ada kontrak');\n  }\n  document.getElementById('swapFromAmt').value = 1; calcSwapOut();\n  await new Promise(r => setTimeout(r, 2500));\n  console.log('Kurs swap tampil:', document.getElementById('swapRate').textContent, '| output:', document.getElementById('swapToAmt').value);\n  showVault();\n  await new Promise(r => setTimeout(r, 3000));\n  console.log('Picker Vault:', document.getElementById('vaultTokenPicker').textContent);\n  document.querySelector('.vault-back-btn').click();\n  await new Promise(r => setTimeout(r, 300));\n  console.log('Vault masih terbuka setelah klik back?', document.getElementById('vaultView').classList.contains('open'));\n  document.getElementById('vaultView').classList.remove('open');\n})();"
+ ]},
+ {t:"Tes situs yang sudah online", h:"Ganti URL dengan domain Vercel-mu. Mengecek /api/rpc dan apakah /api/tavily, /api/groq terbuka tanpa auth.", c:["node check-arcentic.js https://NAMA-PROYEKMU.vercel.app"]},
+ {t:"OPSIONAL: kembali ke testnet", h:"Hanya kalau memang mau meninjau di testnet (semua kontrak testnet-mu lengkap). Tanpa langkah ini, tetap mainnet.", c:["node fix-arcentic.js testnet","node check-arcentic.js","npm run verify-lock"]},
+ {t:"Git: cek, commit, push", h:"Sengaja add file satu-satu supaya file .bak tidak ikut ter-push.", c:["git status","git add app.js vault.js network-config.js","git commit -m \"fix: connectWallet, vault overlay, preview ids, bridge guard di mainnet\"","git branch --show-current","git push"]},
+ {t:"Cek hasil push", h:"Vercel auto-deploy setelah push. Ulangi langkah tes situs online setelah deploy selesai.", c:["git log -1 --oneline","git status"]},
+ {t:"Batalkan perubahan (kalau ada yang rusak)", h:"Pakai ini hanya SEBELUM commit. Kalau sudah commit, pakai git revert.", c:["git checkout -- app.js vault.js network-config.js"]},
+ {t:"Batalkan commit terakhir yang sudah di-push", h:"Membuat commit pembatal, tidak menghapus riwayat.", c:["git revert HEAD --no-edit","git push"]}
+];
+var root = document.getElementById('steps');
+STEPS.forEach(function(s,i){
+  var d = document.createElement('div'); d.className='step';
+  var h = document.createElement('h2'); h.innerHTML='<span class="num">'+(i+1)+'</span>';
+  h.appendChild(document.createTextNode(s.t)); d.appendChild(h);
+  var p = document.createElement('p'); p.className='hint'; p.textContent=s.h; d.appendChild(p);
+  s.c.forEach(function(cmd){
+    var w=document.createElement('div'); w.className='cmd';
+    var pre=document.createElement('pre'); pre.textContent=cmd; w.appendChild(pre);
+    var b=document.createElement('button'); b.className='copy'; b.textContent='Salin';
+    b.onclick=function(){
+      var done=function(){b.textContent='Tersalin';b.classList.add('done');setTimeout(function(){b.textContent='Salin';b.classList.remove('done');},1500);};
+      if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(cmd).then(done);}
+      else{var ta=document.createElement('textarea');ta.value=cmd;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();done();}
+    };
+    w.appendChild(b); d.appendChild(w);
+  });
+  root.appendChild(d);
+});
+</script>
+</body>
+</html>

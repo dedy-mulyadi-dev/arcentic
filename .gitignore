@@ -26,3 +26,4 @@ artifacts/build-info/
 # Sisa proses build/workspace Remix atau tool lain
 contracts/.deps/
 contracts/.workspaces/
+*.bak

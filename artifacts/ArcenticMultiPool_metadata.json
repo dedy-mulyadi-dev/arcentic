@@ -6,9 +6,82 @@
 	"output": {
 		"abi": [
 			{
-				"inputs": [],
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "_owner",
+						"type": "address"
+					}
+				],
 				"stateMutability": "nonpayable",
 				"type": "constructor"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "owner",
+						"type": "address"
+					}
+				],
+				"name": "OwnableInvalidOwner",
+				"type": "error"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "account",
+						"type": "address"
+					}
+				],
+				"name": "OwnableUnauthorizedAccount",
+				"type": "error"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "previousOwner",
+						"type": "address"
+					},
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "newOwner",
+						"type": "address"
+					}
+				],
+				"name": "OwnershipTransferStarted",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "previousOwner",
+						"type": "address"
+					},
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "newOwner",
+						"type": "address"
+					}
+				],
+				"name": "OwnershipTransferred",
+				"type": "event"
+			},
+			{
+				"inputs": [],
+				"name": "acceptOwnership",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
 			},
 			{
 				"inputs": [
@@ -84,6 +157,19 @@
 				"type": "function"
 			},
 			{
+				"inputs": [],
+				"name": "pendingOwner",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
 				"inputs": [
 					{
 						"internalType": "address",
@@ -97,6 +183,19 @@
 					}
 				],
 				"name": "removeLiquidity",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "amountWithdrawn",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "renounceOwnership",
 				"outputs": [],
 				"stateMutability": "nonpayable",
 				"type": "function"
@@ -136,6 +235,11 @@
 						"internalType": "uint256",
 						"name": "_amountIn",
 						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "_minAmountOut",
+						"type": "uint256"
 					}
 				],
 				"name": "swap",
@@ -148,22 +252,64 @@
 				],
 				"stateMutability": "nonpayable",
 				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "newOwner",
+						"type": "address"
+					}
+				],
+				"name": "transferOwnership",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
 			}
 		],
 		"devdoc": {
+			"errors": {
+				"OwnableInvalidOwner(address)": [
+					{
+						"details": "The owner is not a valid owner account. (eg. `address(0)`)"
+					}
+				],
+				"OwnableUnauthorizedAccount(address)": [
+					{
+						"details": "The caller account is not authorized to perform an operation."
+					}
+				]
+			},
 			"kind": "dev",
-			"methods": {},
+			"methods": {
+				"acceptOwnership()": {
+					"details": "The new owner accepts the ownership transfer."
+				},
+				"owner()": {
+					"details": "Returns the address of the current owner."
+				},
+				"pendingOwner()": {
+					"details": "Returns the address of the pending owner."
+				},
+				"renounceOwnership()": {
+					"details": "Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner."
+				},
+				"transferOwnership(address)": {
+					"details": "Starts the ownership transfer of the contract to a new account. Replaces the pending transfer if there is one. Can only be called by the current owner."
+				}
+			},
 			"version": 1
 		},
 		"userdoc": {
 			"kind": "user",
 			"methods": {},
+			"notice": "CATATAN PATCH (baca sebelum deploy mainnet): 1. Ownership sekarang pakai OpenZeppelin Ownable2Step (sama seperti    ArcenticStakingMultiToken), BUKAN address public + modifier manual.    `owner` lama diganti dengan `owner()` bawaan OZ — nama fungsi getter-nya    SAMA (owner()), jadi kompatibel kalau frontend kamu sudah manggil    `contract.owner()`. Yang beda: transfer ownership sekarang 2 langkah:      a) owner lama panggil transferOwnership(newOwner)      b) newOwner WAJIB panggil acceptOwnership() dari wallet-nya sendiri    Ini sengaja — mencegah salah ketik alamat owner baru dan kehilangan    kontrol kontrak selamanya (yang bisa terjadi di transferOwnership()    versi satu-langkah). 2. TIDAK saya ubah: emergencyWithdraw() masih bisa menarik SELURUH    reserves, bukan cuma dana nyasar. Ini artinya kalau private key owner    bocor, penyerang bisa kuras semua dana LP — bukan cuma \"stuck funds\".    Saya sengaja tidak sentuh ini di patch ini karena mengubah kewenangan    fungsi itu butuh keputusan desain (mis. timelock, multisig, atau batasi    ke saldo != reserves tercatat). Tandai ini sebagai risiko terbuka. 3. swap() sekarang punya parameter _minAmountOut (slippage protection).    ⚠️ INI BREAKING CHANGE UNTUK FRONTEND: app.js yang manggil swap() harus    ditambah argumen ke-4. Hitung _minAmountOut di frontend dari quote    yang kamu tampilkan ke user, dikurangi toleransi slippage (mis. 0.5-1%),    BUKAN dikirim 0 — kalau dikirim 0 maka proteksinya tidak berfungsi sama    sekali dan sandwich attack tetap lolos. 4. TIDAK saya ubah: transfer/transferFrom pakai interface manual, bukan    SafeERC20. Token yang return false alih-alih revert bisa gagal diam-diam.    ArcenticStakingMultiToken sudah pakai SafeERC20 — pool ini belum. 5. FIX KRITIS (ditemukan lewat pengujian gas pasca-Zero8, 4 Sept 2026):    swap() versi lama menghitung amountOut langsung dari reserves mentah    tanpa menormalisasi perbedaan desimal antar token. Contoh nyata yang    ditemukan: USDC (6 desimal) vs USDT deploy testnet ini (18 desimal) —    swap 1 USDC dihitung kontrak cuma senilai ~0.0275 USDT, selisih 36x    lipat dari nilai wajar. Ini bukan cuma bug tampilan, ini kerentanan    ekonomi: siapapun yang tahu bisa swap dengan harga timpang dan    menguras reserve token yang desimalnya lebih rendah. Fix: semua    perhitungan rasio di swap() sekarang dinormalisasi ke basis 18    desimal dulu (_normalize/_denormalize), desimal tiap token di-cache    on-chain via decimals() saat pertama kali dipakai supaya swap    berikutnya tidak perlu external call berulang.    ⚠️ INI BREAKING CHANGE: kontrak lama yang sudah dideploy TIDAK bisa    di-upgrade in-place (bukan proxy pattern). Perlu redeploy penuh +    migrasi ulang liquidity dari pool lama sebelum mainnet.",
 			"version": 1
 		}
 	},
 	"settings": {
 		"compilationTarget": {
-			"ArcenticMultiPool.sol": "ArcenticMultiPool"
+			"contracts/ArcenticMultiPool.sol": "ArcenticMultiPool"
 		},
 		"evmVersion": "osaka",
 		"libraries": {},
@@ -177,12 +323,52 @@
 		"remappings": []
 	},
 	"sources": {
-		"ArcenticMultiPool.sol": {
-			"keccak256": "0x89b30a8757c8cc023add0dc63a66e08fa3eeea7b44d5393feac2a4207bd02237",
+		"@openzeppelin/contracts@5.0.2/access/Ownable.sol": {
+			"keccak256": "0xff6d0bb2e285473e5311d9d3caacb525ae3538a80758c10649a4d61029b017bb",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://3c30558466198ae4858b375171c435f631962123ba08f48feef08d7a184717bb",
-				"dweb:/ipfs/QmawyqF7CND7RhHXc7zj8sqUXb5eDoJtTPjkWqXFJU4oLn"
+				"bzz-raw://8ed324d3920bb545059d66ab97d43e43ee85fd3bd52e03e401f020afb0b120f6",
+				"dweb:/ipfs/QmfEckWLmZkDDcoWrkEvMWhms66xwTLff9DDhegYpvHo1a"
+			]
+		},
+		"@openzeppelin/contracts@5.0.2/access/Ownable2Step.sol": {
+			"keccak256": "0x5d3e5de9eadfa1f8a892eb2e95bbebd3e4b8c8ada5b76f104d383fea518fa688",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://cde108962511e6a4d3cfb7b6fb6a36bdcfa300761c17dad2d7dd87d4f8117b48",
+				"dweb:/ipfs/Qmf7YxUVK68JedWybWfXvzLCegsD95DtGc3mbpEWkWSMm8"
+			]
+		},
+		"@openzeppelin/contracts@5.0.2/token/ERC20/IERC20.sol": {
+			"keccak256": "0xc6a8ff0ea489379b61faa647490411b80102578440ab9d84e9a957cc12164e70",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://0ea104e577e63faea3b69c415637e99e755dcbf64c5833d7140c35a714d6d90c",
+				"dweb:/ipfs/Qmau6x4Ns9XdyynRCNNp3RhLqijJjFm7z5fyZazfYFGYdq"
+			]
+		},
+		"@openzeppelin/contracts@5.0.2/token/ERC20/extensions/IERC20Metadata.sol": {
+			"keccak256": "0xaa761817f6cd7892fcf158b3c776b34551cde36f48ff9703d53898bc45a94ea2",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://0ad7c8d4d08938c8dfc43d75a148863fb324b80cf53e0a36f7e5a4ac29008850",
+				"dweb:/ipfs/QmcrhfPgVNf5mkdhQvy1pMv51TFokD3Y4Wa5WZhFqVh8UV"
+			]
+		},
+		"@openzeppelin/contracts@5.0.2/utils/Context.sol": {
+			"keccak256": "0x493033a8d1b176a037b2cc6a04dad01a5c157722049bbecf632ca876224dd4b2",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://6a708e8a5bdb1011c2c381c9a5cfd8a9a956d7d0a9dc1bd8bcdaf52f76ef2f12",
+				"dweb:/ipfs/Qmax9WHBnVsZP46ZxEMNRQpLQnrdE4dK8LehML1Py8FowF"
+			]
+		},
+		"contracts/ArcenticMultiPool.sol": {
+			"keccak256": "0xc908e43aec8b7a1fddefec96a5a85755931cda5283e378a6380e02a2b6266cc2",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://3889326673d8f59b9e6b4623e09edbe0268051be2cb3fe02d6bddfdb045deb7d",
+				"dweb:/ipfs/QmRFgVwtwqwUptwt9QALRD18KBzMyGZ3D7cPq4VVbE6j9G"
 			]
 		}
 	},

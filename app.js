@@ -403,7 +403,7 @@
 
     /* ── View switching ── */
     function hideAllOverlays() {
-        ['portfolioView','swapView','bridgeView','poolsView','eijiView','lendView','stakeView','adminView','tradingHubView','spotTradeView'].forEach(id => {
+        ['portfolioView','swapView','bridgeView','poolsView','eijiView','lendView','stakeView','adminView','tradingHubView','spotTradeView','vaultView'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.classList.remove('open');
         });
@@ -3807,6 +3807,11 @@
     }
 
     async function executeBridge() {
+        /* ARCENTIC-FIX bridge-guard */
+        if (window.ARCENTIC_NETWORK === 'mainnet') {
+            showToast('warning','Bridge Belum Tersedia','Bridge dinonaktifkan di mainnet sampai konfigurasi CCTP mainnet selesai.');
+            return;
+        }
         if (!isConnected) {
             showToast('warning','Wallet Not Connected','Please connect your wallet before bridging.');
             return;
@@ -5511,13 +5516,11 @@
 
     function updateDepositPreview() {
         const amt = parseFloat(document.getElementById('depositAmt').value) || 0;
-        document.getElementById('depositPreviewAmt').textContent = amt.toFixed(6) + ' cirBTC';
         document.getElementById('depositPreviewMax').textContent = (amt * currentCirBTCPriceUSDC() * currentCollateralFactor()).toFixed(2) + ' USDC';
     }
 
     function updateBorrowPreview() {
         const amt = parseFloat(document.getElementById('borrowAmt').value) || 0;
-        document.getElementById('borrowPreviewAmt').textContent = amt.toFixed(2) + ' USDC';
         const collFloat = parseFloat(ethers.utils.formatUnits(lendUserData.collateral, CIRBTC_DECIMALS));
         const collVal = collFloat * currentCirBTCPriceUSDC();
         const existingLoan = parseFloat(ethers.utils.formatUnits(lendUserData.loanAmt, USDC_DECIMALS));
@@ -7771,7 +7774,40 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
        location.hash and restore it on load so refresh/shared links keep
        the user where they were.
     ══════════════════════════════════════════════════ */
-    (function setupHashRouting() {
+    /* ARCENTIC-FIX coming-soon-gate */
+(function () {
+    var C = (NET && NET.contracts) || {};
+    var gates = [
+        { fn: 'showSwap',      ok: !!C.ArcenticMultiPool, label: 'Swap' },
+        { fn: 'showPools',     ok: !!C.ArcenticMultiPool, label: 'Liquidity Pools' },
+        { fn: 'showSpotTrade', ok: !!C.ArcenticMultiPool, label: 'Spot Trading' },
+        { fn: 'showLend',      ok: !!(C.LendingBorrowing && C.cirBTC), label: 'Lend & Borrow' },
+        { fn: 'showBridge',    ok: !!NET.attestationApi, label: 'Bridge' },
+        { fn: 'showVault',     ok: !!C.ArcenticVault, label: 'Vault' }
+    ];
+    gates.forEach(function (g) {
+        if (g.ok) return;
+        try {
+            document.querySelectorAll('[onclick*="' + g.fn + '("]').forEach(function (el) {
+                el.style.opacity = '.5';
+                el.title = g.label + ' - coming soon on mainnet';
+            });
+        } catch (e) {}
+        if (g.fn === 'showVault') return; /* showVault didefinisikan di vault.js, dijaga di sana */
+        if (typeof window[g.fn] !== 'function') return;
+        window[g.fn] = function () {
+            showToast('info', 'Coming Soon', g.label + ' belum aktif di mainnet.');
+        };
+    });
+    var line = document.getElementById('heroChartLine');
+    if (line) {
+        line.setAttribute('points', '0,110 1000,110');
+        line.setAttribute('stroke-dasharray', '10 10');
+        line.style.opacity = '.35';
+    }
+})();
+
+(function setupHashRouting() {
         // hash → original view function (captured before wrapping below)
         const routes = {
             '#portfolio': showPortfolio,
@@ -7828,3 +7864,7 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
             applyRoute();
         }
     })();
+
+
+/* fix: dipanggil tombol Stake & Lend */
+function connectWallet() { return handleWallet(); }

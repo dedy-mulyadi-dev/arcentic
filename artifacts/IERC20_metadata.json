@@ -9,6 +9,30 @@
 				"inputs": [
 					{
 						"internalType": "address",
+						"name": "owner",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "spender",
+						"type": "address"
+					}
+				],
+				"name": "allowance",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
 						"name": "spender",
 						"type": "address"
 					},
@@ -28,6 +52,38 @@
 				],
 				"stateMutability": "nonpayable",
 				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "account",
+						"type": "address"
+					}
+				],
+				"name": "balanceOf",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "decimals",
+				"outputs": [
+					{
+						"internalType": "uint8",
+						"name": "",
+						"type": "uint8"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
 			}
 		],
 		"devdoc": {
@@ -43,7 +99,7 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"IERC20.sol": "IERC20"
+			"contracts/IERC20.sol": "IERC20"
 		},
 		"evmVersion": "osaka",
 		"libraries": {},
@@ -57,12 +113,12 @@
 		"remappings": []
 	},
 	"sources": {
-		"IERC20.sol": {
-			"keccak256": "0x207b2e222524a665c131dd0796e207ec9b122077400cfb594eaba76b1a95656d",
+		"contracts/IERC20.sol": {
+			"keccak256": "0xf24d188a91e98a6ac7cab6a03d5edf666b2e144a64e2f32e681b5d35b1c3f6f4",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://c694d6ca73ea74bb0c523238446597d09231886fdc5938a7f51264c5a10e60cb",
-				"dweb:/ipfs/QmfAsqMTRQgtnHhQzZ3iMRqfupF97FaChmpKmmoi1J3EKW"
+				"bzz-raw://178ae2b893f3b6b8e9ef77a3906af676ea0e955df7327b57b4c68640d084c388",
+				"dweb:/ipfs/QmSfGeCRFGgGpQLJb2trpEZmgLfrKXzL1LQiyCpWkeHCEZ"
 			]
 		}
 	},
