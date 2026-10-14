@@ -105,7 +105,7 @@
 
     /* ══════════════════════════════════════════════════
        UNISWAP V3 CONFIGURATION (Ethereum Sepolia only)
-       Arc Testnet's native gas token IS USDC, so there is
+       Arc Mainnet's native gas token IS USDC, so there is
        nothing to swap there — only the Sepolia leg ever
        needs an ETH<->USDC conversion. Addresses below are
        Uniswap's official Sepolia testnet deployment, and
@@ -198,7 +198,7 @@
 
     /* ══════════════════════════════════════════════════
        RPC RESILIENCE HELPERS
-       The public Arc Testnet RPC occasionally returns a transient
+       The public Arc Mainnet RPC occasionally returns a transient
        "HTTP client error" (4xx) on an individual request even while the
        network itself is healthy. withRpcRetry() retries any RPC/contract
        call a few times with a short backoff before giving up, so a single
@@ -468,7 +468,7 @@
         document.getElementById('pfBarMax').innerText   = fmtBal(balEther) + ' USDC';
         const pct = Math.min(parseFloat(balEther) / 100 * 100, 100);
         document.getElementById('pfBarFill').style.width = Math.max(pct, 2) + '%';
-        document.getElementById('pfExplorer').href = `https://testnet.arcscan.app/address/${account}`;
+        document.getElementById('pfExplorer').href = `${NET.explorerUrl}/address/${account}`;
 
         document.getElementById('pfLocked').classList.add('hidden');
         document.getElementById('pfConnected').classList.remove('hidden');
@@ -3460,7 +3460,7 @@
     let _bridgeBalRequestId = 0;
 
     // Which token each leg is denominated in. Only meaningful on the
-    // Ethereum Sepolia side — Arc Testnet's native/only relevant asset is
+    // Ethereum Sepolia side — Arc Mainnet's native/only relevant asset is
     // USDC itself, so it's always forced to 'USDC'.
     let bridgeSourceToken = 'USDC';
     let bridgeDestToken = 'USDC';
@@ -3759,11 +3759,11 @@
         }
     }
 
-    // Checks whether MetaMask's currently active chain is Arc Testnet.
+    // Checks whether MetaMask's currently active chain is Arc Mainnet.
     // If not, prompts the wallet to switch (reusing switchToChain so the
     // chainChanged listener above knows this was intentional and won't
     // force a page reload mid-flow). Returns true only if the wallet ends
-    // up on Arc Testnet; callers should abort their transaction otherwise.
+    // up on Arc Mainnet; callers should abort their transaction otherwise.
     async function ensureArcNetwork() {
         if (!getActiveProvider()) {
             showToast('error','No Wallet Detected','Please install MetaMask or a compatible browser wallet.');
@@ -3773,17 +3773,17 @@
             const currentChainId = await getActiveProvider().request({ method: 'eth_chainId' });
             if (currentChainId.toLowerCase() === ARC_CHAIN.chainId.toLowerCase()) return true;
 
-            showToast('warning','Wrong Network','You\'re not on Arc Testnet — requesting your wallet to switch…');
+            showToast('warning','Wrong Network','You\'re not on Arc Mainnet — requesting your wallet to switch…');
             await switchToChain(ARC_CHAIN.chainId, ARC_CHAIN);
 
             const confirmedChainId = await getActiveProvider().request({ method: 'eth_chainId' });
             if (confirmedChainId.toLowerCase() !== ARC_CHAIN.chainId.toLowerCase()) {
-                showToast('error','Still on Wrong Network','Please switch to Arc Testnet manually in your wallet, then try again.');
+                showToast('error','Still on Wrong Network','Please switch to Arc Mainnet manually in your wallet, then try again.');
                 return false;
             }
             return true;
         } catch (err) {
-            showToast('error','Network Switch Failed', err.message || 'Please switch to Arc Testnet manually in your wallet, then try again.');
+            showToast('error','Network Switch Failed', err.message || 'Please switch to Arc Mainnet manually in your wallet, then try again.');
             return false;
         }
     }
@@ -3827,7 +3827,7 @@
             return;
         }
 
-        // ETH is only ever involved on the Ethereum Sepolia leg — Arc Testnet's
+        // ETH is only ever involved on the Ethereum Sepolia leg — Arc Mainnet's
         // native/only relevant asset is USDC itself, so it's always USDC there.
         const srcIsEth = sourceChain === 'ethereumSepolia' && bridgeSourceToken === 'ETH';
         const dstIsEth = destChain === 'ethereumSepolia' && bridgeDestToken === 'ETH';
@@ -4239,7 +4239,7 @@
 
             activeProvider = window.ethereum;
 
-            // Switch to ARC Testnet; add it first if missing (error 4902)
+            // Switch to Arc Mainnet; add it first if missing (error 4902)
             try {
                 await window.ethereum.request({
                     method: 'wallet_switchEthereumChain',
@@ -4299,7 +4299,7 @@
             rpcMap: { [ARC_CHAIN_ID_DEC]: ARC_CHAIN.rpcUrls[0] },
             metadata: {
                 name: 'ARCENTIC',
-                description: 'ARCENTIC — DeFi di ARC Testnet',
+                description: 'ARCENTIC — DeFi di Arc Mainnet',
                 url: window.location.origin,
                 icons: [window.location.origin + '/favicon.ico']
             }
@@ -5678,7 +5678,7 @@
     /* ======= EIJI AI AGENT ======= */
     // API keys loaded from secrets.js (excluded from git)
 
-    const EIJI_SYSTEM = `Kamu adalah Eiji, AI Agent milik ARCENTIC — sebuah DEX (Decentralized Exchange) yang berjalan di ARC Testnet.
+    const EIJI_SYSTEM = `Kamu adalah Eiji, AI Agent milik ARCENTIC — sebuah DEX (Decentralized Exchange) yang berjalan di Arc Mainnet.
 
 Kepribadianmu:
 - Ramah, santai, dan sedikit gaya seperti teman yang paham crypto
@@ -5699,7 +5699,7 @@ Kemampuanmu:
 - JAWABAN DARI web_search HARUS SPESIFIK: kalau hasil tool punya field "answer" atau angka/fakta jelas di "results", SEBUTKAN LANGSUNG angka/faktanya di kalimat pertama (misal "Harga emas saat ini sekitar $X per troy ons, menurut [sumber]"). JANGAN jawab mengambang seperti "harganya berfluktuasi dan berbeda-beda tergantung sumber" — itu tidak berguna buat user. Kalau angka pasti memang tidak ketemu di hasil pencarian, baru jujur bilang tidak dapat angka pasti, dan sebutkan sumber mana yang bisa dicek user.
 - Kalau tool mengembalikan error (misal koin tidak ditemukan), sampaikan dengan jujur ke user dan coba tanya ulang nama/symbol yang benar
 - Menjelaskan konsep DeFi, Web3, smart contract dengan bahasa mudah dipahami
-- Memberikan informasi tentang ARCENTIC, ARC Testnet, token: USDC, EURC, CENTIC
+- Memberikan informasi tentang ARCENTIC, Arc Mainnet, token: USDC, EURC, CENTIC
 - Punya pengetahuan umum tentang kripto, DeFi, blockchain sebagai konteks tambahan
 - PELAJARAN & SOAL: kamu bisa membantu SEMUA jenis pertanyaan pelajaran/akademik — matematika, fisika, kimia, biologi, sejarah, bahasa, soal ujian, sampai rumus yang sulit. Kerjakan LANGKAH DEMI LANGKAH sampai dapat jawaban akhir yang jelas. Kalau butuh fakta terbaru, pakai web_search dulu.
 - FORMAT MATEMATIKA: tulis rumus & perhitungan dalam teks biasa yang mudah dibaca (pakai simbol seperti ×, ÷, ^, √, π, ≤, ≥, dan pecahan bentuk a/b). JANGAN pakai LaTeX atau format kode ($...$, \\frac, dll) karena tidak ter-render dan malah membingungkan user.

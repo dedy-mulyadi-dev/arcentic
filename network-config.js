@@ -23,7 +23,7 @@
     'use strict';
 
     // ── Ganti baris ini ke 'mainnet' saat migrasi ──────────────────────────
-    const ARC_NETWORK = 'testnet';
+    const ARC_NETWORK = 'mainnet';
     // ─────────────────────────────────────────────────────────────────────
 
     const NETWORKS = {
@@ -138,12 +138,12 @@
                 // tidak perlu ubah kode Solidity.
                 // USDT & cirBTC: PUTUSKAN dulu — pakai token asli (kalau ada di
                 // Arc mainnet) atau mock buatan sendiri yang di-redeploy ulang.
-                ArcenticMultiPool : null,
-                CENTIC            : null,
+                ArcenticMultiPool : null,   // belum dideploy, sengaja
+                CENTIC            : '0x831Ea0730965002A0f815F2df9405898525da814',
                 USDT              : null,
                 cirBTC            : null,
                 LendingBorrowing  : null,
-                ArcenticStaking   : null,
+                ArcenticStaking   : '0xB3F98016BAEf5c2fFcFa61Fa6A1b7cB1fd623146',
                 ArcenticVault     : null
             }
         }
