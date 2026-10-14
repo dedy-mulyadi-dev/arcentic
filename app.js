@@ -5071,7 +5071,7 @@
         // "Pools" = jumlah token yang benar-benar terdaftar di TOKENS. Data
         // riil dari config, bukan angka yang dikarang.
         if (POOLS_ACTIVE === null && typeof TOKENS !== 'undefined') {
-            POOLS_ACTIVE = TOKENS.length;
+            POOLS_ACTIVE = CONTRACT_ADDRS.ArcenticMultiPool ? TOKENS.length : 0;
         }
         if (poolsEl && POOLS_ACTIVE !== null) poolsEl.innerText = POOLS_ACTIVE.toString();
 
@@ -5168,6 +5168,12 @@
      * Returns the toast element so you can update/remove it programmatically.
      */
     function showToast(type, title, message, duration) {
+        // Mainnet: modul yang belum dideploy (alamat null) tidak boleh memunculkan toast error mentah ke pengunjung.
+        if (type === 'error' && /invalid contract address|ENS name|properties of null/i.test(String(title)+' '+String(message))
+            && Object.values(CONTRACT_ADDRS).some(v => !v)) {
+            console.warn('[suppressed: modul belum dideploy]', title, message);
+            return;
+        }
         if (duration === undefined) {
             duration = type === 'pending' ? 0 : (type === 'error' ? 6000 : 4500);
         }
