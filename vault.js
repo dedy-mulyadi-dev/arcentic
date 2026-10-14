@@ -210,6 +210,8 @@
     }
 
     function toast(msg, isError) {
+        // Mainnet: Vault belum dideploy (alamat null) — jangan tampilkan error mentah ke pengunjung.
+        if (isError && !VAULT_CONFIG.address) { console.warn('[vault belum dideploy]', msg); return; }
         let box = document.getElementById('vaultToastBox');
         if (!box) {
             box = document.createElement('div');
@@ -296,6 +298,7 @@
             await ensureCorrectChain();
             signer = webProvider.getSigner();
             userAddress = shared.getAccount() || await signer.getAddress();
+            if (!VAULT_CONFIG.address) { updateVaultWalletBadge(); return; }
             vaultRW = new ethers.Contract(VAULT_CONFIG.address, VAULT_ABI, signer);
             updateVaultWalletBadge();
         } catch (err) {
@@ -306,6 +309,7 @@
 
     document.addEventListener('walletConnected', function () {
         syncWalletFromHome().then(function () {
+            if (!VAULT_CONFIG.address) return;
             refreshTokenDependentUI();
             loadMyVaultStakesInternal();
         });
