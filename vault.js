@@ -72,7 +72,9 @@
         'function stake(address token,uint256 tierId,uint256 amount)',
         'function claimReward(uint256 stakeId)',
         'function unstake(uint256 stakeId)',
-        'function emergencyUnstake(uint256 stakeId)'
+        'function emergencyUnstake(uint256 stakeId)',
+        'function shortfallOwed(address,uint256) view returns (uint256)',
+        'function claimShortfall(uint256 stakeId)'
     ];
 
     const ERC20_ABI = [
@@ -638,12 +640,17 @@
                 const s = await withRpcRetry(function () { return c.stakesOf(userAddress, i); });
                 const unlocked = await withRpcRetry(function () { return c.isUnlocked(userAddress, i); });
                 const pending = s.withdrawn ? ethers.BigNumber.from(0) : await withRpcRetry(function () { return c.pendingReward(userAddress, i); });
-                return { i: i, s: s, unlocked: unlocked, pending: pending };
+                let owed = ethers.BigNumber.from(0);
+                if (s.withdrawn) {
+                    // Vaults deployed before the shortfall patch don't have this function: treat as 0.
+                    try { owed = await withRpcRetry(function () { return c.shortfallOwed(userAddress, i); }); } catch (e) {}
+                }
+                return { i: i, s: s, unlocked: unlocked, pending: pending, owed: owed };
             });
 
             const rows = [];
             for (const entry of stakeData) {
-                const i = entry.i, s = entry.s, unlocked = entry.unlocked, pending = entry.pending;
+                const i = entry.i, s = entry.s, unlocked = entry.unlocked, pending = entry.pending, owed = entry.owed;
                 let meta = tokenByAddr[s.token.toLowerCase()];
                 if (!meta) {
                     meta = await cached('tokenmeta:' + s.token.toLowerCase(), async function () {
@@ -657,7 +664,10 @@
 
                 let statusText, actions = '';
                 if (s.withdrawn) {
-                    statusText = 'Withdrawn';
+                    statusText = owed.gt(0) ? 'Withdrawn · part still in pool' : 'Withdrawn';
+                    if (owed.gt(0)) {
+                        actions += '<button class="glass px-3 py-1.5 rounded-lg text-xs" data-action="shortfall" data-id="' + i + '">Claim Remaining</button>';
+                    }
                 } else if (unlocked) {
                     statusText = 'Unlocked';
                     actions += '<button class="glass px-3 py-1.5 rounded-lg text-xs" data-action="claim" data-id="' + i + '">Claim Reward</button>' +
@@ -674,6 +684,7 @@
                     '<div class="font-bold">' + fmtUnits(s.amount, meta.decimals) + ' ' + meta.symbol + '</div>' +
                     '<div class="text-gray-400 text-xs mt-0.5">' + fmtApr(s.aprBps) + ' APR · ' + fmtDays(s.lockDuration.toNumber()) + ' · ' + statusText + '</div>' +
                     (pending.gt(0) ? '<div class="text-green-400 text-xs mt-0.5">Pending reward: ' + fmtUnits(pending, meta.decimals) + ' ' + meta.symbol + '</div>' : '') +
+                    (owed.gt(0) ? '<div class="text-yellow-400 text-xs mt-0.5">Still owed from pool: ' + fmtUnits(owed, meta.decimals) + ' ' + meta.symbol + ' (pool reserves were low; claim again later)</div>' : '') +
                     '</div>' +
                     '<div class="flex gap-2 flex-wrap">' + actions + '</div>' +
                     '</div>'
@@ -705,10 +716,11 @@
             if (action === 'claim') tx = await vaultRW.claimReward(id);
             else if (action === 'unstake') tx = await vaultRW.unstake(id);
             else if (action === 'emergency') tx = await vaultRW.emergencyUnstake(id);
+            else if (action === 'shortfall') tx = await vaultRW.claimShortfall(id);
             setStatus('Confirming transaction…');
             await tx.wait();
             setStatus('');
-            const doneTitle = action === 'claim' ? 'Reward Claimed!' : action === 'unstake' ? 'Unstaked!' : 'Exited!';
+            const doneTitle = action === 'claim' ? 'Reward Claimed!' : action === 'unstake' ? 'Unstaked!' : action === 'shortfall' ? 'Remaining Claimed!' : 'Exited!';
             if (typeof showSuccessModal === 'function') {
                 showSuccessModal(doneTitle, 'Transaction confirmed.');
             } else {

@@ -16,7 +16,7 @@ import {Pausable} from "@openzeppelin/contracts@5.0.2/utils/Pausable.sol";
 ///      share/lock/reward entirely in its own storage.
 interface IArcenticMultiPool {
     function addLiquidity(address _token, uint256 _amount) external;
-    function removeLiquidity(address _token, uint256 _amount) external;
+    function removeLiquidity(address _token, uint256 _amount) external returns (uint256 amountWithdrawn);
     function lpBalance(address user, address token) external view returns (uint256);
     function reserves(address token) external view returns (uint256);
 }
@@ -32,6 +32,8 @@ interface IArcenticMultiPool {
 ///      1. Staking is only possible for tokens the owner has explicitly whitelisted
 ///         with addToken(). Only whitelist standard, audited, non-rebasing ERC-20s —
 ///         same rule as ArcenticStakingMultiToken.
+///      PATCH: unstake()/emergencyUnstake() now pay only what the pool actually returned;
+///      any difference is recorded in shortfallOwed and claimable via claimShortfall().
 ///      2. This vault is fully dependent on ArcenticMultiPool's own security. In
 ///         particular, ArcenticMultiPool.emergencyWithdraw() lets the POOL's owner
 ///         pull reserves out at any time. If that happens, removeLiquidity() calls
@@ -99,6 +101,15 @@ contract ArcenticVault is Ownable, ReentrancyGuard, Pausable {
     event EmergencyUnstaked(address indexed user, uint256 indexed stakeId, address indexed token, uint256 principalReturned, uint256 penalty);
     event TreasuryUpdated(address indexed treasury);
     event EarlyExitPenaltyUpdated(uint256 penaltyBps);
+    /// @notice Pool returned less than the principal on exit; the difference stays claimable.
+    event ExitShortfall(address indexed user, uint256 indexed stakeId, address indexed token, uint256 expected, uint256 received);
+    event ShortfallClaimed(address indexed user, uint256 indexed stakeId, address indexed token, uint256 amount);
+
+    /// @notice Principal still sitting in ArcenticMultiPool for an already-closed stake,
+    ///         because the pool's reserves could not cover the full withdrawal at exit time.
+    ///         Claimable later through claimShortfall(). Kept in its own mapping (not in
+    ///         StakeInfo) so the stakesOf() getter layout used by the frontend is unchanged.
+    mapping(address => mapping(uint256 => uint256)) public shortfallOwed;
 
     constructor(address _owner, address _treasury, address _pool) Ownable(_owner) {
         require(_treasury != address(0), "treasury = zero addr");
@@ -343,12 +354,18 @@ contract ArcenticVault is Ownable, ReentrancyGuard, Pausable {
 
         // Pull principal back out of ArcenticMultiPool into this vault, then forward
         // principal + reward to the user in a single transfer.
-        pool.removeLiquidity(s.token, principal);
+        uint256 recovered = _pullFromPool(s.token, principal);
+        if (recovered < principal) {
+            shortfallOwed[msg.sender][stakeId] = principal - recovered;
+            emit ExitShortfall(msg.sender, stakeId, s.token, principal, recovered);
+        }
 
-        uint256 payout = principal + reward;
+        // Pay only what was really recovered + the reward. The vault's own token balance
+        // is the reward pool of OTHER stakers and must never cover a pool-side shortfall.
+        uint256 payout = recovered + reward;
         IERC20(s.token).safeTransfer(msg.sender, payout);
 
-        emit Unstaked(msg.sender, stakeId, s.token, principal, reward);
+        emit Unstaked(msg.sender, stakeId, s.token, recovered, reward);
     }
 
     /// @notice Exit before the lock expires. Forfeits all accrued/reserved reward for this
@@ -369,20 +386,54 @@ contract ArcenticVault is Ownable, ReentrancyGuard, Pausable {
         p.reservedRewards -= forfeited;
         p.rewardPoolBalance += forfeited;
 
-        uint256 penalty = (principal * earlyExitPenaltyBps) / BPS_DENOMINATOR;
-        uint256 returned = principal - penalty;
+        uint256 recovered = _pullFromPool(s.token, principal);
+        if (recovered < principal) {
+            shortfallOwed[msg.sender][stakeId] = principal - recovered;
+            emit ExitShortfall(msg.sender, stakeId, s.token, principal, recovered);
+        }
 
-        pool.removeLiquidity(s.token, principal);
+        // Penalty is charged on the amount actually recovered (never more than it).
+        // Edge case: if the pool is short, the later claimShortfall() carries no penalty.
+        uint256 penalty = (principal * earlyExitPenaltyBps) / BPS_DENOMINATOR;
+        if (penalty > recovered) penalty = recovered;
+        uint256 returned = recovered - penalty;
 
         if (penalty > 0) {
             IERC20(s.token).safeTransfer(treasury, penalty);
         }
-        IERC20(s.token).safeTransfer(msg.sender, returned);
+        if (returned > 0) {
+            IERC20(s.token).safeTransfer(msg.sender, returned);
+        }
 
         emit EmergencyUnstaked(msg.sender, stakeId, s.token, returned, penalty);
     }
 
     // ─────────────────────────────── Internal ───────────────────────────────
+
+    /// @notice Claim the part of a closed stake's principal that the pool could not pay at
+    ///         exit time. Safe to retry: it reverts (without changing state) while the pool's
+    ///         reserve for this token is still empty, and pays whatever is available otherwise.
+    function claimShortfall(uint256 stakeId) external nonReentrant {
+        uint256 owed = shortfallOwed[msg.sender][stakeId];
+        require(owed > 0, "no shortfall");
+        address token = stakesOf[msg.sender][stakeId].token;
+
+        uint256 recovered = _pullFromPool(token, owed);
+        shortfallOwed[msg.sender][stakeId] = owed - recovered;
+        IERC20(token).safeTransfer(msg.sender, recovered);
+
+        emit ShortfallClaimed(msg.sender, stakeId, token, recovered);
+    }
+
+    /// @dev Withdraws from ArcenticMultiPool and returns the amount that ACTUALLY arrived,
+    ///      measured by balance delta. The pool may return less than requested when its
+    ///      reserves are low, so callers must never assume `amount` was received.
+    function _pullFromPool(address token, uint256 amount) internal returns (uint256) {
+        uint256 before = IERC20(token).balanceOf(address(this));
+        pool.removeLiquidity(token, amount);
+        uint256 got = IERC20(token).balanceOf(address(this)) - before;
+        return got > amount ? amount : got;
+    }
 
     function _rewardFor(uint256 amount, uint256 aprBps, uint256 duration) internal pure returns (uint256) {
         return (amount * aprBps * duration) / (BPS_DENOMINATOR * SECONDS_PER_YEAR);
