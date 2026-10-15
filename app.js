@@ -2426,7 +2426,7 @@
                 const resIn  = parseFloat(ethers.utils.formatUnits(resInRaw,  decFrom));
                 const resOut = parseFloat(ethers.utils.formatUnits(resOutRaw, decTo));
                 if (resIn > 0 && resOut > 0) {
-                    const amtOut = amtIn * resOut / resIn;
+                    const amtOut = amtIn * resOut / (resIn + amtIn);
                     document.getElementById('swapToAmt').value = amtOut.toFixed(6);
                     const rate = (resOut / resIn).toFixed(6);
                     document.getElementById('swapRate').innerText = `1 ${fromTok.sym} ≈ ${rate} ${toTok.sym}`;

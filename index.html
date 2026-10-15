@@ -1650,7 +1650,7 @@ nav button.glass:hover {
             </div>
 
             <div class="bg-slate-800/40 border border-slate-600/30 rounded-lg px-4 py-3 mb-5 text-xs flex justify-between items-center">
-                <span class="text-slate-400">Slippage: ~3%</span>
+                <span class="text-slate-400">Slippage: ~1%</span>
                 <span class="text-slate-400" id="spotFeeDisplay">Gas: —</span>
             </div>
 
@@ -1697,7 +1697,7 @@ nav button.glass:hover {
         <div class="glass rounded-[28px] p-7 glow">
             <div class="flex items-center justify-between mb-6">
                 <h3 class="text-xl font-black">Swap Tokens</h3>
-                <button class="glass px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:border-white/20 transition">⚙ Slippage: 3%</button>
+                <button class="glass px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:border-white/20 transition">⚙ Slippage: 1%</button>
             </div>
 
             <!-- From -->
@@ -2110,7 +2110,7 @@ nav button.glass:hover {
                         </div>
                         <div>
                             <div class="text-xl font-black">USDC / CENTIC</div>
-                            <div class="text-gray-400 text-xs mt-0.5">ArcenticMultiPool · 0.3% fee</div>
+                            <div class="text-gray-400 text-xs mt-0.5">ArcenticMultiPool · no swap fee yet</div>
                         </div>
                     </div>
                     <div class="flex items-center gap-3">
@@ -2179,7 +2179,7 @@ nav button.glass:hover {
                             </div>
                         </div>
                         <div class="glass rounded-xl px-4 py-3 mb-4 text-xs text-gray-400">
-                            ℹ You will receive LP tokens representing your share of this pool. Fees accrue automatically.
+                            ℹ Your deposit is recorded in the pool contract. No swap fee is charged yet.
                         </div>
                         <button onclick="addLiquidity('USDC','CENTIC','liq-usdc-centic-amt-a','liq-usdc-centic-amt-b','liq-usdc-centic-status',this)"
                             class="gradient w-full py-3 rounded-2xl font-bold glow">Supply Liquidity</button>
@@ -2204,7 +2204,7 @@ nav button.glass:hover {
                             </div>
                         </div>
                         <div class="glass rounded-xl px-4 py-3 mb-4 text-xs text-gray-400">
-                            ⚠ Withdrawing burns your LP share. Tokens are returned to your wallet proportionally.
+                            ⚠ Withdrawing reduces your deposit recorded in the pool. If pool reserves are low, you may receive less than requested and can claim the rest later.
                         </div>
                         <button onclick="removeLiquidity('USDC','CENTIC','liq-usdc-centic-rem-a','liq-usdc-centic-rem-b','liq-usdc-centic-status',this)"
                             class="w-full py-3 rounded-2xl font-bold" style="background:rgba(239,68,68,.18);border:1px solid rgba(239,68,68,.4);color:#f87171;">Withdraw Liquidity</button>
@@ -2222,7 +2222,7 @@ nav button.glass:hover {
                         </div>
                         <div>
                             <div class="text-xl font-black">USDC / EURC</div>
-                            <div class="text-gray-400 text-xs mt-0.5">ArcenticMultiPool · 0.05% fee (stable pair)</div>
+                            <div class="text-gray-400 text-xs mt-0.5">ArcenticMultiPool · stable pair, no swap fee yet</div>
                         </div>
                     </div>
                     <div class="flex items-center gap-3">
@@ -2290,7 +2290,7 @@ nav button.glass:hover {
                             </div>
                         </div>
                         <div class="glass rounded-xl px-4 py-3 mb-4 text-xs text-gray-400">
-                            ℹ Stable pair — low slippage. LP tokens accrue 0.05% fee on every swap.
+                            ℹ Stable pair — low slippage. No swap fee is charged yet.
                         </div>
                         <button onclick="addLiquidity('USDC','EURC','liq-usdc-eurc-amt-a','liq-usdc-eurc-amt-b','liq-usdc-eurc-status',this)"
                             class="gradient w-full py-3 rounded-2xl font-bold glow">Supply Liquidity</button>
@@ -2315,7 +2315,7 @@ nav button.glass:hover {
                             </div>
                         </div>
                         <div class="glass rounded-xl px-4 py-3 mb-4 text-xs text-gray-400">
-                            ⚠ Withdrawing burns your LP share. Tokens are returned to your wallet proportionally.
+                            ⚠ Withdrawing reduces your deposit recorded in the pool. If pool reserves are low, you may receive less than requested and can claim the rest later.
                         </div>
                         <button onclick="removeLiquidity('USDC','EURC','liq-usdc-eurc-rem-a','liq-usdc-eurc-rem-b','liq-usdc-eurc-status',this)"
                             class="w-full py-3 rounded-2xl font-bold" style="background:rgba(239,68,68,.18);border:1px solid rgba(239,68,68,.4);color:#f87171;">Withdraw Liquidity</button>
@@ -2333,7 +2333,7 @@ nav button.glass:hover {
                         </div>
                         <div>
                             <div class="text-xl font-black">EURC / CENTIC</div>
-                            <div class="text-gray-400 text-xs mt-0.5">ArcenticMultiPool · 0.3% fee</div>
+                            <div class="text-gray-400 text-xs mt-0.5">ArcenticMultiPool · no swap fee yet</div>
                         </div>
                     </div>
                     <div class="flex items-center gap-3">
@@ -2401,7 +2401,7 @@ nav button.glass:hover {
                             </div>
                         </div>
                         <div class="glass rounded-xl px-4 py-3 mb-4 text-xs text-gray-400">
-                            ℹ You will receive LP tokens representing your share of this pool. Fees accrue automatically.
+                            ℹ Your deposit is recorded in the pool contract. No swap fee is charged yet.
                         </div>
                         <button onclick="addLiquidity('EURC','CENTIC','liq-eurc-centic-amt-a','liq-eurc-centic-amt-b','liq-eurc-centic-status',this)"
                             class="gradient w-full py-3 rounded-2xl font-bold glow">Supply Liquidity</button>
@@ -2426,7 +2426,7 @@ nav button.glass:hover {
                             </div>
                         </div>
                         <div class="glass rounded-xl px-4 py-3 mb-4 text-xs text-gray-400">
-                            ⚠ Withdrawing burns your LP share. Tokens are returned to your wallet proportionally.
+                            ⚠ Withdrawing reduces your deposit recorded in the pool. If pool reserves are low, you may receive less than requested and can claim the rest later.
                         </div>
                         <button onclick="removeLiquidity('EURC','CENTIC','liq-eurc-centic-rem-a','liq-eurc-centic-rem-b','liq-eurc-centic-status',this)"
                             class="w-full py-3 rounded-2xl font-bold" style="background:rgba(239,68,68,.18);border:1px solid rgba(239,68,68,.4);color:#f87171;">Withdraw Liquidity</button>
@@ -3131,15 +3131,15 @@ nav button.glass:hover {
         [`+ Add Liquidity`, `+ Tambah Likuiditas`],
         [`− Withdraw`, `− Tarik`],
         [`Add Liquidity · USDC / CENTIC`, `Tambah Likuiditas · USDC / CENTIC`],
-        [`ℹ You will receive LP tokens representing your share of this pool. Fees accrue automatically.`, `ℹ Kamu akan menerima token LP yang mewakili bagianmu di pool ini. Fee bertambah otomatis.`],
+        [`ℹ Your deposit is recorded in the pool contract. No swap fee is charged yet.`, `ℹ Setoranmu dicatat di kontrak pool. Belum ada fee swap.`],
         [`Supply Liquidity`, `Setor Likuiditas`],
         [`Withdraw Liquidity · USDC / CENTIC`, `Tarik Likuiditas · USDC / CENTIC`],
         [`USDC to withdraw`, `USDC yang ditarik`],
         [`CENTIC to withdraw`, `CENTIC yang ditarik`],
-        [`⚠ Withdrawing burns your LP share. Tokens are returned to your wallet proportionally.`, `⚠ Menarik akan membakar bagian LP-mu. Token dikembalikan ke dompetmu secara proporsional.`],
+        [`⚠ Withdrawing reduces your deposit recorded in the pool. If pool reserves are low, you may receive less than requested and can claim the rest later.`, `⚠ Menarik mengurangi setoranmu yang tercatat di pool. Jika cadangan pool rendah, kamu bisa menerima lebih sedikit dari yang diminta dan sisanya bisa diklaim kemudian.`],
         [`Withdraw Liquidity`, `Tarik Likuiditas`],
         [`Add Liquidity · USDC / EURC`, `Tambah Likuiditas · USDC / EURC`],
-        [`ℹ Stable pair — low slippage. LP tokens accrue 0.05% fee on every swap.`, `ℹ Pasangan stabil — slippage rendah. Token LP mendapat fee 0.05% setiap swap.`],
+        [`ℹ Stable pair — low slippage. No swap fee is charged yet.`, `ℹ Pasangan stabil — slippage rendah. Belum ada fee swap.`],
         [`Withdraw Liquidity · USDC / EURC`, `Tarik Likuiditas · USDC / EURC`],
         [`EURC to withdraw`, `EURC yang ditarik`],
         [`Add Liquidity · EURC / CENTIC`, `Tambah Likuiditas · EURC / CENTIC`],
