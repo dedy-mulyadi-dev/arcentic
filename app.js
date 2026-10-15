@@ -2219,9 +2219,9 @@
             // wallets with several open positions. Order is preserved so the
             // list renders in the same index order as before.
             const idxs = Array.from({ length: count }, (_, i) => i);
-            const rawStakes = await mapWithConcurrency(idxs, 4, (i) => staking.stakesOf(currentAccount, i));
+            const rawStakes = await mapWithConcurrency(idxs, 6, (i) => staking.stakesOf(currentAccount, i));
             const activeIdxs = idxs.filter(i => !rawStakes[i].withdrawn);
-            const details = await mapWithConcurrency(activeIdxs, 4, async (i) => {
+            const details = await mapWithConcurrency(activeIdxs, 6, async (i) => {
                 const s = rawStakes[i];
                 const [pending, unlocked, meta] = await Promise.all([
                     staking.pendingReward(currentAccount, i),
