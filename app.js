@@ -2171,8 +2171,7 @@
             setStatus('✅ Staked successfully.');
             document.getElementById('stakeAmount').value = '';
             updateStakePreview();
-            await refreshStakeStats();
-            await loadMyStakes();
+            await Promise.all([refreshStakeStats(), loadMyStakes()]);
         } catch (err) {
             console.error('doStake error:', err);
             const msg = (err && err.reason) || (err && err.message) || String(err);
