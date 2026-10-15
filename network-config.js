@@ -138,7 +138,7 @@
                 // tidak perlu ubah kode Solidity.
                 // USDT & cirBTC: PUTUSKAN dulu — pakai token asli (kalau ada di
                 // Arc mainnet) atau mock buatan sendiri yang di-redeploy ulang.
-                ArcenticMultiPool : null,   // belum dideploy, sengaja
+                ArcenticMultiPool : '0x3C799CCd3A46cE8037a5b138B11C65f3BEbb07E9',   // belum dideploy, sengaja
                 CENTIC            : '0x831Ea0730965002A0f815F2df9405898525da814',
                 USDT              : null,
                 cirBTC            : null,
