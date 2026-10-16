@@ -90,9 +90,24 @@ header.sticky{background:rgba(5,9,24,.93)!important;box-shadow:0 8px 24px -12px 
 @media (min-width:1024px) and (max-width:1599px){#mainNav button{padding-left:.7rem;padding-right:.7rem;gap:6px;}}
 .nav-soon{font-size:.58rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#F5B454;border:1px solid rgba(245,180,84,.35);background:rgba(245,180,84,.1);padding:2px 6px;border-radius:99px;}
 .trade-card>.text-3xl{width:52px;height:52px;display:grid;place-items:center;border-radius:14px;background:rgba(91,124,255,.12);border:1px solid rgba(91,124,255,.3);color:#8FB0FF;margin-bottom:18px;}
-@media (max-width:1439px){.nav-soon{display:none;} header .sm\:block.glass{display:none;}}
-@media (min-width:1024px) and (max-width:1439px){header .min-w-0{flex-shrink:0;min-width:auto;} header .min-w-0 h1{font-size:1.45rem;overflow:visible;text-overflow:clip;} header .min-w-0 p{display:none;}}
+@media (max-width:1759px){.nav-soon{display:none;} header .sm\:block.glass{display:none;} header .min-w-0 h1{font-size:1.45rem;}}
+@media (min-width:1024px){header .min-w-0{flex-shrink:0;min-width:auto;} header .min-w-0 h1{overflow:visible;text-overflow:clip;} header .min-w-0 p{display:none;} #mainNav button{padding-left:.85rem;padding-right:.85rem;}}
+header>div.max-w-\[1600px\]{gap:1.5rem;}
+@media (max-width:1439px){header>div.max-w-\[1600px\]{padding-left:1.5rem;padding-right:1.5rem;gap:1.1rem;} #mainNav button{padding-left:.6rem!important;padding-right:.6rem!important;gap:6px;}}
+@media (min-width:1760px){header>div.max-w-\[1600px\]{max-width:1840px;}}
+@media (min-width:1760px){header .min-w-0 p{display:block;} #mainNav button{padding-left:1.1rem;padding-right:1.1rem;}}
 @media (min-width:1024px) and (max-width:1279px){#mainNav{display:none!important;} #navToggleBtn{display:flex!important;} #mobileNav:not(.hidden){display:flex!important;}}
+
+/* ARCENTIC-FIX icon-tile elegan */
+:is(#tradingHubView,#homeView,body) .trade-card>.text-3xl{width:58px;height:58px;border-radius:17px;position:relative;margin-bottom:20px;
+ background:linear-gradient(145deg,rgba(79,139,255,.34),rgba(123,108,255,.16) 55%,rgba(200,107,255,.28));
+ border:1px solid rgba(170,182,255,.40);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.24),inset 0 -10px 18px -12px rgba(130,100,255,.6),0 12px 28px -12px rgba(91,124,255,.7);}
+:is(#tradingHubView,#homeView,body) .trade-card>.text-3xl::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(110% 75% at 18% 0%,rgba(255,255,255,.26),transparent 55%);}
+.trade-card>.text-3xl svg{stroke:url(#icg);width:28px!important;height:28px!important;stroke-width:1.6;filter:drop-shadow(0 0 7px rgba(150,170,255,.6));position:relative;z-index:1;}
+:is(#tradingHubView,#homeView,body) .trade-card:nth-child(2)>.text-3xl{background:linear-gradient(145deg,rgba(123,108,255,.36),rgba(160,100,255,.16) 55%,rgba(200,107,255,.34));box-shadow:inset 0 1px 0 rgba(255,255,255,.24),inset 0 -10px 18px -12px rgba(190,100,255,.6),0 12px 28px -12px rgba(160,100,255,.7);}
+:is(#tradingHubView,#homeView,body) .trade-card:nth-child(3)>.text-3xl{background:linear-gradient(145deg,rgba(60,190,255,.30),rgba(79,139,255,.16) 55%,rgba(123,108,255,.26));box-shadow:inset 0 1px 0 rgba(255,255,255,.24),inset 0 -10px 18px -12px rgba(60,160,255,.6),0 12px 28px -12px rgba(60,170,255,.65);}
+.trade-card:hover>.text-3xl{transform:translateY(-2px);transition:transform .25s;}
 #mobileTabs{display:none;}
 @media (max-width:1023px){
  body{padding-bottom:76px;}
@@ -1430,6 +1445,7 @@ nav button.glass:hover {
 </div>
 </header>
 
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="icg" gradientUnits="userSpaceOnUse" x1="2" y1="2" x2="22" y2="22"><stop offset="0" stop-color="#CFE0FF"/><stop offset=".55" stop-color="#9DB4FF"/><stop offset="1" stop-color="#E2A8FF"/></linearGradient></defs></svg>
 <nav id="mobileTabs" aria-label="Main"><button id="tabHome" onclick="showHome()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;width:22px;height:22px"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>Home</button><button id="tabTrading" onclick="showTradingHub()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;width:22px;height:22px"><path d="M3 17 9 11l4 4 8-8"/><path d="M15 7h6v6"/></svg>Trading</button><button id="tabStake" onclick="showStake()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;width:22px;height:22px"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Stake</button><button id="tabPortfolio" onclick="showPortfolio()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;width:22px;height:22px"><path d="M3 7a2 2 0 0 1 2-2h13v4"/><path d="M3 7v10a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2z"/><path d="M16 14h2"/></svg>Portfolio</button><button id="tabMore" onclick="toggleMobileNav()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;width:22px;height:22px"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>More</button></nav>
 <!-- ═══════════════════════════ HOME ═══════════════════════════ -->
 <main id="homeView" class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-10">
@@ -1559,7 +1575,7 @@ nav button.glass:hover {
     </div>
 
     <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 pf-content">
-        <div class="glass inline-flex px-4 py-1.5 rounded-full mb-4 text-xs text-gray-300">🔀 Spot / Swap</div>
+        <div class="glass inline-flex px-4 py-1.5 rounded-full mb-4 text-xs text-gray-300" style="align-items:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;width:14px;height:14px;margin-right:6px"><path d="M7 4 3 8l4 4"/><path d="M3 8h15"/><path d="m17 12 4 4-4 4"/><path d="M21 16H6"/></svg>Spot / Swap</div>
         <h3 class="text-3xl sm:text-4xl font-black mb-3">Trading Center</h3>
         <p class="text-gray-400 max-w-2xl mb-8">Swap token, kelola liquidity pool dan pantau portfolio-mu — terhubung langsung ke smart contract Arc Mainnet. Bridge segera hadir.</p>
 
