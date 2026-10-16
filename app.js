@@ -5066,6 +5066,36 @@
         if (line) line.setAttribute('points', points);
     }
 
+    /* Dial tier di hero: busur dalam -> luar = tier terpendek -> terpanjang.
+       Panjang busur = APR relatif terhadap APR tertinggi. Kalau data tier
+       tidak ada / kurang dari 3, markup bawaan (4/10/16%) tetap dipakai. */
+    function renderHeroTiers(tiers) {
+        if (!tiers || !tiers.length) return;
+        const top = tiers.slice(-3);               // maksimal 3 tier terpanjang
+        const maxBps = Math.max(...top.map(t => t.bps)) || 1;
+        for (let i = 1; i <= 3; i++) {
+            const t = top[i - 1];
+            const arc = document.getElementById('heroArc' + i);
+            const row = document.getElementById('heroTierRow' + i);
+            const nameEl = document.getElementById('heroTierName' + i);
+            const aprEl = document.getElementById('heroTierApr' + i);
+            if (!t) {
+                if (arc) arc.style.display = 'none';
+                if (row) row.style.display = 'none';
+                continue;
+            }
+            if (arc) { arc.style.display = ''; arc.setAttribute('stroke-dasharray', ((t.bps / maxBps) * 100).toFixed(1) + ' 100'); }
+            if (row) row.style.display = '';
+            if (nameEl) nameEl.textContent = Math.round(t.lock / 86400) + '-day lock';
+            if (aprEl) aprEl.textContent = (t.bps / 100) + '% APR';
+        }
+        const best = top.reduce((a, b) => (b.bps > a.bps ? b : a), top[0]);
+        const dialApr = document.getElementById('heroDialApr');
+        const dialNote = document.getElementById('heroDialNote');
+        if (dialApr) dialApr.textContent = (best.bps / 100) + '%';
+        if (dialNote) dialNote.textContent = 'top APR, ' + Math.round(best.lock / 86400) + '-day lock';
+    }
+
     async function refreshLiveStats() {
         if (document.hidden) return; // tab di-background, hemat RPC/CPU/baterai
         const tvlEl       = document.getElementById('heroTVL');
@@ -5151,6 +5181,7 @@
                         staking.tiersLength(centicAddr)
                     ]), { retries: 2 });
                 let topAprBps = null;
+                const tierList = [];
                 const n = tierCount.toNumber();
                 if (n > 0) {
                     const tiers = await withRpcRetry(
@@ -5159,13 +5190,16 @@
                     tiers.forEach(t => {
                         if (!t.active) return;
                         const bps = t.aprBps.toNumber();
+                        tierList.push({ lock: t.lockDuration.toNumber(), bps });
                         if (topAprBps === null || bps > topAprBps) topAprBps = bps;
                     });
+                    tierList.sort((x, y) => x.lock - y.lock);
                 }
                 stakeStats = {
                     staked: parseFloat(ethers.utils.formatUnits(totalStaked, dec)),
                     reward: parseFloat(ethers.utils.formatUnits(rewardPool, dec)),
-                    topAprBps
+                    topAprBps,
+                    tierList
                 };
             } catch (e) {
                 console.warn('refreshLiveStats: staking stats unavailable', e);
@@ -5182,6 +5216,7 @@
             if (rewardEl) rewardEl.innerText = fmtTokenAmt(stakeStats.reward);
             if (aprEl) aprEl.innerText = stakeStats.topAprBps === null ? '—' : (stakeStats.topAprBps / 100) + '%';
             if (aprNoteEl) aprNoteEl.innerText = stakeStats.topAprBps === null ? 'No active tier' : 'Live on-chain data';
+            renderHeroTiers(stakeStats.tierList);
         } else {
             if (stakedEl) stakedEl.innerText = '—';
             if (stakedNoteEl) stakedNoteEl.innerText = 'On-chain data unavailable';

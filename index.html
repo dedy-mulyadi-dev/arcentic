@@ -42,7 +42,7 @@
         window.loadLameJS    = function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js'); };
     })();
 </script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Unbounded:wght@500;600&display=swap" rel="stylesheet">
 <style>
 *{font-family:Inter,sans-serif}
 html{overflow-x:hidden;}
@@ -1367,79 +1367,90 @@ nav button.glass:hover {
 
 <!-- ═══════════════════════════ HOME ═══════════════════════════ -->
 <main id="homeView" class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-10">
-    <div class="grid lg:grid-cols-2 gap-8 items-center">
-        <div class="relative">
-            <div class="hero-glow"></div>
-            <div class="hero-aurora"></div>
-            <div class="hero-stars">
-                <span style="left:8%;top:12%;animation-delay:0s"></span>
-                <span style="left:22%;top:4%;animation-delay:.4s"></span>
-                <span style="left:35%;top:18%;animation-delay:1.1s"></span>
-                <span style="left:48%;top:6%;animation-delay:.2s"></span>
-                <span style="left:60%;top:22%;animation-delay:1.8s"></span>
-                <span style="left:72%;top:10%;animation-delay:.9s"></span>
-                <span style="left:85%;top:16%;animation-delay:2.3s"></span>
-                <span style="left:14%;top:30%;animation-delay:1.5s"></span>
-                <span style="left:28%;top:38%;animation-delay:.6s"></span>
-                <span style="left:44%;top:32%;animation-delay:2.6s"></span>
-                <span style="left:58%;top:40%;animation-delay:.1s"></span>
-                <span style="left:68%;top:35%;animation-delay:1.3s"></span>
-                <span style="left:80%;top:44%;animation-delay:2s"></span>
-                <span style="left:92%;top:28%;animation-delay:.7s"></span>
-                <span style="left:5%;top:50%;animation-delay:1.9s"></span>
-                <span style="left:20%;top:58%;animation-delay:.3s"></span>
-                <span style="left:38%;top:52%;animation-delay:2.4s"></span>
-                <span style="left:52%;top:60%;animation-delay:1.6s"></span>
-                <span style="left:65%;top:55%;animation-delay:.5s"></span>
-                <span style="left:78%;top:62%;animation-delay:2.1s"></span>
-                <span style="left:90%;top:50%;animation-delay:1.2s"></span>
-                <span style="left:10%;top:70%;animation-delay:.8s"></span>
-                <span style="left:30%;top:75%;animation-delay:2.7s"></span>
-                <span style="left:50%;top:80%;animation-delay:1.4s"></span>
-                <span style="left:70%;top:74%;animation-delay:.0s"></span>
-                <span style="left:88%;top:78%;animation-delay:1.7s"></span>
-            </div>
-            <div class="glass inline-flex px-4 py-2 rounded-full mb-8">🟢 Live on Arc Mainnet</div>
-            <h2 class="text-4xl sm:text-5xl lg:text-7xl font-black leading-none mb-6" style="text-wrap:balance">Stake and swap on Arc, with gas paid in USDC</h2>
-            <p class="text-gray-300 text-base sm:text-xl lg:text-2xl leading-relaxed mb-8">Lock CENTIC for fixed-rate rewards, swap tokens, and track your positions on Arc Mainnet. Every fee is paid in USDC, so costs stay predictable.</p>
-            <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-8">
-                <button onclick="showTradingHub()" class="gradient px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl font-bold glow text-center">Start Trading →</button>
-                <button onclick="showPortfolio()" class="glass px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl font-bold text-center">Open Portfolio</button>
-            </div>
-            <div class="flex flex-wrap gap-3">
-                <div class="trust-badge">⛓️ Arc Mainnet Verified</div>
-                <div class="trust-badge">📖 Open Source Contracts</div>
-                <div class="trust-badge" id="trustActiveUsers" style="display:none"></div>
+    <style>
+    .hx{max-width:1280px;margin:0 auto;padding:40px 8px 24px;display:flex;flex-wrap:wrap;align-items:center;gap:48px;color:#E8EDFF}
+    .hx-copy{flex:1 1 440px;min-width:0}
+    .hx-title{margin:0 0 24px;font-family:'Unbounded',sans-serif;font-weight:600;font-size:clamp(36px,5.2vw,68px);line-height:1.05;letter-spacing:-.01em;text-wrap:balance}
+    .hx-sub{margin:0 0 36px;max-width:520px;font-size:18px;line-height:1.6;color:#B4BFE0}
+    .hx-cta{display:flex;flex-wrap:wrap;gap:14px}
+    .hx-btn{font-weight:600;font-size:16px;padding:15px 28px;border-radius:14px;cursor:pointer;font-family:Inter,sans-serif}
+    .hx-btn-primary{background:#5B7CFF;color:#050816;border:1px solid #5B7CFF}
+    .hx-btn-primary:hover{background:#7C98FF;border-color:#7C98FF}
+    .hx-btn-ghost{background:transparent;color:#C5CEEA;border:1px solid #2C3A6B}
+    .hx-btn-ghost:hover{border-color:#5B7CFF;color:#E8EDFF}
+    .hx-btn:focus-visible{outline:2px solid #8FB0FF;outline-offset:3px}
+    .hx-dial{flex:0 1 480px;min-width:0;width:100%;max-width:480px}
+    .hx-dial svg{width:100%;height:auto;display:block;overflow:visible}
+    .hx-legend{margin-top:18px;display:flex;flex-direction:column;font-size:15px}
+    .hx-legend-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid #1B2547}
+    .hx-legend-row:last-child{border-bottom:1px solid #1B2547}
+    .hx-dot{width:10px;height:10px;border-radius:50%;flex:none}
+    @keyframes hxdraw{from{stroke-dasharray:0 100}}
+    .hx-arc{animation:hxdraw 1.5s cubic-bezier(.2,.7,.2,1) both}
+    .hx-arc-2{animation-delay:.18s}.hx-arc-3{animation-delay:.36s}
+    @media (prefers-reduced-motion: reduce){.hx-arc{animation:none}}
+    .hx-band{max-width:1280px;margin:24px auto 0;padding:0 8px;box-sizing:border-box}
+    .hx-band-row{display:flex;flex-wrap:wrap;border-top:1px solid #1B2547;border-bottom:1px solid #1B2547}
+    .hx-stat{flex:1 1 240px;padding:28px 28px;box-sizing:border-box;border-left:1px solid #1B2547}
+    .hx-stat:first-child{border-left:0;padding-left:0}
+    .hx-stat-label{font-size:15px;color:#8E9AC0;margin-bottom:10px}
+    .hx-stat-num{font-family:'Unbounded',sans-serif;font-weight:500;font-size:36px;line-height:1.1;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .hx-stat-note{font-size:14px;color:#8E9AC0;margin-top:10px}
+    .hx-note{margin:14px 0 0;font-size:14px;color:#8E9AC0}
+    .hx-note a{color:#8FB0FF}
+    </style>
+
+    <section class="hx" id="homeHero">
+        <div class="hx-copy">
+            <h2 class="hx-title">Stake and swap on Arc</h2>
+            <p class="hx-sub">Lock CENTIC at a fixed rate for 30, 90 or 180 days, or swap tokens from the Arcentic pool. Every fee is paid in USDC, so the cost is clear before you sign.</p>
+            <div class="hx-cta">
+                <button class="hx-btn hx-btn-primary" onclick="showStake()">Start staking</button>
+                <button class="hx-btn hx-btn-ghost" onclick="showPortfolio()">Open portfolio</button>
             </div>
         </div>
-        <div class="glass rounded-[30px] p-6 glow">
-            <div class="flex justify-between items-start mb-4 gap-3">
-                <div class="min-w-0 flex-1">
-                    <div class="text-gray-400 flex items-center gap-2 text-sm">
-                        Total Value Locked
-                        <span class="relative flex h-2 w-2 flex-shrink-0">
-                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                            <span class="relative inline-flex rounded-full h-2 w-2 bg-green-400"></span>
-                        </span>
-                    </div>
-                    <div id="heroTVL" class="font-black leading-tight" style="font-size:clamp(1rem,2vw,1.45rem);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">—</div>
-                    <div id="heroTVLChange" class="text-gray-400 text-sm">Reading on-chain data…</div>
-                </div>
-                <div class="glass px-4 py-2 rounded-xl flex-shrink-0 text-sm font-semibold">7D</div>
-            </div>
-            <div class="linechart">
-                <svg id="heroChartSvg" viewBox="0 0 1000 220" preserveAspectRatio="none">
-                    <polyline id="heroChartLine" fill="none" stroke="#4ea1ff" stroke-width="4" points="0,190 80,160 150,170 230,140 320,120 400,130 500,95 600,110 700,75 800,90 900,40 1000,10"/>
-                </svg>
-            </div>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-                <div class="glass rounded-3xl p-3 card min-w-0"><div class="text-gray-400 text-xs mb-0.5">CENTIC staked</div><div id="heroVolume" class="font-black leading-tight truncate" style="font-size:clamp(.95rem,1.8vw,1.35rem);">—</div><div id="heroVolumeChange" class="text-gray-400 text-xs mt-0.5">Reading on-chain data…</div></div>
-                <div class="glass rounded-3xl p-3 card min-w-0"><div class="text-gray-400 text-xs mb-0.5">Pools</div><div id="heroPools" class="font-black leading-tight truncate" style="font-size:clamp(.95rem,1.8vw,1.35rem);">—</div><div class="text-cyan-400 text-xs mt-0.5">Configured</div></div>
-                <div class="glass rounded-3xl p-3 card min-w-0"><div class="text-gray-400 text-xs mb-0.5">Reward pool</div><div id="heroStakers" class="font-black leading-tight truncate" style="font-size:clamp(.95rem,1.8vw,1.35rem);">—</div><div class="text-gray-400 text-xs mt-0.5">CENTIC available</div></div>
-                <div class="glass rounded-3xl p-3 card min-w-0"><div class="text-gray-400 text-xs mb-0.5">Top staking APR</div><div id="heroAPR" class="font-black leading-tight truncate" style="font-size:clamp(.95rem,1.8vw,1.35rem);">—</div><div id="heroAPRChange" class="text-gray-400 text-xs mt-0.5">Reading on-chain data…</div></div>
+
+        <div class="hx-dial">
+            <svg viewBox="0 0 520 520" role="img" aria-label="Staking tiers shown as three arcs, longer arcs pay a higher APR">
+                <circle cx="260" cy="260" r="250" fill="none" stroke="#121A36" stroke-width="1"/>
+                <circle cx="260" cy="260" r="335" fill="none" stroke="#0D1430" stroke-width="1"/>
+                <path d="M118.58 401.42 A200 200 0 1 1 401.42 401.42" pathLength="100" fill="none" stroke="#141D3B" stroke-width="14" stroke-linecap="round"/>
+                <path d="M146.86 373.14 A160 160 0 1 1 373.14 373.14" pathLength="100" fill="none" stroke="#141D3B" stroke-width="14" stroke-linecap="round"/>
+                <path d="M175.15 344.85 A120 120 0 1 1 344.85 344.85" pathLength="100" fill="none" stroke="#141D3B" stroke-width="14" stroke-linecap="round"/>
+                <path id="heroArc3" class="hx-arc hx-arc-3" d="M118.58 401.42 A200 200 0 1 1 401.42 401.42" pathLength="100" fill="none" stroke="#C86BFF" stroke-width="14" stroke-linecap="round" stroke-dasharray="100 100"/>
+                <path id="heroArc2" class="hx-arc hx-arc-2" d="M146.86 373.14 A160 160 0 1 1 373.14 373.14" pathLength="100" fill="none" stroke="#7B6CFF" stroke-width="14" stroke-linecap="round" stroke-dasharray="62.5 100"/>
+                <path id="heroArc1" class="hx-arc hx-arc-1" d="M175.15 344.85 A120 120 0 1 1 344.85 344.85" pathLength="100" fill="none" stroke="#4F8BFF" stroke-width="14" stroke-linecap="round" stroke-dasharray="25 100"/>
+                <text id="heroDialApr" x="260" y="276" text-anchor="middle" font-family="Unbounded, sans-serif" font-weight="600" font-size="64" fill="#E8EDFF">16%</text>
+                <text id="heroDialNote" x="260" y="308" text-anchor="middle" font-family="Inter, sans-serif" font-size="16" fill="#8E9AC0">top APR, 180-day lock</text>
+            </svg>
+            <div class="hx-legend">
+                <div class="hx-legend-row" id="heroTierRow3"><span class="hx-dot" style="background:#C86BFF"></span><span id="heroTierName3" style="flex-grow:1;color:#C5CEEA">180-day lock</span><span id="heroTierApr3" style="font-weight:600">16% APR</span></div>
+                <div class="hx-legend-row" id="heroTierRow2"><span class="hx-dot" style="background:#7B6CFF"></span><span id="heroTierName2" style="flex-grow:1;color:#C5CEEA">90-day lock</span><span id="heroTierApr2" style="font-weight:600">10% APR</span></div>
+                <div class="hx-legend-row" id="heroTierRow1"><span class="hx-dot" style="background:#4F8BFF"></span><span id="heroTierName1" style="flex-grow:1;color:#C5CEEA">30-day lock</span><span id="heroTierApr1" style="font-weight:600">4% APR</span></div>
             </div>
         </div>
-    </div>
+    </section>
+
+    <section class="hx-band">
+        <div class="hx-band-row">
+            <div class="hx-stat">
+                <div class="hx-stat-label">CENTIC staked</div>
+                <div class="hx-stat-num" id="heroVolume">—</div>
+                <div class="hx-stat-note" id="heroVolumeChange">Reading on-chain data…</div>
+            </div>
+            <div class="hx-stat">
+                <div class="hx-stat-label">Reward pool</div>
+                <div class="hx-stat-num" id="heroStakers">—</div>
+                <div class="hx-stat-note">CENTIC available</div>
+            </div>
+            <div class="hx-stat">
+                <div class="hx-stat-label">Gas is paid in</div>
+                <div class="hx-stat-num">USDC</div>
+                <div class="hx-stat-note">Fees are in dollars, not a volatile coin</div>
+            </div>
+        </div>
+        <p class="hx-note">Read live from the Staking contract on Arc Mainnet. <a href="https://explorer.arc.io/address/0xB3F98016BAEf5c2fFcFa61Fa6A1b7cB1fd623146" target="_blank" rel="noopener">Check it on the explorer</a></p>
+    </section>
 
     <div class="mt-10 grid md:grid-cols-3 gap-6">
         <div class="glass rounded-[24px] p-6 card cursor-pointer" onclick="showSwap()">
@@ -3036,7 +3047,14 @@ nav button.glass:hover {
         [`Connecting…`, `Menghubungkan…`],
         // Hero
         [`🟢 Live on Arc Mainnet`, `🟢 Live di Arc Mainnet`],
-        [`Stake and swap on Arc, with gas paid in USDC`, `Staking dan swap di Arc, gas dibayar dengan USDC`],
+        [`Stake and swap on Arc`, `Staking dan swap di Arc`],
+        [`Lock CENTIC at a fixed rate for 30, 90 or 180 days, or swap tokens from the Arcentic pool. Every fee is paid in USDC, so the cost is clear before you sign.`, `Kunci CENTIC dengan bunga tetap selama 30, 90 atau 180 hari, atau tukar token dari pool Arcentic. Semua biaya dibayar dengan USDC, jadi biayanya jelas sebelum kamu menandatangani.`],
+        [`Start staking`, `Mulai staking`],
+        [`Open portfolio`, `Buka portofolio`],
+        [`Gas is paid in`, `Gas dibayar dengan`],
+        [`Fees are in dollars, not a volatile coin`, `Biaya dalam dolar, bukan koin yang harganya naik-turun`],
+        [`Read live from the Staking contract on Arc Mainnet.`, `Dibaca langsung dari kontrak Staking di Arc Mainnet.`],
+        [`Check it on the explorer`, `Cek di explorer`],
         [`Lock CENTIC for fixed-rate rewards, swap tokens, and track your positions on Arc Mainnet. Every fee is paid in USDC, so costs stay predictable.`, `Kunci CENTIC untuk reward bunga tetap, tukar token, dan pantau posisimu di Arc Mainnet. Semua biaya dibayar dengan USDC, jadi biayanya mudah diprediksi.`],
         [`CENTIC staked`, `CENTIC di-stake`],
         [`Reward pool`, `Dana reward`],
