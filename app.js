@@ -5123,25 +5123,72 @@
             }
         }
 
-        // ── Volume / Stakers / APR: TIDAK ADA sumber data on-chain untuk
-        // metrik ini di proyek ini saat ini (butuh event-indexer terpisah).
-        // Daripada mengarang angka yang bergerak sendiri, tampilkan status
-        // jujur sampai indexer-nya benar-benar dibangun. ──
-        const volEl        = document.getElementById('heroVolume');
-        const volChangeEl  = document.getElementById('heroVolumeChange');
-        const stakersEl    = document.getElementById('heroStakers');
-        const aprEl        = document.getElementById('heroAPR');
-        const aprChangeEl  = document.getElementById('heroAPRChange');
+        // ── Kartu statistik kanan-bawah: semuanya dibaca langsung dari kontrak
+        // Staking di mainnet (CENTIC staked, saldo reward pool, APR tier tertinggi
+        // yang aktif). Kalau kontrak/RPC tidak terjangkau, tampilkan "—" dan
+        // status jujur — jangan pernah mengarang angka. Volume & jumlah user
+        // aktif tidak punya sumber on-chain tanpa indexer, jadi tidak dipajang. ──
+        const stakedEl      = document.getElementById('heroVolume');
+        const stakedNoteEl  = document.getElementById('heroVolumeChange');
+        const rewardEl      = document.getElementById('heroStakers');
+        const aprEl         = document.getElementById('heroAPR');
+        const aprNoteEl     = document.getElementById('heroAPRChange');
         const activeUsersEl = document.getElementById('trustActiveUsers');
+        if (activeUsersEl) activeUsersEl.style.display = 'none';
 
-        if (volEl) volEl.innerText = '—';
-        if (volChangeEl) volChangeEl.innerText = 'Coming soon';
-        if (stakersEl) stakersEl.innerText = '—';
-        if (aprEl) aprEl.innerText = '—';
-        if (aprChangeEl) aprChangeEl.innerText = 'Coming soon';
-        // Sama seperti Volume/Stakers/APR: belum ada indexer untuk jumlah
-        // wallet/user aktif, jadi jangan pajang angka karangan (mis. "8.3K+").
-        if (activeUsersEl) activeUsersEl.innerText = '👥 Active Users — Coming soon';
+        const stakingAddr = CONTRACT_ADDRS.ArcenticStaking;
+        const centicAddr  = CONTRACT_ADDRS.CENTIC;
+        const stakeProvider = readOnlyProvider();
+        let stakeStats = null;
+        if (stakingAddr && centicAddr && stakeProvider) {
+            try {
+                const staking = new ethers.Contract(stakingAddr, STAKING_ABI, stakeProvider);
+                const dec = await resolveTokenDecimals(centicAddr, stakeProvider);
+                const [totalStaked, rewardPool, tierCount] = await withRpcRetry(
+                    () => Promise.all([
+                        staking.totalStakedOf(centicAddr),
+                        staking.rewardPoolBalanceOf(centicAddr),
+                        staking.tiersLength(centicAddr)
+                    ]), { retries: 2 });
+                let topAprBps = null;
+                const n = tierCount.toNumber();
+                if (n > 0) {
+                    const tiers = await withRpcRetry(
+                        () => Promise.all(Array.from({ length: n }, (_, i) => staking.tierAt(centicAddr, i))),
+                        { retries: 2 });
+                    tiers.forEach(t => {
+                        if (!t.active) return;
+                        const bps = t.aprBps.toNumber();
+                        if (topAprBps === null || bps > topAprBps) topAprBps = bps;
+                    });
+                }
+                stakeStats = {
+                    staked: parseFloat(ethers.utils.formatUnits(totalStaked, dec)),
+                    reward: parseFloat(ethers.utils.formatUnits(rewardPool, dec)),
+                    topAprBps
+                };
+            } catch (e) {
+                console.warn('refreshLiveStats: staking stats unavailable', e);
+            }
+        }
+
+        const fmtTokenAmt = (v) => v >= 1e6 ? (v / 1e6).toFixed(2) + 'M'
+            : v >= 1e3 ? (v / 1e3).toFixed(2) + 'K'
+            : v.toLocaleString(undefined, { maximumFractionDigits: 4 });
+
+        if (stakeStats) {
+            if (stakedEl) stakedEl.innerText = fmtTokenAmt(stakeStats.staked);
+            if (stakedNoteEl) stakedNoteEl.innerText = 'Live on-chain data';
+            if (rewardEl) rewardEl.innerText = fmtTokenAmt(stakeStats.reward);
+            if (aprEl) aprEl.innerText = stakeStats.topAprBps === null ? '—' : (stakeStats.topAprBps / 100) + '%';
+            if (aprNoteEl) aprNoteEl.innerText = stakeStats.topAprBps === null ? 'No active tier' : 'Live on-chain data';
+        } else {
+            if (stakedEl) stakedEl.innerText = '—';
+            if (stakedNoteEl) stakedNoteEl.innerText = 'On-chain data unavailable';
+            if (rewardEl) rewardEl.innerText = '—';
+            if (aprEl) aprEl.innerText = '—';
+            if (aprNoteEl) aprNoteEl.innerText = 'On-chain data unavailable';
+        }
     }
 
     // kick off immediately, then keep polling every 4s for a "live" feel

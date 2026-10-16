@@ -1400,8 +1400,8 @@ nav button.glass:hover {
                 <span style="left:88%;top:78%;animation-delay:1.7s"></span>
             </div>
             <div class="glass inline-flex px-4 py-2 rounded-full mb-8">🟢 Live on Arc Mainnet</div>
-            <h2 class="text-4xl sm:text-5xl lg:text-7xl font-black leading-none mb-6">The Next<br>Generation<br><span class="bg-gradient-to-r from-purple-400 to-cyan-400 text-transparent bg-clip-text">DeFi Experience</span></h2>
-            <p class="text-gray-300 text-base sm:text-xl lg:text-2xl leading-relaxed mb-8">Trade, stake, manage pools and track your Arc mainnet assets with ARCENTIC. Modern infrastructure for decentralized finance.</p>
+            <h2 class="text-4xl sm:text-5xl lg:text-7xl font-black leading-none mb-6">Stake and swap on Arc, with gas paid in USDC</h2>
+            <p class="text-gray-300 text-base sm:text-xl lg:text-2xl leading-relaxed mb-8">Lock CENTIC for fixed-rate rewards, swap tokens, and track your positions on Arc Mainnet. Every fee is paid in USDC, so costs stay predictable.</p>
             <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-8">
                 <button onclick="showTradingHub()" class="gradient px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl font-bold glow text-center">Start Trading →</button>
                 <button onclick="showPortfolio()" class="glass px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl font-bold text-center">Open Portfolio</button>
@@ -1409,7 +1409,7 @@ nav button.glass:hover {
             <div class="flex flex-wrap gap-3">
                 <div class="trust-badge">⛓️ Arc Mainnet Verified</div>
                 <div class="trust-badge">📖 Open Source Contracts</div>
-                <div class="trust-badge" id="trustActiveUsers">👥 Active Users — Coming soon</div>
+                <div class="trust-badge" id="trustActiveUsers" style="display:none"></div>
             </div>
         </div>
         <div class="glass rounded-[30px] p-6 glow">
@@ -1433,10 +1433,10 @@ nav button.glass:hover {
                 </svg>
             </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-                <div class="glass rounded-3xl p-3 card min-w-0"><div class="text-gray-400 text-xs mb-0.5">Volume</div><div id="heroVolume" class="font-black leading-tight truncate" style="font-size:clamp(.95rem,1.8vw,1.35rem);">—</div><div id="heroVolumeChange" class="text-gray-400 text-xs mt-0.5">Coming soon</div></div>
+                <div class="glass rounded-3xl p-3 card min-w-0"><div class="text-gray-400 text-xs mb-0.5">CENTIC staked</div><div id="heroVolume" class="font-black leading-tight truncate" style="font-size:clamp(.95rem,1.8vw,1.35rem);">—</div><div id="heroVolumeChange" class="text-gray-400 text-xs mt-0.5">Reading on-chain data…</div></div>
                 <div class="glass rounded-3xl p-3 card min-w-0"><div class="text-gray-400 text-xs mb-0.5">Pools</div><div id="heroPools" class="font-black leading-tight truncate" style="font-size:clamp(.95rem,1.8vw,1.35rem);">—</div><div class="text-cyan-400 text-xs mt-0.5">Configured</div></div>
-                <div class="glass rounded-3xl p-3 card min-w-0"><div class="text-gray-400 text-xs mb-0.5">Stakers</div><div id="heroStakers" class="font-black leading-tight truncate" style="font-size:clamp(.95rem,1.8vw,1.35rem);">—</div><div class="text-gray-400 text-xs mt-0.5">Coming soon</div></div>
-                <div class="glass rounded-3xl p-3 card min-w-0"><div class="text-gray-400 text-xs mb-0.5">APR</div><div id="heroAPR" class="font-black leading-tight truncate" style="font-size:clamp(.95rem,1.8vw,1.35rem);">—</div><div id="heroAPRChange" class="text-gray-400 text-xs mt-0.5">Coming soon</div></div>
+                <div class="glass rounded-3xl p-3 card min-w-0"><div class="text-gray-400 text-xs mb-0.5">Reward pool</div><div id="heroStakers" class="font-black leading-tight truncate" style="font-size:clamp(.95rem,1.8vw,1.35rem);">—</div><div class="text-gray-400 text-xs mt-0.5">CENTIC available</div></div>
+                <div class="glass rounded-3xl p-3 card min-w-0"><div class="text-gray-400 text-xs mb-0.5">Top staking APR</div><div id="heroAPR" class="font-black leading-tight truncate" style="font-size:clamp(.95rem,1.8vw,1.35rem);">—</div><div id="heroAPRChange" class="text-gray-400 text-xs mt-0.5">Reading on-chain data…</div></div>
             </div>
         </div>
     </div>
@@ -3036,10 +3036,12 @@ nav button.glass:hover {
         [`Connecting…`, `Menghubungkan…`],
         // Hero
         [`🟢 Live on Arc Mainnet`, `🟢 Live di Arc Mainnet`],
-        [`The Next`, `Generasi`],
-        [`Generation`, `Berikutnya`],
-        [`DeFi Experience`, `Pengalaman DeFi`],
-        [`Trade, stake, manage pools and track your Arc mainnet assets with ARCENTIC. Modern infrastructure for decentralized finance.`, `Trading, staking, kelola pool, dan pantau aset Arc mainnet-mu dengan ARCENTIC. Infrastruktur modern untuk keuangan terdesentralisasi.`],
+        [`Stake and swap on Arc, with gas paid in USDC`, `Staking dan swap di Arc, gas dibayar dengan USDC`],
+        [`Lock CENTIC for fixed-rate rewards, swap tokens, and track your positions on Arc Mainnet. Every fee is paid in USDC, so costs stay predictable.`, `Kunci CENTIC untuk reward bunga tetap, tukar token, dan pantau posisimu di Arc Mainnet. Semua biaya dibayar dengan USDC, jadi biayanya mudah diprediksi.`],
+        [`CENTIC staked`, `CENTIC di-stake`],
+        [`Reward pool`, `Dana reward`],
+        [`CENTIC available`, `CENTIC tersedia`],
+        [`Top staking APR`, `APR staking tertinggi`],
         [`Start Trading →`, `Mulai Trading →`],
         [`Open Portfolio`, `Buka Portofolio`],
         [`⛓️ Arc Mainnet Verified`, `⛓️ Terverifikasi Arc Mainnet`],
