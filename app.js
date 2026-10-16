@@ -419,6 +419,8 @@
         });
         const active = document.getElementById(id);
         if (active) active.classList.add('glass','nav-active');
+        const tabMap = { navHome:'tabHome', navTrading:'tabTrading', navStake:'tabStake', navPortfolio:'tabPortfolio' };
+        ['tabHome','tabTrading','tabStake','tabPortfolio'].forEach(t => { const el = document.getElementById(t); if (el) el.classList.toggle('on', tabMap[id] === t); });
     }
 
     function showHome() {
@@ -7895,6 +7897,12 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
             document.querySelectorAll('[onclick*="' + g.fn + '("]').forEach(function (el) {
                 el.style.opacity = '.5';
                 el.title = g.label + ' - coming soon on mainnet';
+                if (el.closest && el.closest('#mainNav') && !el.querySelector('.nav-soon')) {
+                    const sp = document.createElement('span');
+                    sp.className = 'nav-soon';
+                    sp.textContent = 'Soon';
+                    el.appendChild(sp);
+                }
                 if (el.classList.contains('trade-card') && !el.querySelector('.soon-pill')) {
                     const pill = document.createElement('span');
                     pill.className = 'soon-pill';
