@@ -46,7 +46,12 @@
 <style>
 *{font-family:Inter,sans-serif}
 html{overflow-x:hidden;}
-body{background:#040816;color:#fff;overflow-x:hidden;-webkit-tap-highlight-color:transparent;touch-action:pan-y;}
+body{background:#040816;color:#fff;overflow-x:clip;-webkit-tap-highlight-color:transparent;touch-action:pan-y;}
+/* ARCENTIC-FIX sticky-header: header menempel, satu baris, latar lebih pekat */
+header.sticky{background:rgba(5,9,24,.93)!important;box-shadow:0 8px 24px -12px rgba(0,0,0,.6);}
+#mainNav{flex-wrap:nowrap;}
+#mainNav button{white-space:nowrap;}
+@media (min-width:1024px) and (max-width:1599px){#mainNav button{padding-left:.9rem;padding-right:.9rem;}}
 .gridbg{background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:40px 40px;}
 .hero-glow{position:absolute;top:-120px;left:-160px;width:520px;height:520px;border-radius:9999px;filter:blur(120px);background:radial-gradient(circle,#5b7bff55,transparent 70%);z-index:-1;pointer-events:none;animation:auroraPulse 8s ease-in-out infinite;}
 @keyframes auroraPulse{0%,100%{opacity:.85;transform:scale(1) translate(0,0)}50%{opacity:1;transform:scale(1.12) translate(20px,10px)}}
