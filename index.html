@@ -339,6 +339,8 @@ svg{width:100%;height:100%}
 .spot-tab-btn.spot-tab-active-buy { background:linear-gradient(135deg,#16a34a,#15803d); border-color:transparent; color:#fff; font-weight:700; }
 .spot-tab-btn.spot-tab-active-sell { background:linear-gradient(135deg,#dc2626,#b91c1c); border-color:transparent; color:#fff; font-weight:700; }
 .spot-order-tab { padding:10px 6px; font-size:.85rem; font-weight:600; color:rgba(148, 163, 184, 0.6); cursor:pointer; border-bottom:2px solid transparent; transition: .2s; white-space:nowrap; flex-shrink:0; }
+#spotOrderTypeTabs{scrollbar-width:none;-ms-overflow-style:none;}
+#spotOrderTypeTabs::-webkit-scrollbar{display:none;}
 .spot-order-tab:hover { color:#e2e8f0; }
 .spot-order-tab.spot-order-tab-active { color:#f1f5f9; border-color:#3b82f6; }
 @media (max-width:420px){ .spot-order-tab { font-size:.72rem; padding:8px 3px; } }
@@ -1780,7 +1782,7 @@ nav button.glass:hover {
             <div class="text-sm">
                 <span class="font-semibold">View on explorer:</span>
                 <span class="text-gray-400"> Visit </span>
-                <a href="https://explorer.arc.io/" target="_blank" class="text-cyan-400 underline">arcscan.app</a>
+                <a href="https://explorer.arc.io/" target="_blank" class="text-cyan-400 underline">explorer.arc.io</a>
             </div>
         </div>
     </div>
@@ -1939,7 +1941,7 @@ nav button.glass:hover {
                     <div class="text-sm">
                         <span class="font-semibold">View on explorer:</span>
                         <span class="text-gray-400"> Visit </span>
-                        <a href="https://explorer.arc.io/" target="_blank" class="text-cyan-400 underline">arcscan.app</a>
+                        <a href="https://explorer.arc.io/" target="_blank" class="text-cyan-400 underline">explorer.arc.io</a>
                     </div>
                 </div>
             </div>
@@ -2101,7 +2103,7 @@ nav button.glass:hover {
             <div class="pool-stat-pill">
                 <div class="text-gray-400 text-xs mb-1">Total Value Locked</div>
                 <div id="poolsStatTVL" class="text-lg sm:text-2xl font-black">—</div>
-                <div class="text-gray-500 text-xs mt-0.5">Coming soon</div>
+                <div id="poolsStatTVLNote" class="text-gray-500 text-xs mt-0.5">Loading from chain…</div>
             </div>
             <div class="pool-stat-pill">
                 <div class="text-gray-400 text-xs mb-1">24h Volume</div>
@@ -2110,7 +2112,8 @@ nav button.glass:hover {
             </div>
             <div class="pool-stat-pill">
                 <div class="text-gray-400 text-xs mb-1">Active Pools</div>
-                <div class="text-lg sm:text-2xl font-black">3</div>
+                <div id="poolsStatActive" class="text-lg sm:text-2xl font-black">—</div>
+                <div class="text-gray-500 text-xs mt-0.5">With reserves on-chain</div>
             </div>
         </div>
 
@@ -2130,7 +2133,7 @@ nav button.glass:hover {
                         </div>
                     </div>
                     <div class="flex items-center gap-3">
-                        <span class="pool-badge text-green-400">🟢 Active</span>
+                        <span id="poolBadge-usdc-centic" class="pool-badge text-gray-400">Loading…</span>
                         <span id="poolAPR-USDC-CENTIC" class="pool-badge text-purple-400">APR —</span>
                     </div>
                 </div>
@@ -2242,7 +2245,7 @@ nav button.glass:hover {
                         </div>
                     </div>
                     <div class="flex items-center gap-3">
-                        <span class="pool-badge text-green-400">🟢 Active</span>
+                        <span id="poolBadge-usdc-eurc" class="pool-badge text-gray-400">Loading…</span>
                         <span id="poolAPR-USDC-EURC" class="pool-badge text-cyan-400">APR —</span>
                     </div>
                 </div>
@@ -2353,7 +2356,7 @@ nav button.glass:hover {
                         </div>
                     </div>
                     <div class="flex items-center gap-3">
-                        <span class="pool-badge text-green-400">🟢 Active</span>
+                        <span id="poolBadge-eurc-centic" class="pool-badge text-gray-400">Loading…</span>
                         <span id="poolAPR-EURC-CENTIC" class="pool-badge text-purple-400">APR —</span>
                     </div>
                 </div>
@@ -3148,6 +3151,11 @@ nav button.glass:hover {
         [`+ Add Token to Pool`, `+ Tambah Token ke Pool`],
         [`24h Volume`, `Volume 24 jam`],
         [`Active Pools`, `Pool Aktif`],
+        [`No liquidity yet`, `Belum ada likuiditas`],
+        [`Loading…`, `Memuat…`],
+        [`With reserves on-chain`, `Dengan cadangan on-chain`],
+        [`Loading from chain…`, `Memuat dari chain…`],
+        [`Estimate: 2× USDC reserve`, `Perkiraan: 2× cadangan USDC`],
         [`🟢 Active`, `🟢 Aktif`],
         [`24h Fees`, `Fee 24 jam`],
         [`Pool Reserve`, `Cadangan Pool`],

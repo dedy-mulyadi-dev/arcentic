@@ -389,7 +389,7 @@
     function fmtBal(ether) {
         const n = parseFloat(ether);
         if (n === 0) return '0';
-        if (n >= 1000) return n.toLocaleString(undefined, {maximumFractionDigits: 2});
+        if (n >= 1000) return n.toLocaleString('en-US', {maximumFractionDigits: 2});
         if (n >= 1)    return n.toFixed(4);
         return n.toPrecision(4);
     }
@@ -4499,12 +4499,10 @@
         document.getElementById('poolsView').classList.add('open');
         document.body.style.overflow = 'hidden';
         setNavActive('navTrading');
-        // auto-load reserves if wallet connected
-        if (isConnected) {
-            loadReserves('usdc-centic','USDC','CENTIC');
-            loadReserves('usdc-eurc','USDC','EURC');
-            loadReserves('eurc-centic','EURC','CENTIC');
-        }
+        // reserves are public on-chain data: load them with or without a wallet
+        loadReserves('usdc-centic','USDC','CENTIC');
+        loadReserves('usdc-eurc','USDC','EURC');
+        loadReserves('eurc-centic','EURC','CENTIC');
     }
 
     function toggleLiqPanel(panelId) {
@@ -4517,11 +4515,33 @@
     // so the AMM ratio calculation below always has exact numbers to work with.
     const poolReserveValues = {};
 
+    // Header stats derived only from on-chain reserves. TVL is an estimate: twice the
+    // USDC side of the USDC/CENTIC pool (USDC = $1, 50/50 constant-product value).
+    function updatePoolStats() {
+        const live = Object.values(poolReserveValues).filter(r => Object.values(r).every(v => v > 0)).length;
+        ['usdc-centic','usdc-eurc','eurc-centic'].forEach(k => {
+            const r = poolReserveValues[k], el = document.getElementById('poolBadge-' + k);
+            if (!el || !r) return;
+            const ok = Object.values(r).every(v => v > 0);
+            el.innerText = ok ? '🟢 Active' : 'No liquidity yet';
+            el.className = 'pool-badge ' + (ok ? 'text-green-400' : 'text-gray-400');
+        });
+        const act = document.getElementById('poolsStatActive');
+        if (act) act.innerText = String(live);
+        const p = poolReserveValues['usdc-centic'];
+        if (p && p.USDC > 0) {
+            const tvl = '≈ $' + (p.USDC * 2).toLocaleString('en-US', { maximumFractionDigits: 2 });
+            ['poolsStatTVL', 'poolTVL-USDC-CENTIC'].forEach(id => { const el = document.getElementById(id); if (el) el.innerText = tvl; });
+            const note = document.getElementById('poolsStatTVLNote');
+            if (note) note.innerText = 'Estimate: 2× USDC reserve';
+        }
+    }
+
     async function loadReserves(poolKey, symA, symB) {
         // Map sym → TOKENS entry
         const tokA = TOKENS.find(t => t.sym === symA);
         const tokB = TOKENS.find(t => t.sym === symB);
-        if (!tokA || !tokB || !getActiveProvider()) return;
+        if (!tokA || !tokB) return;
 
         const idMapA = { 'usdc-centic':'reserve-usdc-centic-usdc', 'usdc-eurc':'reserve-usdc-eurc-usdc', 'eurc-centic':'reserve-eurc-centic-eurc' };
         const idMapB = { 'usdc-centic':'reserve-usdc-centic-centic', 'usdc-eurc':'reserve-usdc-eurc-eurc', 'eurc-centic':'reserve-eurc-centic-centic' };
@@ -4532,8 +4552,12 @@
         if (elB) elB.innerText = '…';
 
         try {
-            const provider = new ethers.providers.Web3Provider(getActiveProvider());
-            provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
+            let provider = readOnlyProvider();
+            if (!provider) {
+                if (!getActiveProvider()) { if (elA) elA.innerText = '—'; if (elB) elB.innerText = '—'; return; }
+                provider = new ethers.providers.Web3Provider(getActiveProvider());
+                provider.polling = false; // one-off provider — avoid an orphaned block-poll loop piling up in the background
+            }
             const pool = new ethers.Contract(CONTRACT_ADDRS.ArcenticMultiPool, POOL_ABI, provider);
             const [rawA, rawB, decA, decB] = await Promise.all([
                 pool.reserves(tokA.addr),
@@ -4546,9 +4570,11 @@
             poolReserveValues[poolKey] = { [symA]: valA, [symB]: valB };
             if (elA) elA.innerText = fmtBal(valA) + ' ' + symA;
             if (elB) elB.innerText = fmtBal(valB) + ' ' + symB;
+            updatePoolStats();
         } catch(e) {
             if (elA) elA.innerText = 'n/a';
             if (elB) elB.innerText = 'n/a';
+            const bd = document.getElementById('poolBadge-' + poolKey); if (bd) bd.innerText = 'Unavailable';
         }
     }
 
