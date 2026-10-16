@@ -80,6 +80,8 @@ header.sticky{background:rgba(5,9,24,.93)!important;box-shadow:0 8px 24px -12px 
 #portfolioView .token-row:hover{background:rgba(91,124,255,.07);}
 #portfolioView .token-row:last-of-type{border-bottom:none;}
 
+.text-green-400{color:#3DE3A8!important;}
+.text-red-400{color:#FF6B7A!important;}
 /* ARCENTIC-FIX skin-v2 nav + icons */
 #mainNav button{display:inline-flex;align-items:center;gap:8px;position:relative;color:#8E9AC0;font-weight:500;white-space:nowrap;}
 #mainNav button:hover{color:#E8EDFF;background:rgba(91,124,255,.08);}
@@ -312,12 +314,12 @@ svg{width:100%;height:100%}
 .spot-pro-back:hover { background:rgba(51, 65, 85, 0.9); border-color:rgba(100, 116, 139, 0.7); color:#fff; }
 .spot-pro-price-block { display:flex; align-items:baseline; gap:10px; }
 .spot-pro-price { font-size:1.4rem; font-weight:700; font-variant-numeric: tabular-nums; color:#f1f5f9; }
-.spot-pro-change { font-size:.8rem; font-weight:600; padding:3px 8px; border-radius:6px; background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+.spot-pro-change { font-size:.8rem; font-weight:600; padding:3px 8px; border-radius:6px; background: rgba(61, 227, 168, 0.12); color: #3DE3A8; }
 .spot-pro-stat { display:flex; flex-direction:column; gap:3px; min-width:100px; }
 .spot-pro-stat-label { font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:rgba(148, 163, 184, 0.7); font-weight:500; }
 .spot-pro-stat-value { font-size:.85rem; font-weight:600; font-variant-numeric: tabular-nums; color:#e2e8f0; }
 .spot-pro-header-right { display:flex; align-items:center; gap:8px; flex-shrink:0; }
-.spot-live-badge { display:flex; align-items:center; gap:6px; padding: 6px 12px; border-radius:20px; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); font-size:.75rem; font-weight:600; color: #22c55e; }
+.spot-live-badge { display:flex; align-items:center; gap:6px; padding: 6px 12px; border-radius:20px; background: rgba(61, 227, 168, 0.1); border: 1px solid rgba(61, 227, 168, 0.35); font-size:.75rem; font-weight:600; color: #3DE3A8; }
 
 /* 3-column body - Synthra style */
 .spot-pro-body {
@@ -367,13 +369,13 @@ svg{width:100%;height:100%}
 }
 .spot-pro-ob-row:hover { background: rgba(30, 41, 59, 0.6); }
 .spot-pro-ob-row .spot-pro-ob-bar { position:absolute; top:0; bottom:0; right:0; z-index:0; opacity:.12; }
-.spot-pro-ob-row.ask .spot-pro-ob-bar { background:#ef4444; }
-.spot-pro-ob-row.bid .spot-pro-ob-bar { background:#22c55e; }
+.spot-pro-ob-row.ask .spot-pro-ob-bar { background:#FF6B7A; }
+.spot-pro-ob-row.bid .spot-pro-ob-bar { background:#3DE3A8; }
 .spot-pro-ob-row span { position:relative; z-index:1; }
 .spot-pro-ob-row span:nth-child(2) { text-align:center; color:rgba(148, 163, 184, 0.7); }
 .spot-pro-ob-row span:nth-child(3) { text-align:right; color:rgba(148, 163, 184, 0.5); }
-.ob-ask-price { color:#f87171; font-weight:600; }
-.ob-bid-price { color:#4ade80; font-weight:600; }
+.ob-ask-price { color:#FF6B7A; font-weight:600; }
+.ob-bid-price { color:#3DE3A8; font-weight:600; }
 .spot-pro-ob-mid {
     display:flex; align-items:center; justify-content:space-between; gap:12px;
     padding:10px 16px; margin:6px 0; font-weight:700; font-size:.92rem;
@@ -390,8 +392,8 @@ svg{width:100%;height:100%}
     cursor:pointer; background:rgba(30, 41, 59, 0.6); border:1px solid rgba(71, 85, 105, 0.5); color:rgba(148, 163, 184, 0.7); transition: .2s;
 }
 .spot-tab-btn:hover { background:rgba(51, 65, 85, 0.8); color:#e2e8f0; }
-.spot-tab-btn.spot-tab-active-buy { background:linear-gradient(135deg,#16a34a,#15803d); border-color:transparent; color:#fff; font-weight:700; }
-.spot-tab-btn.spot-tab-active-sell { background:linear-gradient(135deg,#dc2626,#b91c1c); border-color:transparent; color:#fff; font-weight:700; }
+.spot-tab-btn.spot-tab-active-buy { background:#3DE3A8; border-color:transparent; color:#04140D; font-weight:700; }
+.spot-tab-btn.spot-tab-active-sell { background:#FF6B7A; border-color:transparent; color:#1A0509; font-weight:700; }
 .spot-order-tab { padding:10px 6px; font-size:.85rem; font-weight:600; color:rgba(148, 163, 184, 0.6); cursor:pointer; border-bottom:2px solid transparent; transition: .2s; white-space:nowrap; flex-shrink:0; }
 #spotOrderTypeTabs{scrollbar-width:none;-ms-overflow-style:none;}
 #spotOrderTypeTabs::-webkit-scrollbar{display:none;}
@@ -1729,7 +1731,7 @@ nav button.glass:hover {
                 <span class="text-slate-400" id="spotFeeDisplay">Gas: —</span>
             </div>
 
-            <button id="spotSubmitBtn" onclick="submitSpotOrder()" class="w-full py-4 rounded-xl font-bold text-base transition transform hover:scale-[1.02] active:scale-[0.98] shadow-lg" style="background:linear-gradient(135deg,#16a34a,#15803d); color:#fff;">Buy CENTIC</button>
+            <button id="spotSubmitBtn" onclick="submitSpotOrder()" class="w-full py-4 rounded-xl font-bold text-base transition transform hover:scale-[1.02] active:scale-[0.98] shadow-lg" style="background:#3DE3A8; color:#04140D;">Buy CENTIC</button>
             <p id="spotStatus" class="text-center text-xs text-slate-500 mt-4 hidden"></p>
 
             <div class="mt-5 rounded-lg px-4 py-3 text-[11px] text-slate-400 leading-relaxed" style="background:rgba(30, 41, 59, 0.6);border:1px solid rgba(71, 85, 105, 0.4);">

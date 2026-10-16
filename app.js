@@ -2626,7 +2626,7 @@
         }
         el.innerHTML = trades.map(t => {
             const timeStr = new Date(t.time).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            const priceColor = t.side === 'buy' ? '#4ade80' : '#f87171';
+            const priceColor = t.side === 'buy' ? '#3DE3A8' : '#FF6B7A';
             return `
                 <div class="spot-pro-ob-row ${t.side}">
                     <span style="color:${priceColor};font-weight:600;">${spotFmtPrice(t.price)}</span>
@@ -2702,11 +2702,9 @@
         else if (spotOrderType === 'stoploss') action = 'Set Stop-Loss';
         else if (spotOrderType === 'takeprofit') action = 'Set Take-Profit';
         btn.innerText = `${action} ${p.base.sym}`;
-        btn.style.background = spotOrderType === 'stoploss'
-            ? 'linear-gradient(135deg,#ef4444,#dc2626)'
-            : spotOrderType === 'takeprofit'
-            ? 'linear-gradient(135deg,#22c55e,#16a34a)'
-            : (spotSide === 'buy' ? 'linear-gradient(135deg,#22c55e,#16a34a)' : 'linear-gradient(135deg,#ef4444,#dc2626)');
+        const spotIsRed = spotOrderType === 'stoploss' || (spotOrderType !== 'takeprofit' && spotSide !== 'buy');
+        btn.style.background = spotIsRed ? '#FF6B7A' : '#3DE3A8';
+        btn.style.color = spotIsRed ? '#1A0509' : '#04140D';
     }
 
     async function setSpotAmountPct(pct) {
@@ -2800,7 +2798,7 @@
         if (prevMid) {
             const pct = ((data.price - prevMid) / prevMid) * 100;
             changeEl.innerText = (pct >= 0 ? '▲ ' : '▼ ') + Math.abs(pct).toFixed(3) + '%';
-            changeEl.style.color = pct >= 0 ? '#4ade80' : '#f87171';
+            changeEl.style.color = pct >= 0 ? '#3DE3A8' : '#FF6B7A';
         } else {
             changeEl.innerText = 'Sesi live dimulai';
             changeEl.style.color = '#9ca3af';
@@ -2945,7 +2943,7 @@
         candles.forEach((c, i) => {
             const x = pad.l + plotW - (n - 1 - i) * slot - slot/2;
             const up = c.c >= c.o;
-            ctx.strokeStyle = ctx.fillStyle = up ? '#22c55e' : '#ef4444';
+            ctx.strokeStyle = ctx.fillStyle = up ? '#3DE3A8' : '#FF6B7A';
             ctx.beginPath();
             ctx.moveTo(x, yFor(c.h)); ctx.lineTo(x, yFor(c.l)); ctx.stroke();
             const yO = yFor(c.o), yC = yFor(c.c);
