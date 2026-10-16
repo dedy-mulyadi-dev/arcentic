@@ -5174,7 +5174,7 @@
 
         const fmtTokenAmt = (v) => v >= 1e6 ? (v / 1e6).toFixed(2) + 'M'
             : v >= 1e3 ? (v / 1e3).toFixed(2) + 'K'
-            : v.toLocaleString(undefined, { maximumFractionDigits: 4 });
+            : v.toLocaleString('en-US', { maximumFractionDigits: 4 });
 
         if (stakeStats) {
             if (stakedEl) stakedEl.innerText = fmtTokenAmt(stakeStats.staked);
