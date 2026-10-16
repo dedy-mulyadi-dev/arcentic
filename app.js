@@ -2448,12 +2448,11 @@
        dibuka; order eksekusi memakai jalur approve+swap
        yang sama seperti fitur Swap.
     ══════════════════════════════════════════════════ */
-    const SPOT_PAIRS = [
-        { base: 3, quote: 0 }, // CENTIC / USDC
-        { base: 3, quote: 1 }, // CENTIC / EURC
-        { base: 1, quote: 0 }, // EURC / USDC
-        { base: 2, quote: 0 }, // USDT / USDC
-    ];
+    // Pasangan dibangun dari simbol, bukan nomor urut: TOKENS sudah difilter (token tanpa alamat dibuang),
+    // jadi nomor urut bergeser dan sebelumnya membuat showSpotTrade crash di mainnet.
+    const SPOT_PAIRS = [['CENTIC','USDC'], ['CENTIC','EURC'], ['EURC','USDC'], ['USDT','USDC']]
+        .map(([b, q]) => ({ base: TOKENS.findIndex(t => t.sym === b), quote: TOKENS.findIndex(t => t.sym === q) }))
+        .filter(p => p.base >= 0 && p.quote >= 0);
     let spotPairIdx = 0;
     let spotSide = 'buy';
     let spotOrderType = 'market';
@@ -3035,7 +3034,7 @@
         if (!el) return;
         const orders = loadSpotLimitOrders();
         if (orders.length === 0) { el.innerHTML = '<p class="text-gray-500 text-xs">Belum ada limit order.</p>'; return; }
-        el.innerHTML = orders.map(o => {
+        el.innerHTML = orders.filter(o => SPOT_PAIRS[o.pairIdx]).map(o => {
             const pair = SPOT_PAIRS[o.pairIdx];
             const base = TOKENS[pair.base], quote = TOKENS[pair.quote];
             return `<div class="limit-order-row">
@@ -3059,6 +3058,7 @@
             spotLimitExecuting = true;
             try {
                 const pair = SPOT_PAIRS[o.pairIdx];
+                if (!pair) { cancelSpotLimitOrder(o.id); spotLimitExecuting = false; continue; }
                 if (o.side === 'buy') { swapFrom = pair.quote; swapTo = pair.base; }
                 else                  { swapFrom = pair.base;  swapTo = pair.quote; }
                 document.getElementById('swapFromAmt').value = o.amount;
