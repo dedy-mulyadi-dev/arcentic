@@ -465,9 +465,6 @@
         document.getElementById('pfAddr').innerText     = account;
         document.getElementById('pfBal').innerText      = display + ' USDC';
         document.getElementById('pfBalToken').innerText = fmtBal(balEther) + ' USDC';
-        document.getElementById('pfBarMax').innerText   = fmtBal(balEther) + ' USDC';
-        const pct = Math.min(parseFloat(balEther) / 100 * 100, 100);
-        document.getElementById('pfBarFill').style.width = Math.max(pct, 2) + '%';
         document.getElementById('pfExplorer').href = `${NET.explorerUrl}/address/${account}`;
 
         document.getElementById('pfLocked').classList.add('hidden');
@@ -485,7 +482,7 @@
             { id: 'pfBalCENTIC', tok: TOKENS.find(t => t.sym === 'CENTIC'), sym: 'CENTIC' },
         ];
         await Promise.all(tokenDefs.map(async ({ id, tok, sym }) => {
-            if (!tok) return;
+            if (!tok) { const row = document.getElementById('row' + sym); if (row) row.style.display = 'none'; return; }
             const el = document.getElementById(id);
             if (el) el.innerText = '…';
             try {
@@ -7898,6 +7895,12 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
             document.querySelectorAll('[onclick*="' + g.fn + '("]').forEach(function (el) {
                 el.style.opacity = '.5';
                 el.title = g.label + ' - coming soon on mainnet';
+                if (el.classList.contains('trade-card') && !el.querySelector('.soon-pill')) {
+                    const pill = document.createElement('span');
+                    pill.className = 'soon-pill';
+                    pill.textContent = 'Soon';
+                    el.appendChild(pill);
+                }
             });
         } catch (e) {}
         if (g.fn === 'showVault') return; /* showVault didefinisikan di vault.js, dijaga di sana */
