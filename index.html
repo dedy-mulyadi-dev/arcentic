@@ -5,6 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
 <meta name="google" content="notranslate">
 <title>ARCENTIC Premium Dashboard</title>
+<meta name="description" content="Stake CENTIC and swap USDC, EURC and CENTIC on Arc Mainnet. Live on-chain staking tiers and AMM pools.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ARCENTIC">
+<meta property="og:title" content="ARCENTIC - Stake and swap on Arc Mainnet">
+<meta property="og:description" content="Stake CENTIC and swap USDC, EURC and CENTIC on Arc Mainnet. Live on-chain staking tiers and AMM pools.">
+<meta property="og:url" content="https://arcentic.vercel.app/">
+<meta property="og:image" content="https://arcentic.vercel.app/arcenticlogo.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="ARCENTIC - Stake and swap on Arc Mainnet">
+<meta name="twitter:description" content="Stake CENTIC and swap USDC, EURC and CENTIC on Arc Mainnet.">
+<meta name="twitter:image" content="https://arcentic.vercel.app/arcenticlogo.png">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImFyYy1nIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzM0NzhmZiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjUwJSIgc3RvcC1jb2xvcj0iIzhiNWNmNiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNkNjZiZmYiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDxjaXJjbGUgY3g9IjE2IiBjeT0iMTYiIHI9IjE1IiBmaWxsPSIjMDcwYzIzIi8+CiAgPGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTQuMjUiIGZpbGw9Im5vbmUiIHN0cm9rZT0idXJsKCNhcmMtZykiIHN0cm9rZS13aWR0aD0iMS41Ii8+CiAgPHBhdGggZD0iTTE2IDcuNSBMMjIuNSAyMi41IEwxOC43IDIyLjUgTDE2IDE1LjggTDEzLjMgMjIuNSBMOS41IDIyLjUgWiIgZmlsbD0idXJsKCNhcmMtZykiLz4KICA8cGF0aCBkPSJNOS41IDIwLjMgQzEyIDE3LjggMjAgMTcuOCAyMi41IDIwLjMiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2U2ZDlmZiIgc3Ryb2tlLXdpZHRoPSIxLjYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1716,8 +1727,8 @@ nav button.glass:hover {
             <div class="flex gap-2 sm:gap-4 mb-5 text-sm overflow-x-auto" id="spotOrderTypeTabs">
                 <div class="spot-order-tab spot-order-tab-active" onclick="setSpotOrderType('market')" id="spotTypeMarket">Market</div>
                 <div class="spot-order-tab" onclick="setSpotOrderType('limit')" id="spotTypeLimit">Limit</div>
-                <div class="spot-order-tab" onclick="setSpotOrderType('stoploss')" id="spotTypeStopLoss">Stop-Loss</div>
-                <div class="spot-order-tab" onclick="setSpotOrderType('takeprofit')" id="spotTypeTakeProfit">Take-Profit</div>
+                <div class="spot-order-tab hidden" onclick="setSpotOrderType('stoploss')" id="spotTypeStopLoss">Stop-Loss</div>
+                <div class="spot-order-tab hidden" onclick="setSpotOrderType('takeprofit')" id="spotTypeTakeProfit">Take-Profit</div>
             </div>
 
             <div id="spotLimitPriceWrap" class="hidden mb-4">
