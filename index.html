@@ -401,7 +401,7 @@ svg{width:100%;height:100%}
 .spot-pro-ob-head span:nth-child(3) { text-align:right; }
 .spot-pro-ob-rows { display:flex; flex-direction:column; }
 .spot-pro-ob-row {
-    display:grid; grid-template-columns:1fr 1fr 1fr; font-size:.78rem; padding:3px 16px;
+    display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); column-gap:10px; font-size:.76rem; padding:3px 16px; white-space:nowrap;
     position:relative; font-variant-numeric: tabular-nums; cursor:default; transition: .15s;
 }
 .spot-pro-ob-row:hover { background: rgba(30, 41, 59, 0.6); }
@@ -1772,14 +1772,14 @@ nav button.glass:hover {
             <button id="spotSubmitBtn" onclick="submitSpotOrder()" class="w-full py-4 rounded-xl font-bold text-base transition transform hover:scale-[1.02] active:scale-[0.98] shadow-lg" style="background:#3DE3A8; color:#04140D;">Buy CENTIC</button>
             <p id="spotStatus" class="text-center text-xs text-slate-500 mt-4 hidden"></p>
 
-            <div class="mt-5 rounded-lg px-4 py-3 text-[11px] text-slate-400 leading-relaxed" style="background:rgba(30, 41, 59, 0.6);border:1px solid rgba(71, 85, 105, 0.4);">
+            <div class="mt-5 rounded-lg px-4 py-3 text-[11px] text-slate-400 leading-relaxed hidden" style="background:rgba(30, 41, 59, 0.6);border:1px solid rgba(71, 85, 105, 0.4);">
                 ⚠️ Limit orders run in-browser & only while tab is open. Not on-chain orders.
             </div>
         </div>
     </div>
 
-    <!-- Pending limit orders -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Pending limit orders (disembunyikan: order limit hanya jalan di browser) -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 hidden">
         <h3 class="text-sm font-bold text-gray-300 mb-3">Limit Order Aktif</h3>
         <div id="spotLimitOrdersList" class="flex flex-col gap-2">
             <p class="text-gray-500 text-xs">Belum ada limit order.</p>

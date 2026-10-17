@@ -2743,7 +2743,7 @@
             const gasPriceGwei = parseFloat(ethers.utils.formatUnits(gasPrice, 'gwei'));
             const estimatedGas = 150000; // Typical swap gas limit
             const gasCostEth = (gasPriceGwei * estimatedGas) / 1e9;
-            el.innerText = `Gas: ~${gasCostEth.toFixed(4)} ETH`;
+            el.innerText = `Gas: ~${gasCostEth.toFixed(4)} USDC`;
         } catch { el.innerText = 'Gas: —'; }
     }
 
@@ -2844,10 +2844,10 @@
 
         const asksHtml = askRows.slice().reverse().map(a => `
             <div class="spot-pro-ob-row ask"><div class="spot-pro-ob-bar" style="width:${(a.total/maxTotal*100).toFixed(1)}%"></div>
-                <span class="ob-ask-price">${spotFmtPrice(a.price)}</span><span>${a.amount.toFixed(3)}</span><span>${a.total.toFixed(3)}</span></div>`).join('');
+                <span class="ob-ask-price">${spotFmtPrice(a.price)}</span><span>${a.amount.toFixed(2)}</span><span>${a.total.toFixed(2)}</span></div>`).join('');
         const bidsHtml = bidRows.map(b => `
             <div class="spot-pro-ob-row bid"><div class="spot-pro-ob-bar" style="width:${(b.total/maxTotal*100).toFixed(1)}%"></div>
-                <span class="ob-bid-price">${spotFmtPrice(b.price)}</span><span>${b.amount.toFixed(3)}</span><span>${b.total.toFixed(3)}</span></div>`).join('');
+                <span class="ob-bid-price">${spotFmtPrice(b.price)}</span><span>${b.amount.toFixed(2)}</span><span>${b.total.toFixed(2)}</span></div>`).join('');
         document.getElementById('spotAsks').innerHTML = asksHtml;
         document.getElementById('spotBids').innerHTML = bidsHtml;
 
