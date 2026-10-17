@@ -2674,12 +2674,20 @@
         document.getElementById('spotTabBuy').className = 'spot-tab-btn' + (side === 'buy' ? ' spot-tab-active-buy' : '');
         document.getElementById('spotTabSell').className = 'spot-tab-btn' + (side === 'sell' ? ' spot-tab-active-sell' : '');
         const p = spotPair();
-        document.getElementById('spotAmountLabel').innerText = `Jumlah (${side === 'buy' ? p.quote.sym : p.base.sym})`;
-        document.getElementById('spotEstimateLabel').innerText = side === 'buy' ? `Estimasi ${p.base.sym} diterima` : `Estimasi ${p.quote.sym} diterima`;
+        const spotEn = (document.documentElement.getAttribute('lang') || '').startsWith('en');
+        document.getElementById('spotAmountLabel').innerText = `${spotEn ? 'Amount' : 'Jumlah'} (${side === 'buy' ? p.quote.sym : p.base.sym})`;
+        { const got = side === 'buy' ? p.base.sym : p.quote.sym;
+          document.getElementById('spotEstimateLabel').innerText = spotEn ? `Est. ${got} received` : `Estimasi ${got} diterima`; }
         updateSpotSubmitLabel();
         updateSpotBalance();
         updateSpotEstimate();
     }
+
+    // Label dinamis Spot ikut berganti saat bahasa diganti (EN/ID)
+    try {
+        new MutationObserver(() => { try { setSpotSide(spotSide); renderSpotChart(); pollSpotMarket(); } catch (e) {} })
+            .observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+    } catch (e) {}
 
     function setSpotOrderType(type) {
         spotOrderType = type;
@@ -2781,7 +2789,7 @@
         const p = spotPair();
         if (!data) {
             document.getElementById('spotLastPrice').innerText = '—';
-            document.getElementById('spotMidPrice').innerText = 'Pool belum ada likuiditas';
+            document.getElementById('spotMidPrice').innerText = (document.documentElement.getAttribute('lang') || '').startsWith('en') ? 'No liquidity in this pool yet' : 'Pool belum ada likuiditas';
             document.getElementById('spotAsks').innerHTML = '';
             document.getElementById('spotBids').innerHTML = '';
             const liqEl = document.getElementById('spotLiquidity'); if (liqEl) liqEl.innerText = '—';
