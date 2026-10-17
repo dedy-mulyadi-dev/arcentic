@@ -1391,13 +1391,11 @@ nav button.glass:hover {
 .spot-info-card dd{color:#E8EDFF;font-variant-numeric:tabular-nums;text-align:right;}
 .spot-info-card a{color:#5B7CFF;}
 .spot-info-card a:hover{text-decoration:underline;}
-.spot-hist-head,.spot-hist-row{display:grid;grid-template-columns:1.1fr .6fr 1fr 1fr 1fr .9fr;gap:10px;font-size:.78rem;padding:8px 0;font-variant-numeric:tabular-nums;}
+.spot-hist-head,.spot-hist-row{display:grid;grid-template-columns:1fr 1.6fr 1.2fr .9fr;gap:10px;font-size:.78rem;padding:8px 0;font-variant-numeric:tabular-nums;}
 .spot-hist-head{color:#8E9AC0;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #1B2547;}
 .spot-hist-row{border-bottom:1px solid #141C38;color:#B7C2E8;}
-.spot-hist-row .b{color:#3DE3A8;font-weight:600;}
-.spot-hist-row .s{color:#FF6B7A;font-weight:600;}
 .spot-hist-empty{padding:26px 0;text-align:center;color:#8E9AC0;font-size:.82rem;}
-@media (max-width:1024px){.spot-info{grid-template-columns:1fr;padding:16px;}.spot-hist-head,.spot-hist-row{grid-template-columns:1fr .6fr 1fr 1fr;}.spot-hist-head span:nth-child(3),.spot-hist-row span:nth-child(3),.spot-hist-head span:nth-child(6),.spot-hist-row span:nth-child(6){display:none;}}
+@media (max-width:1024px){.spot-info{grid-template-columns:1fr;padding:16px;}.spot-hist-head,.spot-hist-row{grid-template-columns:.9fr 1.5fr 1.1fr .8fr;gap:6px;font-size:.72rem;}}
 </style>
 </head>
 <body class="gridbg min-h-screen">
@@ -1544,7 +1542,9 @@ nav button.glass:hover {
     .hx-btn-primary{background:#5B7CFF;color:#050816;border:1px solid #5B7CFF}
     .hx-btn-primary:hover{background:#7C98FF;border-color:#7C98FF}
     .hx-btn-ghost{background:transparent;color:#C5CEEA;border:1px solid #2C3A6B}
-    .hx-btn-ghost:hover{border-color:#5B7CFF;color:#E8EDFF}
+    .hx-btn-ghost:hover{border-color:#5B7CFF;color:#E8EDFF;background:rgba(91,124,255,.1)}
+    .hx-btn{transition:background .15s,border-color .15s,color .15s,transform .1s}
+    .hx-btn:active{transform:scale(.97)}
     .hx-btn:focus-visible{outline:2px solid #8FB0FF;outline-offset:3px}
     .hx-dial{flex:0 1 480px;min-width:0;width:100%;max-width:480px}
     .hx-dial svg{width:100%;height:auto;display:block;overflow:visible}
@@ -1572,8 +1572,8 @@ nav button.glass:hover {
             <h2 class="hx-title">Stake and swap on Arc</h2>
             <p class="hx-sub">Lock CENTIC at a fixed rate for 30, 90 or 180 days, or swap tokens from the Arcentic pool. Every fee is paid in USDC, so the cost is clear before you sign.</p>
             <div class="hx-cta">
-                <button class="hx-btn hx-btn-primary" onclick="showStake()">Start staking</button>
-                <button class="hx-btn hx-btn-ghost" onclick="showPortfolio()">Open portfolio</button>
+                <button class="hx-btn hx-btn-primary" id="heroBtnStake" onclick="heroPick(this);showStake()">Start staking</button>
+                <button class="hx-btn hx-btn-ghost" id="heroBtnPortfolio" onclick="heroPick(this);showPortfolio()">Open portfolio</button>
             </div>
         </div>
 
@@ -1855,8 +1855,8 @@ nav button.glass:hover {
             </dl>
         </div>
         <div class="spot-info-card spot-info-wide">
-            <h3>My swap history <small>Saved in this browser only</small></h3>
-            <div class="spot-hist-head"><span>Time</span><span>Side</span><span>Pair</span><span>Price</span><span>Amount</span><span>Tx</span></div>
+            <h3>My swap history <small>Saved in this browser only, all swaps</small></h3>
+            <div class="spot-hist-head"><span>Time</span><span>Swap</span><span>Received</span><span>Tx</span></div>
             <div id="spotHistoryList"></div>
         </div>
     </section>
@@ -3240,9 +3240,10 @@ nav button.glass:hover {
         [`TVL estimate (2× quote reserve)`, `Perkiraan TVL (2× cadangan kuotasi)`],
         [`Pool contract`, `Kontrak pool`],
         [`My swap history`, `Riwayat swap saya`],
-        [`Saved in this browser only`, `Tersimpan hanya di browser ini`],
+        [`Saved in this browser only, all swaps`, `Tersimpan hanya di browser ini, semua swap`],
         [`Time`, `Waktu`],
-        [`Side`, `Sisi`],
+        [`Swap`, `Swap`],
+        [`Received`, `Diterima`],
         [`Open portfolio`, `Buka portofolio`],
         [`Gas is paid in`, `Gas dibayar dengan`],
         [`Fees are in dollars, not a volatile coin`, `Biaya dalam dolar, bukan koin yang harganya naik-turun`],

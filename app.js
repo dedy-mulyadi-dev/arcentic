@@ -428,6 +428,20 @@
         setNavActive('navHome');
     }
 
+    // Tombol hero: yang terakhir diklik mendapat warna utama (terisi), yang lain jadi garis
+    function heroPick(btn, silent) {
+        const ids = ['heroBtnStake', 'heroBtnPortfolio'];
+        ids.forEach(id => {
+            const b = document.getElementById(id);
+            if (!b) return;
+            const on = b === btn;
+            b.classList.toggle('hx-btn-primary', on);
+            b.classList.toggle('hx-btn-ghost', !on);
+        });
+        if (!silent && btn) { try { sessionStorage.setItem('arcentic_hero_pick', btn.id); } catch (e) {} }
+    }
+    try { document.addEventListener('DOMContentLoaded', () => { const id = sessionStorage.getItem('arcentic_hero_pick'); const b = id && document.getElementById(id); if (b) heroPick(b, true); }); } catch (e) {}
+
     function showPortfolio() {
         hideAllOverlays();
         document.getElementById('portfolioView').classList.add('open');
@@ -2644,6 +2658,30 @@
 
     const spotIsEn = () => (document.documentElement.getAttribute('lang') || '').startsWith('en');
 
+    function swapHistoryKey() { return 'arcentic_swaps_v1_' + (currentAccount ? currentAccount.toLowerCase() : 'anon'); }
+    function loadSwapHistory() { try { return JSON.parse(localStorage.getItem(swapHistoryKey())) || []; } catch (e) { return []; } }
+
+    // Catat swap yang sudah terkonfirmasi (dari halaman Swap maupun Spot). Jumlah diterima dibaca dari log Transfer;
+    // bila tidak ada (mis. USDC native), dipakai estimasi dan ditandai "≈".
+    async function recordSwapHistory(fromTok, toTok, amtIn, receipt, estOut) {
+        let out = (isFinite(estOut) && estOut > 0) ? estOut : null, exact = false;
+        try {
+            const dec = await getDecimals(toTok);
+            const iface = new ethers.utils.Interface(['event Transfer(address indexed from, address indexed to, uint256 value)']);
+            const me = currentAccount.toLowerCase();
+            let tot = ethers.BigNumber.from(0);
+            for (const l of receipt.logs || []) {
+                if (!toTok.addr || l.address.toLowerCase() !== toTok.addr.toLowerCase()) continue;
+                try { const ev = iface.parseLog(l); if (ev.args.to.toLowerCase() === me) tot = tot.add(ev.args.value); } catch (e) {}
+            }
+            if (tot.gt(0)) { out = parseFloat(ethers.utils.formatUnits(tot, dec)); exact = true; }
+        } catch (e) {}
+        const list = loadSwapHistory();
+        list.push({ time: Date.now(), from: fromTok.sym, to: toTok.sym, amtIn, amtOut: out, exact, hash: receipt.transactionHash });
+        try { localStorage.setItem(swapHistoryKey(), JSON.stringify(list.slice(-50))); } catch (e) {}
+        renderSpotHistory();
+    }
+
     function renderSpotInfo() {
         const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
         const p = spotPair();
@@ -2665,18 +2703,18 @@
         const el = document.getElementById('spotHistoryList');
         if (!el) return;
         const en = spotIsEn();
-        const trades = loadSpotTrades().slice().reverse();
+        const trades = loadSwapHistory().slice().reverse();
         if (trades.length === 0) {
             el.innerHTML = `<div class="spot-hist-empty">${en ? 'No swaps yet in this browser.' : 'Belum ada swap di browser ini.'}</div>`;
             return;
         }
         const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const fmt = n => Number(n).toLocaleString('en-US', { maximumFractionDigits: 6 });
         el.innerHTML = trades.map(t => {
             const when = new Date(t.time).toLocaleString(en ? 'en-US' : 'id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
-            const buy = t.side === 'buy';
-            const side = buy ? (en ? 'Buy' : 'Beli') : (en ? 'Sell' : 'Jual');
+            const got = t.amtOut ? (t.exact ? '' : '≈ ') + fmt(t.amtOut) + ' ' + esc(t.to) : '—';
             const tx = t.hash ? `<a href="${NET.explorerUrl}/tx/${esc(t.hash)}" target="_blank" rel="noopener">${esc(t.hash.slice(0, 8))}…</a>` : '—';
-            return `<div class="spot-hist-row"><span>${esc(when)}</span><span class="${buy ? 'b' : 's'}">${side}</span><span>${esc(t.pair || '')}</span><span>${t.price ? spotFmtPrice(t.price) : '—'}</span><span>${Number(t.amount).toLocaleString('en-US', { maximumFractionDigits: 6 })}</span><span>${tx}</span></div>`;
+            return `<div class="spot-hist-row"><span>${esc(when)}</span><span>${fmt(t.amtIn)} ${esc(t.from)} → ${esc(t.to)}</span><span>${got}</span><span>${tx}</span></div>`;
         }).join('');
     }
 
@@ -3428,6 +3466,8 @@
             const receipt = await withRpcRetry(() => swapTx.wait(), { onRetry: onRpcRetry });
 
             lastSwapHash = receipt.transactionHash;
+            const estOutForHistory = parseFloat(document.getElementById('swapToAmt').value);
+            recordSwapHistory(fromTok, toTok, amt, receipt, estOutForHistory).catch(() => {});
             const shortTx = receipt.transactionHash.slice(0,10) + '…';
             setStatus(`✅ Swap confirmed! Tx: ${shortTx}`);
             updateToast(swapToast,'success','Swap Successful! 🎉',`${amt} ${fromTok.sym} → ${toTok.sym} confirmed. Tx: ${shortTx}`);
