@@ -1336,6 +1336,44 @@ nav button.glass:hover {
 #addTokenModal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(4,8,22,.93); align-items:center; justify-content:center; }
 #addTokenModal.open { display:flex; }
 </style>
+<style>
+/* ARCENTIC-FIX spot-skin */
+#spotTradeView{background:#060913;}
+#spotTradeView .spot-pro-header{background:rgba(6,9,19,.94);border-bottom:1px solid #1B2547;}
+#spotTradeView .spot-pro-back{background:#0B1022;border:1px solid #1B2547;border-radius:12px;}
+#spotTradeView .spot-pro-back:hover{border-color:#2C3A6B;background:#101834;}
+#spotTradeView .spot-pro-price{font-family:'Unbounded',Inter,sans-serif;font-size:1.25rem;letter-spacing:-.01em;}
+#spotTradeView .spot-pro-stat-label{color:#8E9AC0;letter-spacing:.08em;font-size:.65rem;}
+#spotTradeView .spot-pro-stat-value{color:#E8EDFF;}
+#spotTradeView .spot-pro-body{background:#1B2547;}
+#spotTradeView .spot-pro-chart-col{background:radial-gradient(900px 420px at 30% 0%,rgba(91,124,255,.07),transparent 60%),#080C1A;}
+#spotTradeView .spot-pro-ob-col{background:#080C1A;}
+#spotTradeView .spot-pro-trade-col{background:#0B1022;padding:20px 20px;}
+#spotTradeView .spot-pro-toolbar{background:transparent;border-bottom:1px solid #1B2547;}
+#spotTradeView .spot-pro-tf-group{background:#0B1022;border:1px solid #1B2547;border-radius:10px;padding:3px;}
+#spotTradeView .spot-tf-btn.spot-tf-active{background:rgba(91,124,255,.18);border-color:rgba(91,124,255,.45);color:#E8EDFF;}
+#spotTradeView .spot-pro-ob-tabs{border-bottom-color:#1B2547;}
+#spotTradeView .spot-pro-ob-tab.active{border-bottom-color:#5B7CFF;}
+#spotTradeView .spot-pro-ob-row span.ob-ask-price{color:#FF6B7A;text-align:left;}
+#spotTradeView .spot-pro-ob-row span.ob-bid-price{color:#3DE3A8;text-align:left;}
+#spotTradeView .spot-pro-ob-row:is(.ask,.bid) span:nth-child(3){text-align:right;color:#B7C2E8;}
+#spotTradeView .spot-pro-ob-row:is(.ask,.bid) span:nth-child(4){text-align:right;color:#8E9AC0;}
+#spotTradeView .spot-pro-ob-head span:nth-child(2){text-align:right;}
+#spotTradeView .spot-pro-ob-mid{background:rgba(91,124,255,.06);border-color:#1B2547;font-family:'Unbounded',Inter,sans-serif;font-size:.85rem;}
+#spotTradeView #spotSideTabs{background:#060913;border:1px solid #1B2547;border-radius:14px;padding:4px;gap:4px;}
+#spotTradeView .spot-tab-btn{border:0;background:transparent;border-radius:11px;}
+#spotTradeView .spot-tab-btn.spot-tab-active-buy{background:#3DE3A8;color:#04140D;}
+#spotTradeView .spot-tab-btn.spot-tab-active-sell{background:#FF6B7A;color:#1A0509;}
+#spotTradeView #spotAmountLabel{color:#8E9AC0;letter-spacing:.06em;text-transform:uppercase;font-size:.68rem;}
+#spotTradeView #spotAmount{background-color:#060913!important;border:1px solid #1B2547!important;border-radius:12px!important;padding:14px 16px!important;font-size:1.05rem;font-variant-numeric:tabular-nums;}
+#spotTradeView #spotAmount:focus{border-color:#5B7CFF!important;box-shadow:0 0 0 3px rgba(91,124,255,.18)!important;}
+#spotTradeView #spotBalance{position:static!important;transform:none!important;text-align:right;margin-top:6px;color:#8E9AC0;}
+#spotTradeView .spot-pro-trade-col .relative.mb-4{margin-bottom:12px;}
+#spotTradeView .spot-pro-trade-col button.flex-1{background:#0B1022;border:1px solid #1B2547;border-radius:10px;color:#B7C2E8;}
+#spotTradeView .spot-pro-trade-col button.flex-1:hover{border-color:#2C3A6B;background:#101834;color:#E8EDFF;}
+#spotTradeView .spot-pro-trade-col .bg-slate-800\/40{background:#060913;border:1px solid #1B2547;border-radius:12px;}
+#spotTradeView #spotSubmitBtn{border-radius:14px;box-shadow:0 8px 28px rgba(61,227,168,.22);font-family:'Unbounded',Inter,sans-serif;font-size:.9rem;letter-spacing:.01em;}
+</style>
 </head>
 <body class="gridbg min-h-screen">
 <div class="orb1"></div>

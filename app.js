@@ -2769,7 +2769,7 @@
 
     function spotFmtPrice(n) {
         if (n === null || n === undefined || isNaN(n)) return '—';
-        return n < 1 ? n.toFixed(6) : n.toFixed(4);
+        return n < 0.01 ? n.toFixed(7) : n < 1 ? n.toFixed(6) : n.toFixed(4);
     }
 
     async function pollSpotMarket() {
@@ -2917,11 +2917,13 @@
             return;
         }
 
-        const pad = { l: 8, r: 55, t: 14, b: 14 };
+        const pad = { l: 8, r: 68, t: 14, b: 14 };
         const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
         const highs = candles.map(c=>c.h), lows = candles.map(c=>c.l);
         let maxP = Math.max(...highs), minP = Math.min(...lows);
-        if (maxP === minP) { maxP *= 1.001; minP *= 0.999; }
+        // Rentang minimal ±0.4% supaya 1-2 candle awal tidak terlihat seperti batang raksasa
+        { const mid = (maxP + minP) / 2, minSpan = mid * 0.008;
+          if (maxP - minP < minSpan) { maxP = mid + minSpan / 2; minP = mid - minSpan / 2; } }
         const range = maxP - minP;
         const yFor = p => pad.t + plotH - ((p - minP) / range) * plotH;
 
@@ -2950,6 +2952,18 @@
             const top = Math.min(yO,yC), bh = Math.max(Math.abs(yC-yO), 1.5);
             ctx.fillRect(x - bodyW/2, top, bodyW, bh);
         });
+
+        if (n < 5) {
+            const en = (document.documentElement.getAttribute('lang') || '').startsWith('en');
+            ctx.textAlign = 'center';
+            ctx.fillStyle = 'rgba(232,237,255,.55)';
+            ctx.font = '13px Inter, sans-serif';
+            ctx.fillText(en ? 'Collecting price samples… (' + n + '/5 candles)' : 'Mengumpulkan data harga… (' + n + '/5 candle)', pad.l + plotW/2, h/2);
+            ctx.fillStyle = 'rgba(142,154,192,.6)';
+            ctx.font = '11px Inter, sans-serif';
+            ctx.fillText(en ? 'The chart fills while this tab stays open' : 'Grafik terisi selama tab ini terbuka', pad.l + plotW/2, h/2 + 20);
+            ctx.textAlign = 'left';
+        }
     }
 
     async function updateSpotEstimate() {
