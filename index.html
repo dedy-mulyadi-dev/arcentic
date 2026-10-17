@@ -1377,6 +1377,27 @@ nav button.glass:hover {
 #spotTradeView .spot-pro-trade-col button.flex-1:hover{border-color:#2C3A6B;background:#101834;color:#E8EDFF;}
 #spotTradeView .spot-pro-trade-col .bg-slate-800\/40{background:#060913;border:1px solid #1B2547;border-radius:12px;}
 #spotTradeView #spotSubmitBtn{border-radius:14px;box-shadow:0 8px 28px rgba(61,227,168,.22);font-family:'Unbounded',Inter,sans-serif;font-size:.9rem;letter-spacing:.01em;}
+
+/* ARCENTIC-FIX spot-below-chart */
+#spotTradeView{overflow-y:auto;overflow-x:hidden;}
+@media (min-width:1025px){#spotTradeView .spot-pro-body{flex:none;height:max(560px,calc(100dvh - 80px));max-height:none;}}
+.spot-info{display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:16px;padding:20px;max-width:1600px;margin:0 auto;width:100%;}
+.spot-info-card{background:#0B1022;border:1px solid #1B2547;border-radius:16px;padding:18px 20px;min-width:0;}
+.spot-info-card h3{font-family:'Unbounded',Inter,sans-serif;font-size:.85rem;margin-bottom:14px;color:#E8EDFF;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+.spot-info-card h3 small{font:500 .7rem Inter,sans-serif;color:#8E9AC0;}
+.spot-info-card dl>div{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #141C38;font-size:.8rem;}
+.spot-info-card dl>div:last-child{border-bottom:0;}
+.spot-info-card dt{color:#8E9AC0;}
+.spot-info-card dd{color:#E8EDFF;font-variant-numeric:tabular-nums;text-align:right;}
+.spot-info-card a{color:#5B7CFF;}
+.spot-info-card a:hover{text-decoration:underline;}
+.spot-hist-head,.spot-hist-row{display:grid;grid-template-columns:1.1fr .6fr 1fr 1fr 1fr .9fr;gap:10px;font-size:.78rem;padding:8px 0;font-variant-numeric:tabular-nums;}
+.spot-hist-head{color:#8E9AC0;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #1B2547;}
+.spot-hist-row{border-bottom:1px solid #141C38;color:#B7C2E8;}
+.spot-hist-row .b{color:#3DE3A8;font-weight:600;}
+.spot-hist-row .s{color:#FF6B7A;font-weight:600;}
+.spot-hist-empty{padding:26px 0;text-align:center;color:#8E9AC0;font-size:.82rem;}
+@media (max-width:1024px){.spot-info{grid-template-columns:1fr;padding:16px;}.spot-hist-head,.spot-hist-row{grid-template-columns:1fr .6fr 1fr 1fr;}.spot-hist-head span:nth-child(3),.spot-hist-row span:nth-child(3),.spot-hist-head span:nth-child(6),.spot-hist-row span:nth-child(6){display:none;}}
 </style>
 </head>
 <body class="gridbg min-h-screen">
@@ -1509,7 +1530,7 @@ nav button.glass:hover {
 </div>
 </header>
 
-<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="icg" gradientUnits="userSpaceOnUse" x1="2" y1="2" x2="22" y2="22"><stop offset="0" stop-color="#CFE0FF"/><stop offset=".55" stop-color="#9DB4FF"/><stop offset="1" stop-color="#E2A8FF"/></linearGradient></defs></svg>
+<svg width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden;pointer-events:none" aria-hidden="true" focusable="false"><defs><linearGradient id="icg" gradientUnits="userSpaceOnUse" x1="2" y1="2" x2="22" y2="22"><stop offset="0" stop-color="#CFE0FF"/><stop offset=".55" stop-color="#9DB4FF"/><stop offset="1" stop-color="#E2A8FF"/></linearGradient></defs></svg>
 <nav id="mobileTabs" aria-label="Main"><button id="tabHome" onclick="showHome()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;width:22px;height:22px"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>Home</button><button id="tabTrading" onclick="showTradingHub()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;width:22px;height:22px"><path d="M3 17 9 11l4 4 8-8"/><path d="M15 7h6v6"/></svg>Trading</button><button id="tabStake" onclick="showStake()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;width:22px;height:22px"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Stake</button><button id="tabPortfolio" onclick="showPortfolio()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;width:22px;height:22px"><path d="M3 7a2 2 0 0 1 2-2h13v4"/><path d="M3 7v10a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2z"/><path d="M16 14h2"/></svg>Portfolio</button><button id="tabMore" onclick="toggleMobileNav()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;width:22px;height:22px"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>More</button></nav>
 <!-- ═══════════════════════════ HOME ═══════════════════════════ -->
 <main id="homeView" class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-10">
@@ -1819,6 +1840,26 @@ nav button.glass:hover {
             </div>
         </div>
     </div>
+
+    <!-- Info pool + riwayat swap -->
+    <section class="spot-info" id="spotInfoSection">
+        <div class="spot-info-card">
+            <h3>Pool info</h3>
+            <dl>
+                <div><dt>Pair</dt><dd id="spotInfoPair">—</dd></div>
+                <div><dt>Mid price</dt><dd id="spotInfoPrice">—</dd></div>
+                <div><dt>Base reserve</dt><dd id="spotInfoResBase">—</dd></div>
+                <div><dt>Quote reserve</dt><dd id="spotInfoResQuote">—</dd></div>
+                <div><dt>TVL estimate (2× quote reserve)</dt><dd id="spotInfoTvl">—</dd></div>
+                <div><dt>Pool contract</dt><dd><a id="spotInfoContract" href="https://explorer.arc.io/" target="_blank" rel="noopener">—</a></dd></div>
+            </dl>
+        </div>
+        <div class="spot-info-card spot-info-wide">
+            <h3>My swap history <small>Saved in this browser only</small></h3>
+            <div class="spot-hist-head"><span>Time</span><span>Side</span><span>Pair</span><span>Price</span><span>Amount</span><span>Tx</span></div>
+            <div id="spotHistoryList"></div>
+        </div>
+    </section>
 
     <!-- Pending limit orders (disembunyikan: order limit hanya jalan di browser) -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 hidden">
@@ -3191,6 +3232,17 @@ nav button.glass:hover {
         [`Stake and swap on Arc`, `Staking dan swap di Arc`],
         [`Lock CENTIC at a fixed rate for 30, 90 or 180 days, or swap tokens from the Arcentic pool. Every fee is paid in USDC, so the cost is clear before you sign.`, `Kunci CENTIC dengan bunga tetap selama 30, 90 atau 180 hari, atau tukar token dari pool Arcentic. Semua biaya dibayar dengan USDC, jadi biayanya jelas sebelum kamu menandatangani.`],
         [`Start staking`, `Mulai staking`],
+        [`Pool info`, `Info pool`],
+        [`Pair`, `Pasangan`],
+        [`Mid price`, `Harga tengah`],
+        [`Base reserve`, `Cadangan token dasar`],
+        [`Quote reserve`, `Cadangan token kuotasi`],
+        [`TVL estimate (2× quote reserve)`, `Perkiraan TVL (2× cadangan kuotasi)`],
+        [`Pool contract`, `Kontrak pool`],
+        [`My swap history`, `Riwayat swap saya`],
+        [`Saved in this browser only`, `Tersimpan hanya di browser ini`],
+        [`Time`, `Waktu`],
+        [`Side`, `Sisi`],
         [`Open portfolio`, `Buka portofolio`],
         [`Gas is paid in`, `Gas dibayar dengan`],
         [`Fees are in dollars, not a volatile coin`, `Biaya dalam dolar, bukan koin yang harganya naik-turun`],

@@ -2463,6 +2463,8 @@
     let spotLastMidPrice = null;
     let spotObTab = 'orderbook';
     let spotTrades = [];
+    let lastSwapHash = null;      // hash swap terakhir yang sukses (null bila gagal/dibatalkan)
+    let spotLastReserves = null;  // { resBase, resQuote, price } terakhir dari pool
     let spotAlerts = [];
 
     function spotAlertsKey() {
@@ -2603,18 +2605,21 @@
     function saveSpotTrades(trades) {
         try { localStorage.setItem(spotTradesKey(), JSON.stringify(trades.slice(-50))); } catch {}
     }
-    function addSpotTrade(price, amount, side) {
+    function addSpotTrade(price, amount, side, hash) {
         const trades = loadSpotTrades();
         const trade = {
             price: price,
             amount: amount,
             side: side,
+            hash: hash || null,
+            pair: spotPair().base.sym + '/' + spotPair().quote.sym,
             time: Date.now()
         };
         trades.push(trade);
         saveSpotTrades(trades);
         spotTrades = trades;
         if (spotObTab === 'trades') renderSpotTrades();
+        renderSpotHistory();
     }
     function renderSpotTrades() {
         const el = document.getElementById('spotTradesList');
@@ -2634,6 +2639,44 @@
                     <span style="text-align:right;color:rgba(148,163,184,0.5);">${timeStr}</span>
                 </div>
             `;
+        }).join('');
+    }
+
+    const spotIsEn = () => (document.documentElement.getAttribute('lang') || '').startsWith('en');
+
+    function renderSpotInfo() {
+        const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+        const p = spotPair();
+        const d = spotLastReserves;
+        set('spotInfoPair', p.base.sym + ' / ' + p.quote.sym);
+        set('spotInfoPrice', d ? spotFmtPrice(d.price) + ' ' + p.quote.sym : '—');
+        set('spotInfoResBase', d ? d.resBase.toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' ' + p.base.sym : '—');
+        set('spotInfoResQuote', d ? d.resQuote.toLocaleString('en-US', { maximumFractionDigits: 4 }) + ' ' + p.quote.sym : '—');
+        set('spotInfoTvl', d ? '≈ ' + (d.resQuote * 2).toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' ' + p.quote.sym : '—');
+        const link = document.getElementById('spotInfoContract');
+        if (link && typeof CONTRACT_ADDRS !== 'undefined' && CONTRACT_ADDRS.ArcenticMultiPool) {
+            const addr = CONTRACT_ADDRS.ArcenticMultiPool;
+            link.textContent = addr.slice(0, 8) + '…' + addr.slice(-6);
+            link.href = `${NET.explorerUrl}/address/${addr}`;
+        }
+    }
+
+    function renderSpotHistory() {
+        const el = document.getElementById('spotHistoryList');
+        if (!el) return;
+        const en = spotIsEn();
+        const trades = loadSpotTrades().slice().reverse();
+        if (trades.length === 0) {
+            el.innerHTML = `<div class="spot-hist-empty">${en ? 'No swaps yet in this browser.' : 'Belum ada swap di browser ini.'}</div>`;
+            return;
+        }
+        const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        el.innerHTML = trades.map(t => {
+            const when = new Date(t.time).toLocaleString(en ? 'en-US' : 'id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
+            const buy = t.side === 'buy';
+            const side = buy ? (en ? 'Buy' : 'Beli') : (en ? 'Sell' : 'Jual');
+            const tx = t.hash ? `<a href="${NET.explorerUrl}/tx/${esc(t.hash)}" target="_blank" rel="noopener">${esc(t.hash.slice(0, 8))}…</a>` : '—';
+            return `<div class="spot-hist-row"><span>${esc(when)}</span><span class="${buy ? 'b' : 's'}">${side}</span><span>${esc(t.pair || '')}</span><span>${t.price ? spotFmtPrice(t.price) : '—'}</span><span>${Number(t.amount).toLocaleString('en-US', { maximumFractionDigits: 6 })}</span><span>${tx}</span></div>`;
         }).join('');
     }
 
@@ -2685,7 +2728,7 @@
 
     // Label dinamis Spot ikut berganti saat bahasa diganti (EN/ID)
     try {
-        new MutationObserver(() => { try { setSpotSide(spotSide); renderSpotChart(); pollSpotMarket(); } catch (e) {} })
+        new MutationObserver(() => { try { setSpotSide(spotSide); renderSpotChart(); renderSpotHistory(); pollSpotMarket(); } catch (e) {} })
             .observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
     } catch (e) {}
 
@@ -2794,10 +2837,13 @@
             document.getElementById('spotBids').innerHTML = '';
             const liqEl = document.getElementById('spotLiquidity'); if (liqEl) liqEl.innerText = '—';
             const spreadEl = document.getElementById('spotSpread'); if (spreadEl) spreadEl.innerText = '—';
+            spotLastReserves = null; renderSpotInfo();
             return;
         }
         const prevMid = spotLastMidPrice;
         spotLastMidPrice = data.price;
+        spotLastReserves = { resBase: data.resBase, resQuote: data.resQuote, price: data.price };
+        renderSpotInfo();
 
         document.getElementById('spotLastPrice').innerText = spotFmtPrice(data.price) + ' ' + p.quote.sym;
         document.getElementById('spotMidPrice').innerText = spotFmtPrice(data.price) + ' ' + p.quote.sym;
@@ -3021,8 +3067,8 @@
             const currentPrice = await fetchSpotMidPrice();
             await executeSwap();
             // Record the trade
-            if (currentPrice) {
-                addSpotTrade(currentPrice.midPrice, amt, spotSide);
+            if (lastSwapHash) {
+                addSpotTrade(currentPrice ? currentPrice.price : null, amt, spotSide, lastSwapHash);
             }
             document.getElementById('spotAmount').value = '';
             updateSpotEstimate();
@@ -3109,6 +3155,8 @@
         updateSpotBalance();
         renderSpotChart();
         renderSpotLimitOrders();
+        renderSpotInfo();
+        renderSpotHistory();
         pollSpotMarket();
         if (spotPollTimer) clearInterval(spotPollTimer);
         spotPollTimer = setInterval(pollSpotMarket, 8000);
@@ -3299,6 +3347,7 @@
     });
 
     async function executeSwap() {
+        lastSwapHash = null;
         if (!isConnected) { showToast('warning','Wallet Not Connected','Please connect your wallet before swapping.'); return; }
         const onArcNetwork = await ensureArcNetwork();
         if (!onArcNetwork) return;
@@ -3378,6 +3427,7 @@
             updateToast(swapToast,'pending','Confirming Swap','Waiting for block confirmation…');
             const receipt = await withRpcRetry(() => swapTx.wait(), { onRetry: onRpcRetry });
 
+            lastSwapHash = receipt.transactionHash;
             const shortTx = receipt.transactionHash.slice(0,10) + '…';
             setStatus(`✅ Swap confirmed! Tx: ${shortTx}`);
             updateToast(swapToast,'success','Swap Successful! 🎉',`${amt} ${fromTok.sym} → ${toTok.sym} confirmed. Tx: ${shortTx}`);
