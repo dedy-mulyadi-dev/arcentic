@@ -59,8 +59,32 @@ const SESSION_TTL_MS = 30 * 60 * 1000;   // 30 minutes coding-mode session
 const MAX_READ_LINES = 400;              // default cap when no range given
 const MAX_RANGE_LINES = 600;             // hard cap per single read request
 
+// Fail closed: tanpa secret yang kuat, token HMAC bisa ditebak (kunci kosong).
+function secretOk() {
+    return typeof process.env.EIJI_ADMIN_SECRET === 'string' && process.env.EIJI_ADMIN_SECRET.length >= 24;
+}
+
 function hmac(data) {
-    return crypto.createHmac('sha256', process.env.EIJI_ADMIN_SECRET || '').update(data).digest('hex');
+    if (!secretOk()) throw new Error('EIJI_ADMIN_SECRET belum diset atau terlalu pendek (min. 24 karakter).');
+    return crypto.createHmac('sha256', process.env.EIJI_ADMIN_SECRET).update(data).digest('hex');
+}
+
+// Rate limit sederhana per-IP untuk action nonce/session (in-memory, per instance).
+const rl = new Map();
+function limited(req) {
+    const xff = req.headers && req.headers['x-forwarded-for'];
+    const ip = (typeof xff === 'string' && xff.split(',')[0].trim()) || 'unknown';
+    const now = Date.now();
+    if (rl.size > 2000) rl.clear();
+    const r = rl.get(ip);
+    if (!r || now > r.reset) { rl.set(ip, { n: 1, reset: now + 60_000 }); return false; }
+    r.n++;
+    return r.n > 10;
+}
+
+// Alamat wallet di teks webhook: hanya format 0x + 40 hex, selain itu diganti penanda.
+function safeWallet(w) {
+    return /^0x[0-9a-fA-F]{40}$/.test(String(w || '')) ? String(w) : '(format tidak valid)';
 }
 
 function sha256Hex(data) {
@@ -131,7 +155,7 @@ async function notifyWebhook(text) {
         await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content: text }),
+            body: JSON.stringify({ content: String(text).slice(0, 1800), allowed_mentions: { parse: [] } }),
             signal: controller.signal
         });
     } catch (err) {
@@ -173,6 +197,13 @@ module.exports = async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
     const action = (req.query && req.query.action) || (req.body && req.body.action);
 
+    if (!secretOk()) {
+        return res.status(500).json({ error: 'Server belum dikonfigurasi (EIJI_ADMIN_SECRET).' });
+    }
+    if ((action === 'nonce' || action === 'session') && limited(req)) {
+        return res.status(429).json({ error: 'Terlalu banyak percobaan, coba lagi sebentar.' });
+    }
+
     try {
         // ---- issue a nonce (no auth required to request one — it's useless
         // without a valid admin signature over it) ----
@@ -202,7 +233,7 @@ module.exports = async function handler(req, res) {
                 // Ini sinyal awal yang patut dicurigai, kabari lewat webhook.
                 await notifyWebhook(
                     `⚠️ **Eiji coding-mode: percobaan session GAGAL**\n` +
-                    `Wallet yang dicoba: \`${wallet || '(kosong)'}\`\n` +
+                    `Wallet yang dicoba: \`${safeWallet(wallet)}\`\n` +
                     `Waktu: ${new Date().toISOString()}`
                 );
                 return res.status(403).json({ error: 'Wallet ini tidak punya akses coding mode.' });
@@ -281,7 +312,7 @@ module.exports = async function handler(req, res) {
                 // session, karena ini upaya benar-benar menulis ke repo.
                 await notifyWebhook(
                     `🚨 **Eiji coding-mode: percobaan COMMIT GAGAL**\n` +
-                    `Wallet yang dicoba: \`${wallet || '(kosong)'}\`\n` +
+                    `Wallet yang dicoba: \`${safeWallet(wallet)}\`\n` +
                     `Target file: \`${path}\` (baris ${startLine}-${endLine})\n` +
                     `Waktu: ${new Date().toISOString()}`
                 );

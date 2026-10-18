@@ -62,6 +62,21 @@ function getAllowedOrigins() {
         .filter(Boolean);
 }
 
+const MAX_BATCH = 50;
+const BLOCKED_METHOD = /^(debug_|trace_|admin_|txpool_|personal_|engine_|miner_)/i;
+
+function checkRpcBody(body) {
+    const items = Array.isArray(body) ? body : [body];
+    if (items.length === 0 || items.length > MAX_BATCH) return { ok: false, error: 'Ukuran batch tidak valid.' };
+    for (const it of items) {
+        if (!it || typeof it !== 'object' || Array.isArray(it)) return { ok: false, error: 'Format JSON-RPC tidak valid.' };
+        if (typeof it.method !== 'string' || it.method.length > 64) return { ok: false, error: 'method tidak valid.' };
+        if (BLOCKED_METHOD.test(it.method)) return { ok: false, error: 'Method RPC ini tidak diizinkan.' };
+        if (it.params !== undefined && !Array.isArray(it.params)) return { ok: false, error: 'params harus array.' };
+    }
+    return { ok: true, body };
+}
+
 export default async function handler(req, res) {
     const origin = req.headers.origin;
     const allowedOrigins = getAllowedOrigins();
@@ -114,6 +129,14 @@ export default async function handler(req, res) {
         return;
     }
 
+    // Validasi: hanya JSON-RPC 2.0 biasa, batch dibatasi, method debug/trace/admin diblokir
+    // (mahal di kuota Alchemy dan tidak dipakai frontend).
+    const checked = checkRpcBody(req.body);
+    if (!checked.ok) {
+        res.status(400).json({ error: checked.error });
+        return;
+    }
+
     const targetUrl = process.env.ALCHEMY_RPC_URL;
 
     if (!targetUrl) {
@@ -131,7 +154,8 @@ export default async function handler(req, res) {
         const upstreamResponse = await fetch(targetUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(req.body)
+            body: JSON.stringify(checked.body),
+            signal: AbortSignal.timeout(20_000)
         });
 
         const data = await upstreamResponse.json();

@@ -1,4 +1,4 @@
-import { guard } from './_guard.js';
+import { guard, sanitizeChatBody, fetchUpstream, readUpstream } from './_guard.js';
 
 // Fallback provider untuk Eiji. OpenRouter itu OpenAI-compatible, jadi body dari
 // frontend (messages, tools, tool_choice) bisa langsung diteruskan. Model bisa
@@ -10,13 +10,13 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'OPENROUTER_API_KEY belum diset di server.' });
     }
 
-    try {
-        const body = {
-            ...(req.body || {}),
-            model: process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct'
-        };
+    const checked = sanitizeChatBody(req.body, {
+        forceModel: process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct'
+    });
+    if (!checked.ok) return res.status(checked.status).json({ error: checked.error });
 
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    try {
+        const response = await fetchUpstream('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -27,9 +27,9 @@ export default async function handler(req, res) {
                     : 'https://arcentic.vercel.app',
                 'X-Title': 'ARCENTIC Eiji'
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify(checked.body)
         });
-        const data = await response.json();
+        const data = await readUpstream(response);
         return res.status(response.status).json(data);
     } catch (err) {
         return res.status(502).json({ error: err.message });

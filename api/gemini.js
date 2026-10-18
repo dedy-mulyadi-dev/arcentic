@@ -1,4 +1,4 @@
-import { guard } from './_guard.js';
+import { guard, sanitizeChatBody, fetchUpstream, readUpstream } from './_guard.js';
 
 export default async function handler(req, res) {
     if (!guard(req, res)) return;
@@ -7,20 +7,22 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'GEMINI_API_KEY belum diset di server.' });
     }
 
-    try {
-        // GANTI Agu 2026: 'gemini-2.0-flash' sudah tidak tersedia lagi
-        // (pesan error Google eksplisit menyuruh pindah ke gemini-3.6-flash).
-        const body = { ...(req.body || {}), model: 'gemini-3.6-flash' };
+    // GANTI Agu 2026: 'gemini-2.0-flash' sudah tidak tersedia lagi
+    // (pesan error Google eksplisit menyuruh pindah ke gemini-3.6-flash).
+    // Model selalu dipaksa dari server; model kiriman browser diabaikan.
+    const checked = sanitizeChatBody(req.body, { forceModel: process.env.GEMINI_MODEL || 'gemini-3.6-flash' });
+    if (!checked.ok) return res.status(checked.status).json({ error: checked.error });
 
-        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+    try {
+        const response = await fetchUpstream('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer ' + process.env.GEMINI_API_KEY
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify(checked.body)
         });
-        const data = await response.json();
+        const data = await readUpstream(response);
         return res.status(response.status).json(data);
     } catch (err) {
         return res.status(502).json({ error: err.message });
