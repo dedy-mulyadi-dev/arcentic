@@ -2184,7 +2184,7 @@
             setStatus('✅ Staked successfully.');
             document.getElementById('stakeAmount').value = '';
             updateStakePreview();
-            await Promise.all([refreshStakeStats(), loadMyStakes()]);
+            await refreshStakeViewSoon();
         } catch (err) {
             console.error('doStake error:', err);
             const msg = (err && err.reason) || (err && err.message) || String(err);
@@ -2200,13 +2200,13 @@
     /* Lists ALL of the user's stakes across every token they've ever staked (each
        row shows its own token symbol). The "Your Staked"/"Claimable" stat pills at
        the top only total the currently-selected token, to match "Total Staked". */
-    async function loadMyStakes() {
+    async function loadMyStakes(silent) {
         const list = document.getElementById('myStakesList');
         if (!isConnected || !stakingConfigured()) {
             list.innerHTML = '<p class="text-gray-500 text-sm text-center py-6">Connect your wallet to see your stakes.</p>';
             return;
         }
-        list.innerHTML = '<p class="text-gray-500 text-sm text-center py-6">Loading…</p>';
+        if (!silent) list.innerHTML = '<p class="text-gray-500 text-sm text-center py-6">Loading…</p>';
         try {
             const provider = readOnlyProvider() || new ethers.providers.Web3Provider(getActiveProvider());
             const staking = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, provider);
@@ -2282,6 +2282,16 @@
         }
     }
 
+    // RPC publik bisa tertinggal 1 blok setelah tx.wait() sehingga angka total dan daftar stake tidak sinkron
+    // (mis. Total Staked sudah naik tapi Your Staked belum). Baca sekarang, lalu ulangi setelah jeda singkat.
+    async function refreshStakeViewSoon() {
+        await Promise.all([refreshStakeStats(), loadMyStakes()]);
+        [2500, 6000].forEach(ms => setTimeout(() => {
+            const v = document.getElementById('stakeView');
+            if (v && v.classList.contains('open')) Promise.all([refreshStakeStats(), loadMyStakes(true)]).catch(() => {});
+        }, ms));
+    }
+
     async function doClaimReward(stakeId) {
         await runStakeAction(
             (staking) => staking.claimReward(stakeId),
@@ -2317,8 +2327,7 @@
             updateToast(toast, 'pending', pendingLabel, 'Waiting for confirmation…');
             await withRpcRetry(() => tx.wait(), { onRetry: onRpcRetry });
             updateToast(toast, 'success', 'Success', successLabel, 6000);
-            await refreshStakeStats();
-            await loadMyStakes();
+            await refreshStakeViewSoon();
         } catch (err) {
             console.error('runStakeAction error:', err);
             const msg = (err && err.reason) || (err && err.message) || String(err);
