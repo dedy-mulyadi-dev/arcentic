@@ -374,6 +374,13 @@ module.exports = async function handler(req, res) {
         if (err.status === 409) {
             return res.status(409).json({ error: 'File sudah berubah di GitHub sejak terakhir dibaca. Minta Eiji baca ulang file ini dulu.' });
         }
+        // Error dari GitHub dijelaskan jelas supaya admin tahu apa yang harus dibenahi di Vercel.
+        if (err.status === 401) {
+            return res.status(502).json({ error: 'GitHub menolak GITHUB_TOKEN (kedaluwarsa, dicabut, atau salah). Buat token baru lalu update env GITHUB_TOKEN di Vercel dan redeploy.' });
+        }
+        if (err.status === 403 || err.status === 404) {
+            return res.status(502).json({ error: 'GitHub tidak bisa membuka file ini (HTTP ' + err.status + '). Cek GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH dan izin Contents pada token.' });
+        }
         return res.status(500).json({ error: err.message || 'Terjadi kesalahan server.' });
     }
 };
