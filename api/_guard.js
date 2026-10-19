@@ -50,12 +50,19 @@ export function rateLimit(req) {
 //   https://arcentic.vercel.app,https://www.arcentic.com
 // If it's unset we fall back to "*" so nothing breaks before you configure it —
 // but set it in production to actually lock the API to your site.
+// Deployment PREVIEW (hanya VERCEL_ENV=preview, tidak pernah aktif di production):
+// izinkan URL preview proyek ini supaya fitur bisa diuji sebelum merge.
+function isPreviewOrigin(origin) {
+    return process.env.VERCEL_ENV === 'preview' &&
+        /^https:\/\/arcentic[a-z0-9-]*-dedy-mulyadi\.vercel\.app$/.test(origin);
+}
+
 export function applyCors(req, res) {
     const allowed = allowedOrigins();
     const origin = req.headers.origin || '';
     if (allowed.length === 0) {
         res.setHeader('Access-Control-Allow-Origin', '*');
-    } else if (origin && allowed.includes(origin)) {
+    } else if (origin && (allowed.includes(origin) || isPreviewOrigin(origin))) {
         res.setHeader('Access-Control-Allow-Origin', origin);
         res.setHeader('Vary', 'Origin');
     }
@@ -68,7 +75,7 @@ export function originAllowed(req) {
     if (allowed.length === 0) return true;         // not configured yet -> allow
     const origin = req.headers.origin || '';
     if (!origin) return true;                      // same-origin/no-origin request
-    return allowed.includes(origin);
+    return allowed.includes(origin) || isPreviewOrigin(origin);
 }
 
 // One-call guard for every endpoint. Handles CORS, the OPTIONS preflight, the
