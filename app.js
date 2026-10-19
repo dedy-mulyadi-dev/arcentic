@@ -6358,6 +6358,14 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
         if (!text) return null;
         const t = text.toLowerCase();
 
+        // Coding mode admin: permintaan soal file kode (html/css/js/app.js/index.html/
+        // styles.css, "kode", "code", "baris") dipaksa memanggil read_code_file supaya
+        // model tidak menolak atau menebak. Hanya aktif saat sesi coding sah.
+        if (eijiCodingModeActive()
+            && /\b(html|css|javascript|index\.html|app\.js|styles?\.css|kode|code|script|baris|line|selector|tombol|button|bug|fungsi|function)\b/.test(t)) {
+            return 'read_code_file';
+        }
+
         // Koin trending / top gainer -> get_trending_coins
         if (/\btrending\b.*\b(coin|koin|kripto|crypto)\b/.test(t)
             || /\btop\s+gainer\b/.test(t)) {
@@ -7111,6 +7119,14 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
                 { role: 'system', content: EIJI_SYSTEM },
                 ...historyMessages
             ];
+            // Coding mode aktif: ingatkan model di konteks percakapan ini juga, supaya
+            // permintaan kode tidak salah dianggap di luar ruang lingkup.
+            if (eijiCodingModeActive()) {
+                groqMessages.splice(1, 0, {
+                    role: 'system',
+                    content: 'CODING MODE ADMIN SEDANG AKTIF. Tool read_code_file tersedia. Permintaan membaca, memeriksa, atau memperbaiki app.js, index.html, atau styles.css milik proyek ARCENTIC ini ADALAH dalam ruang lingkup: panggil read_code_file (untuk "html saya" gunakan path "index.html"), lalu jawab berdasarkan isi file yang dikembalikan tool. Jangan menolak dan jangan menebak isi kode.'
+                });
+            }
 
             // Klasifikasi SEBELUM request pertama: kalau query jelas butuh data
             // real-time, paksa tool_choice ke tool yang sesuai (bukan 'auto').
