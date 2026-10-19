@@ -64,6 +64,9 @@
 html{overflow-x:hidden;}
 /* ARCENTIC-FIX scroll-lock: saat tampilan penuh (Spot, Pools, dst) terbuka, halaman di belakangnya tidak ikut tergulir */
 html:has(body[style*="overflow: hidden"]){overflow-y:hidden;}
+/* Eiji terbuka: halaman di belakang tidak ikut bergulir (roda mouse / sentuh) */
+html:has(#eijiView.open){overflow-y:hidden;}
+.eiji-messages{overscroll-behavior:contain;}
 body{background:#040816;color:#fff;overflow-x:clip;-webkit-tap-highlight-color:transparent;touch-action:pan-y;}
 /* ARCENTIC-FIX sticky-header: header menempel, satu baris, latar lebih pekat */
 header.sticky{background:rgba(5,9,24,.93)!important;box-shadow:0 8px 24px -12px rgba(0,0,0,.6);}
