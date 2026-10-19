@@ -1589,7 +1589,7 @@ nav button.glass:hover {
     <section class="hx" id="homeHero">
         <div class="hx-copy">
             <h2 class="hx-title">Stake and swap on Arc</h2>
-            <p class="hx-sub">Lock CENTIC at a fixed rate for 30, 90 or 180 days, or swap tokens from the Arcentic pool. Every fee is paid in USDC, so the cost is clear before you sign.</p>
+            <p class="hx-sub">Lock CENTIC for 30, 90 or 180 days at the APR of your chosen tier, or swap tokens from the Arcentic pool. Gas is paid in USDC, so the cost is clear before you sign.</p>
             <div class="hx-cta">
                 <button class="hx-btn hx-btn-primary" id="heroBtnStake" onclick="heroPick(this);showStake()">Start staking</button>
                 <button class="hx-btn hx-btn-ghost" id="heroBtnPortfolio" onclick="heroPick(this);showPortfolio()">Open portfolio</button>
@@ -3118,7 +3118,7 @@ nav button.glass:hover {
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
                 <button id="eijiCodingModeBtn" onclick="eijiToggleCodingMode()" style="display:none;" class="eiji-coding-btn text-xs font-semibold transition glass px-3 py-1.5 rounded-lg whitespace-nowrap" title="Aktifkan coding mode (khusus admin)">🛠️ Coding</button>
-                <button data-no-i18n onclick="window.__toggleLang && window.__toggleLang()" class="lang-toggle-btn text-xs font-bold text-gray-400 hover:text-white transition glass px-2.5 py-1.5 rounded-lg whitespace-nowrap flex-shrink-0" title="Language / Bahasa">🌐 <span class="lang-toggle-label">ID</span></button>
+                <button data-no-i18n onclick="window.__toggleEijiLang && window.__toggleEijiLang()" class="eiji-lang-toggle-btn text-xs font-bold text-gray-400 hover:text-white transition glass px-2.5 py-1.5 rounded-lg whitespace-nowrap flex-shrink-0" title="Bahasa Eiji AI / Eiji AI language (terpisah dari bahasa situs)">🌐 <span class="eiji-lang-toggle-label">ID</span></button>
                 <button onclick="clearEijiChat()" class="text-xs font-semibold text-gray-400 hover:text-white transition glass px-3 py-1.5 rounded-lg">New</button>
                 <button onclick="showHome()" class="glass w-8 h-8 rounded-lg flex items-center justify-center text-base flex-shrink-0">&#10005;</button>
             </div>
@@ -3237,6 +3237,7 @@ nav button.glass:hover {
     var PAIRS = [
         // Header / navigasi
         [`Ask Eiji anything...`, `Tanya Eiji apa saja...`],
+        [`Ask about Arc, USDC, ARCENTIC, DeFi...`, `Tanya soal Arc, USDC, ARCENTIC, DeFi...`],
         [`Ask Eiji AI`, `Tanya Eiji AI`],
         [`Home`, `Beranda`],
         [`Portfolio`, `Portofolio`],
@@ -3249,7 +3250,7 @@ nav button.glass:hover {
         // Hero
         [`🟢 Live on Arc Mainnet`, `🟢 Live di Arc Mainnet`],
         [`Stake and swap on Arc`, `Staking dan swap di Arc`],
-        [`Lock CENTIC at a fixed rate for 30, 90 or 180 days, or swap tokens from the Arcentic pool. Every fee is paid in USDC, so the cost is clear before you sign.`, `Kunci CENTIC dengan bunga tetap selama 30, 90 atau 180 hari, atau tukar token dari pool Arcentic. Semua biaya dibayar dengan USDC, jadi biayanya jelas sebelum kamu menandatangani.`],
+        [`Lock CENTIC for 30, 90 or 180 days at the APR of your chosen tier, or swap tokens from the Arcentic pool. Gas is paid in USDC, so the cost is clear before you sign.`, `Kunci CENTIC selama 30, 90 atau 180 hari dengan APR sesuai tier pilihanmu, atau tukar token dari pool Arcentic. Gas dibayar dengan USDC, jadi biayanya jelas sebelum kamu menandatangani.`],
         [`Start staking`, `Mulai staking`],
         [`Pool info`, `Info pool`],
         [`Pair`, `Pasangan`],
@@ -3268,7 +3269,7 @@ nav button.glass:hover {
         [`Fees are in dollars, not a volatile coin`, `Biaya dalam dolar, bukan koin yang harganya naik-turun`],
         [`Read live from the Staking contract on Arc Mainnet.`, `Dibaca langsung dari kontrak Staking di Arc Mainnet.`],
         [`Check it on the explorer`, `Cek di explorer`],
-        [`Lock CENTIC for fixed-rate rewards, swap tokens, and track your positions on Arc Mainnet. Every fee is paid in USDC, so costs stay predictable.`, `Kunci CENTIC untuk reward bunga tetap, tukar token, dan pantau posisimu di Arc Mainnet. Semua biaya dibayar dengan USDC, jadi biayanya mudah diprediksi.`],
+        [`Lock CENTIC for tier-based APR rewards, swap tokens, and track your positions on Arc Mainnet. Gas is paid in USDC, so costs stay predictable.`, `Kunci CENTIC untuk reward APR sesuai tier, tukar token, dan pantau posisimu di Arc Mainnet. Gas dibayar dengan USDC, jadi biayanya mudah diprediksi.`],
         [`CENTIC staked`, `CENTIC di-stake`],
         [`Reward pool`, `Dana reward`],
         [`CENTIC available`, `CENTIC tersedia`],
@@ -3577,13 +3578,29 @@ nav button.glass:hover {
     } catch (e) {}
     window.__arcLang = LANG;
 
+    /* Bahasa Eiji AI — INDEPENDEN dari bahasa situs. Default = bahasa situs saat pertama kali. */
+    var ELANG = LANG;
+    try {
+        var savedE = localStorage.getItem('arcentic_eiji_lang');
+        if (savedE === 'en' || savedE === 'id') ELANG = savedE;
+    } catch (e) {}
+    window.__eijiLang = ELANG;
+
+    function langFor(el) {
+        if (!el) return LANG;
+        if (el.__i18nE === undefined) {
+            el.__i18nE = !!(el.closest && el.closest('#eijiView'));
+        }
+        return el.__i18nE ? ELANG : LANG;
+    }
+
     function skip(el) {
         while (el) {
             if (el.nodeType === 1) {
                 var tag = el.tagName;
                 if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT') return true;
                 if (el.id === 'eijiMessages') return true;
-                if (el.classList && el.classList.contains('lang-toggle-btn')) return true;
+                if (el.classList && (el.classList.contains('lang-toggle-btn') || el.classList.contains('eiji-lang-toggle-btn'))) return true;
                 if (el.hasAttribute && el.hasAttribute('data-no-i18n')) return true;
             }
             el = el.parentElement;
@@ -3606,7 +3623,8 @@ nav button.glass:hover {
             }
         }
         if (pair) {
-            var val = pair[LANG] != null ? pair[LANG] : pair.en;
+            var L = langFor(node.parentElement);
+            var val = pair[L] != null ? pair[L] : pair.en;
             var nv = node.__i18nLead + val + node.__i18nTrail;
             if (node.nodeValue !== nv) node.nodeValue = nv;
         }
@@ -3640,7 +3658,7 @@ nav button.glass:hover {
                     el[store] = MAP[norm(raw)] || null;
                 }
                 var pair = el[store];
-                if (pair) el.setAttribute(attr, pair[LANG] != null ? pair[LANG] : pair.en);
+                if (pair) { var L2 = langFor(el); el.setAttribute(attr, pair[L2] != null ? pair[L2] : pair.en); }
             });
         });
     }
@@ -3678,7 +3696,21 @@ nav button.glass:hover {
             btns[j].setAttribute('aria-pressed', LANG === 'en' ? 'true' : 'false');
         }
         document.documentElement.setAttribute('lang', LANG === 'en' ? 'en' : 'id');
+        var el2 = document.querySelectorAll('.eiji-lang-toggle-label');
+        for (var k = 0; k < el2.length; k++) el2[k].textContent = ELANG.toUpperCase();
     }
+
+    function setEijiLang(lang) {
+        if (lang !== 'en' && lang !== 'id') return;
+        ELANG = lang;
+        window.__eijiLang = lang;
+        try { localStorage.setItem('arcentic_eiji_lang', lang); } catch (e) {}
+        applyAll();
+        updateToggle();
+        if (typeof window.__eijiLangChanged === 'function') window.__eijiLangChanged(lang);
+    }
+    window.__setEijiLang = setEijiLang;
+    window.__toggleEijiLang = function () { setEijiLang(ELANG === 'en' ? 'id' : 'en'); };
 
     function setLang(lang) {
         if (lang !== 'en' && lang !== 'id') return;

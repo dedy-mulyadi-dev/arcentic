@@ -6764,7 +6764,7 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
     }
 
     function eijiWelcome() {
-        const lang = (typeof window !== 'undefined' && window.__arcLang === 'en') ? 'en' : 'id';
+        const lang = (typeof window !== 'undefined' && window.__eijiLang === 'en') ? 'en' : 'id';
         const msgsEn = [
             'Hey! I\'m Eiji \u2727\nAsk me about Arc, Circle (USDC/EURC), ARCENTIC, DeFi, or token prices!',
             'Yo! Eiji here \u270b\nGot questions about crypto, DeFi, or ARCENTIC? Fire away!'
@@ -6774,8 +6774,19 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
             'Halo! Eiji di sini \u270b\nAda pertanyaan soal kripto, DeFi, atau ARCENTIC? Langsung tanya!'
         ];
         const msgs = lang === 'en' ? msgsEn : msgsId;
+        // Hindari sambutan dobel: buang sambutan lama sebelum menambah yang baru
+        document.querySelectorAll('#eijiMessages [data-eiji-welcome]').forEach(function (n) { n.remove(); });
         appendEijiBubble('agent', msgs[Math.floor(Math.random() * msgs.length)]);
+        const box = document.getElementById('eijiMessages');
+        if (box && box.lastElementChild) box.lastElementChild.setAttribute('data-eiji-welcome', '1');
     }
+
+    // Ganti bahasa Eiji: kalau obrolan belum dimulai, sambutan ikut berganti
+    window.__eijiLangChanged = function () {
+        const inp = document.getElementById('eijiInput');
+        if (inp) inp.placeholder = window.__eijiLang === 'en' ? 'Ask about Arc, USDC, ARCENTIC, DeFi...' : 'Tanya soal Arc, USDC, ARCENTIC, DeFi...';
+        if (eijiHistory.length === 0 && document.querySelector('#eijiMessages [data-eiji-welcome]')) eijiWelcome();
+    };
 
     /* Ubah URL/tautan di jawaban Eiji jadi link yang bisa diklik — dengan AMAN.
        Teks di-escape DULU (anti-XSS), baru URL http(s) & markdown [teks](url)
@@ -7473,7 +7484,7 @@ MODE CODING (KHUSUS ADMIN — hanya tersedia kalau tool read_code_file muncul di
             btn.style.color = '#a5b4fc';
         }
         
-        document.getElementById('eijiInput').placeholder = 'Ask Eiji anything...';
+        document.getElementById('eijiInput').placeholder = window.__eijiLang === 'en' ? 'Ask about Arc, USDC, ARCENTIC, DeFi...' : 'Tanya soal Arc, USDC, ARCENTIC, DeFi...';
     }
 
     function speakEijiResponse(text, lang) {
