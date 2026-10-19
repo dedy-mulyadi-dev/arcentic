@@ -2131,6 +2131,8 @@
         btn.innerText = isConnected ? ('Stake ' + (meta.sym || '')) : 'Connect Wallet';
     }
 
+    function siteLangIsEn() { return window.__arcLang === 'en'; }
+
     async function doStake() {
         if (!getActiveProvider()) { alert('Install a wallet like MetaMask first.'); return; }
         if (!isConnected) { await connectWallet(); updateStakeButtonLabel(); return; }
@@ -2156,6 +2158,27 @@
             const signer = provider.getSigner();
             const amtWei = ethers.utils.parseUnits(parseFloat(amtStr).toFixed(meta.decimals), meta.decimals);
             const onRpcRetry = (n, max) => setStatus(`⏳ RPC hiccup — retrying (${n}/${max})…`);
+
+            // Cek kapasitas reward pool SEBELUM approve — supaya user tidak buang gas
+            // untuk approve lalu stake ditolak kontrak ("insufficient reward pool").
+            // Rumus sama dengan kontrak: amount * aprBps * durasi / (10000 * 365 hari).
+            try {
+                const roProv = readOnlyProvider() || provider;
+                const stk = new ethers.Contract(CONTRACT_ADDRS.ArcenticStaking, STAKING_ABI, roProv);
+                const pool = await withRpcRetry(() => stk.rewardPoolBalanceOf(selectedStakeToken), { onRetry: onRpcRetry });
+                const DEN = ethers.BigNumber.from(10000).mul(31536000);
+                const k = ethers.BigNumber.from(tier.aprBps).mul(tier.lockDuration);
+                const need = amtWei.mul(k).div(DEN);
+                if (pool.lt(need)) {
+                    const maxStake = k.isZero() ? ethers.constants.Zero : pool.mul(DEN).div(k);
+                    const msg = siteLangIsEn()
+                        ? `Reward pool is too low for this stake. Max you can stake now on this tier: ${fmtBal(ethers.utils.formatUnits(maxStake, meta.decimals))} ${meta.sym}. Try a smaller amount or a shorter tier. Nothing was sent, no gas spent.`
+                        : `Pool reward belum cukup untuk stake ini. Maksimal yang bisa kamu stake sekarang di tier ini: ${fmtBal(ethers.utils.formatUnits(maxStake, meta.decimals))} ${meta.sym}. Coba jumlah lebih kecil atau tier lebih pendek. Tidak ada transaksi terkirim, gas tidak terpakai.`;
+                    setStatus('⚠️ ' + msg);
+                    showToast('error', siteLangIsEn() ? 'Reward pool too low' : 'Pool reward belum cukup', msg, 8000);
+                    return;
+                }
+            } catch (e) { console.warn('reward pool precheck skipped:', e); }
 
             setStatus(`⏳ Step 1/2 — Approving ${meta.sym} spend…`);
             toast = showToast('pending', `Approving ${meta.sym}`, 'Requesting spend approval…');
@@ -2187,7 +2210,12 @@
             await refreshStakeViewSoon();
         } catch (err) {
             console.error('doStake error:', err);
-            const msg = (err && err.reason) || (err && err.message) || String(err);
+            let msg = (err && err.reason) || (err && err.message) || String(err);
+            if (err && (err.code === 4001 || err.code === 'ACTION_REJECTED')) {
+                msg = siteLangIsEn() ? 'Transaction cancelled in your wallet.' : 'Transaksi dibatalkan di dompetmu.';
+            } else if (/insufficient reward pool/i.test(msg)) {
+                msg = siteLangIsEn() ? 'Reward pool is too low for this stake. Try a smaller amount or a shorter tier.' : 'Pool reward belum cukup untuk stake ini. Coba jumlah lebih kecil atau tier lebih pendek.';
+            }
             setStatus('❌ ' + msg);
             if (toast) updateToast(toast, 'error', 'Stake Failed', msg, 6000);
             else showToast('error', 'Stake Failed', msg, 6000);
