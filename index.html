@@ -1403,6 +1403,19 @@ nav button.glass:hover {
 .spot-hist-empty{padding:26px 0;text-align:center;color:#8E9AC0;font-size:.82rem;}
 @media (max-width:1024px){.spot-info{grid-template-columns:1fr;padding:16px;}.spot-hist-head,.spot-hist-row{grid-template-columns:.9fr 1.5fr 1.1fr .8fr;gap:6px;font-size:.72rem;}}
 </style>
+<style>/* ARCENTIC-FIX eiji-composer */
+.eiji-input-bar{gap:6px;align-items:flex-end;padding:10px 12px;background:linear-gradient(180deg,rgba(6,10,26,.96),rgba(4,8,22,.99));border-top:1px solid rgba(120,140,255,.14)}
+.eiji-input-bar .eiji-photo-btn{width:36px;height:36px;border-radius:50%;margin-bottom:2px;background:transparent;border:1px solid transparent;color:rgba(170,184,255,.78);transition:background .18s,color .18s,border-color .18s,transform .12s}
+.eiji-input-bar .eiji-photo-btn:hover{background:rgba(120,140,255,.14);border-color:rgba(120,140,255,.28);color:#fff}
+.eiji-input-bar .eiji-photo-btn:active{transform:scale(.92)}
+.eiji-input-bar textarea{border-radius:20px;height:40px;padding:9px 16px;background:rgba(255,255,255,.045);border:1px solid rgba(120,140,255,.22)}
+.eiji-input-bar textarea:focus{border-color:rgba(130,150,255,.7);background:rgba(255,255,255,.07);box-shadow:0 0 0 3px rgba(92,120,255,.14)}
+.eiji-input-bar .eiji-send-btn{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#4d86ff,#9b6bff);box-shadow:0 4px 14px rgba(92,120,255,.38);transition:transform .12s,box-shadow .18s,opacity .2s}
+.eiji-input-bar .eiji-send-btn:hover:not(:disabled){box-shadow:0 6px 18px rgba(110,130,255,.55)}
+.eiji-input-bar .eiji-send-btn:active:not(:disabled){transform:scale(.93)}
+.eiji-input-bar .eiji-send-btn:disabled{box-shadow:none}
+.eiji-input-bar .eiji-photo-btn:focus-visible,.eiji-input-bar .eiji-send-btn:focus-visible{outline:2px solid rgba(150,170,255,.9);outline-offset:2px}
+</style>
 </head>
 <body class="gridbg min-h-screen">
 <div class="orb1"></div>
@@ -3120,11 +3133,11 @@ nav button.glass:hover {
     </div>
     <div class="eiji-input-bar">
         <input type="file" id="eijiPhotoInput" accept="image/*" style="display:none" onchange="eijiHandlePhoto(this)">
-        <button class="eiji-photo-btn" id="eijiPhotoBtn" title="Perbaiki foto / Scan dokumen" onclick="eijiOpenPhoto()">&#128247;</button>
-        <button class="eiji-photo-btn" id="eijiConvBtnOpen" title="Konversi file (gambar / MP4 ke MP3)" onclick="eijiOpenConv()">&#128260;</button>
-        <button class="eiji-photo-btn" id="eijiVoiceBtn" title="Voice Chat" onclick="toggleEijiVoice()">&#127908;</button>
+        <button class="eiji-photo-btn" id="eijiPhotoBtn" title="Perbaiki foto / Scan dokumen" onclick="eijiOpenPhoto()" aria-label="Perbaiki foto / Scan dokumen"><svg style="width:18px;height:18px;display:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.2"/></svg></button>
+        <button class="eiji-photo-btn" id="eijiConvBtnOpen" title="Konversi file (gambar / MP4 ke MP3)" onclick="eijiOpenConv()" aria-label="Konversi file"><svg style="width:18px;height:18px;display:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></button>
+        <button class="eiji-photo-btn" id="eijiVoiceBtn" title="Voice Chat" onclick="toggleEijiVoice()" aria-label="Voice chat"><svg style="width:18px;height:18px;display:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg></button>
         <textarea id="eijiInput" rows="1" placeholder="Ask about Arc, USDC, ARCENTIC, DeFi..." onkeydown="eijiKeydown(event)" oninput="eijiAutoResize(this)"></textarea>
-        <button class="eiji-send-btn" id="eijiSendBtn" onclick="sendEijiMessage()">&#10148;</button>
+        <button class="eiji-send-btn" id="eijiSendBtn" onclick="sendEijiMessage()" aria-label="Kirim pesan"><svg style="width:20px;height:20px;display:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg></button>
     </div>
 </div>
 
