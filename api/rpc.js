@@ -62,6 +62,12 @@ function getAllowedOrigins() {
         .filter(Boolean);
 }
 
+// Preview Vercel proyek ini (hanya VERCEL_ENV=preview; tidak pernah aktif di production)
+function isPreviewOrigin(origin) {
+    return process.env.VERCEL_ENV === 'preview' &&
+        /^https:\/\/arcentic[a-z0-9-]*-dedy-mulyadi\.vercel\.app$/.test(origin);
+}
+
 const MAX_BATCH = 50;
 const BLOCKED_METHOD = /^(debug_|trace_|admin_|txpool_|personal_|engine_|miner_)/i;
 
@@ -95,7 +101,7 @@ export default async function handler(req, res) {
     if (origin) {
         // Request dari browser (fetch/XHR cross- atau same-origin selalu
         // kirim header Origin) — harus cocok dengan whitelist.
-        if (!allowedOrigins.includes(origin)) {
+        if (!allowedOrigins.includes(origin) && !isPreviewOrigin(origin)) {
             res.status(403).json({ error: 'Origin tidak diizinkan.' });
             return;
         }
